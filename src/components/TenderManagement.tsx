@@ -47,8 +47,6 @@ const formatDate = (dateStr: string | undefined): string => {
   }
 };
 
-import { GoogleGenAI, Type } from "@google/genai";
-
 interface Advertisement {
   id: string;
   tenderNo: string;
@@ -244,56 +242,23 @@ export default function TenderManagement() {
       });
       
       const base64Data = await base64Promise;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
-      const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: [
-          {
-            parts: [
-              { text: "Extract tender details from this document. Return in JSON format. Use these keys: tenderNo, title, state, office, closingDate (YYYY-MM-DD), closingTime, closingVenue, briefingDate (YYYY-MM-DD), briefingTime, briefingVenue, visitDate (YYYY-MM-DD), visitVenue, docStartDate (YYYY-MM-DD), docEndDate (YYYY-MM-DD), docVenue, publishedDate (YYYY-MM-DD), licenses (object with booleans for cidb, stb, mof, tcc, pukonsa, kuhean)." },
-              { inlineData: { data: base64Data, mimeType: file.type } }
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              tenderNo: { type: Type.STRING },
-              title: { type: Type.STRING },
-              state: { type: Type.STRING },
-              office: { type: Type.STRING },
-              publishedDate: { type: Type.STRING },
-              closingDate: { type: Type.STRING },
-              closingTime: { type: Type.STRING },
-              closingVenue: { type: Type.STRING },
-              briefingDate: { type: Type.STRING },
-              briefingTime: { type: Type.STRING },
-              briefingVenue: { type: Type.STRING },
-              visitDate: { type: Type.STRING },
-              visitVenue: { type: Type.STRING },
-              docStartDate: { type: Type.STRING },
-              docEndDate: { type: Type.STRING },
-              docVenue: { type: Type.STRING },
-              licenses: {
-                type: Type.OBJECT,
-                properties: {
-                  cidb: { type: Type.BOOLEAN },
-                  stb: { type: Type.BOOLEAN },
-                  mof: { type: Type.BOOLEAN },
-                  tcc: { type: Type.BOOLEAN },
-                  pukonsa: { type: Type.BOOLEAN },
-                  kuhean: { type: Type.BOOLEAN },
-                }
-              }
-            }
-          }
-        }
+      const response = await fetch('/api/analyze-tender', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          base64Data,
+          mimeType: file.type
+        })
       });
 
-      const extractedData = JSON.parse(response.text);
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const extractedData = await response.json();
       
       setFormData(prev => ({
         ...prev,

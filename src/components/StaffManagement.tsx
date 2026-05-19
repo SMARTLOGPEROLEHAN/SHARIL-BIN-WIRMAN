@@ -456,13 +456,6 @@ export default function StaffManagement() {
     return matchesSearch && matchesRole;
   });
 
-  // Automatically start editing self if regular staff and list is fetched
-  useEffect(() => {
-    if (!isAdmin && filteredStaff.length > 0 && !editingId) {
-      handleEdit(filteredStaff[0]);
-    }
-  }, [filteredStaff, isAdmin]);
-
   if (!isStaff) {
     return <div className="p-20 text-center text-risda-muted font-black uppercase tracking-[4px]">Akses Terhad.</div>;
   }
@@ -662,10 +655,10 @@ export default function StaffManagement() {
                           </select>
                         )}
                         <button 
-                           onClick={() => isAdmin ? handleEdit(member) : null}
+                           onClick={() => handleEdit(member)}
                            className="px-4 py-1.5 bg-white/5 border border-white/5 text-white/50 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
                         >
-                          DETAIL
+                          {isAdmin ? 'DETAIL' : 'KEMASKINI PROFIL'}
                         </button>
                       </div>
                     </div>
@@ -699,7 +692,7 @@ export default function StaffManagement() {
               <div className="bg-black/40 p-8 border-b border-white/5 flex items-center justify-between">
                 <div className="space-y-1">
                   <h3 className="text-xl font-black text-white uppercase tracking-tight">
-                    {isAdmin ? (editingId ? 'Kemaskini Kakitangan' : 'Tambah Kakitangan Baru') : 'Kemaskini Profil Profil'}
+                    {isAdmin ? (editingId ? 'Kemaskini Kakitangan' : 'Tambah Kakitangan Baru') : 'Kemaskini Profil'}
                   </h3>
                   <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[2px]">Input Maklumat Kakitangan Sistem</p>
                 </div>
@@ -740,7 +733,7 @@ export default function StaffManagement() {
                     <input 
                       value={displayName || ''}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      readOnly={!isAdmin}
+                      readOnly={!isAdmin && editingId !== currentUser?.email?.replace(/[^a-zA-Z0-9]/g, '_')}
                       placeholder="NAMA PENUH"
                       className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10"
                       required

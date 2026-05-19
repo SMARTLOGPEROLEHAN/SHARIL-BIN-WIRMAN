@@ -158,8 +158,8 @@ const loadLogo = (): Promise<HTMLImageElement | null> => {
         resolve(null);
       }
     };
-    // Using the official logo URL as a stable source
-    img.src = 'https://www.risda.gov.my/images/logo_risda.png';
+    // Using the proxied logo URL to avoid CORS issues on Netlify
+    img.src = '/api/logo';
   });
 };
 
@@ -233,9 +233,13 @@ export const exportToPDF = async (ad: AdData) => {
   // Logo
   const logo = await loadLogo();
   if (logo) {
-    doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 10, 24, 24);
-    // Add watermark
-    addWatermark(doc, logo);
+    try {
+      doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 10, 24, 24);
+      // Add watermark
+      addWatermark(doc, logo);
+    } catch (e) {
+      console.error('Failed to add logo to PDF:', e);
+    }
   }
 
   // QR Code Placeholder (Top Right)

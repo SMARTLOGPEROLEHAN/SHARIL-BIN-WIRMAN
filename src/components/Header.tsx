@@ -163,7 +163,7 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         <div className="flex items-center gap-4 text-risda-muted relative">
           {/* RISDA Logo moved to right */}
           <div className="w-9 h-9 bg-white p-1.5 rounded-lg flex items-center justify-center shadow-lg hover:scale-105 transition-all overflow-hidden hidden sm:flex">
-            <img src="https://www.risda.gov.my/images/logo_risda.png" alt="RISDA" className="w-full h-full object-contain" />
+            <img src="/api/logo" alt="RISDA" className="w-full h-full object-contain" />
           </div>
 
           {/* Technical Support Notification Icon */}

@@ -160,7 +160,7 @@ export default function LoginPage() {
         <div className="text-center space-y-5">
           <div className="inline-flex items-center justify-center p-3 h-28 w-28 group transition-transform duration-500 mx-auto overflow-hidden">
             <img 
-              src="https://www.risda.gov.my/images/logo_risda.png" 
+              src="/api/logo" 
               alt="RISDA" 
               className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-transform duration-500 group-hover:scale-110" 
               onError={(e) => {
