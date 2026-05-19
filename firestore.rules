@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // -------------------------------------------------------------------------
+    // GLOBAL HELPERS
+    // -------------------------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // Role Checks
+    function hasUserDoc() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserRole() {
+      return !isSignedIn() ? 'pelawat' :
+             (request.auth.token.get('email', '').lower() == 'innogranite@gmail.com' && request.auth.token.get('email_verified', false) == true) ? 'admin' :
+             hasUserDoc() ? getUserData().role : 'pelawat';
+    }
+
+    function isAdmin() {
+      return getUserRole() in ['admin', 'pentadbir'];
+    }
+
+    function isStaff() {
+      return getUserRole() in ['admin', 'penginput', 'pelulus', 'pentadbir'];
+    }
+
+    function getUserOffice() {
+      return hasUserDoc() ? getUserData().get('office', '') : '';
+    }
+
+    // -------------------------------------------------------------------------
+    // USER PROFILES
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      // Allow read for everyone to enable login via Staff ID/Name lookup
+      allow read: if true;
+      
+      // Allow users to manage their own profile (migration, password updates, etc)
+      // We check UID match OR email match in the document data
+      allow create: if isStaff() || (isSignedIn() && request.auth.uid == userId);
+      allow update, delete: if isStaff() || (isSignedIn() && (
+        request.auth.uid == userId || 
+        (resource != null && resource.data.get('email', '') == request.auth.token.get('email', ''))
+      ));
+    }
+
+    // -------------------------------------------------------------------------
+    // LOCATIONS & OFFICES
+    // -------------------------------------------------------------------------
+    match /locations/{locationId} {
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+    }
+
+    match /offices/{officeId} {
+      // Offices are needed for public filters
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+    }
+
+    // -------------------------------------------------------------------------
+    // ATTENDANCE & SUBMISSIONS
+    // -------------------------------------------------------------------------
+    match /attendance/{attendanceId} {
+      allow read: if true;
+      allow create: if true; // Public registration
+      allow update, delete: if isStaff();
+    }
+
+    match /{path=**}/attendance/{attendanceId} {
+      allow list, get: if true;
+      allow update, delete: if isStaff();
+    }
+
+    // -------------------------------------------------------------------------
+    // ADVERTISEMENTS (IKLAN)
+    // -------------------------------------------------------------------------
+    function isValidAd(data) {
+      return data.tenderNo is string && data.tenderNo.size() > 0 && data.tenderNo.size() < 100
+             && data.title is string && data.title.size() > 0 && data.title.size() < 500
+             && data.status in ['AKTIF', 'BATAL', 'SELESAI (KEPUTUSAN)', 'Dibuka', 'Tutup']
+             && data.office is string && data.office.size() > 0;
+    }
+
+    match /ads/{adId} {
+      // Visitors see all. 
+      allow get: if true;
+      allow list: if true;
+      
+      allow create: if isStaff() && isValidAd(incoming());
+      allow update: if isStaff() && isValidAd(incoming());
+      allow delete: if isStaff();
+      
+      match /attendance/{attendanceId} {
+        // Anyone can register for attendance.
+        allow create: if true; // Registration is public
+        allow list, get: if true;
+        allow update, delete: if isStaff();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // NOTIFICATIONS & SUPPORT REQUESTS
+    // -------------------------------------------------------------------------
+    match /notifications/{notifId} {
+      allow create: if true; // Anyone can request help/reset even if not signed in
+      allow get, list, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /sent_emails/{emailId} {
+      allow create: if isStaff();
+      allow read: if isStaff();
+    }
+
+    // -------------------------------------------------------------------------
+    // DEFAULT DENY
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

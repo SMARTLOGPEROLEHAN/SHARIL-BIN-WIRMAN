@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System users and their roles",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "staffId": { "type": "string" },
+        "password": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "penginput", "pelulus", "pentadbir", "pelawat"] },
+        "status": { "type": "string", "enum": ["Aktif", "Tidak Aktif", "Pencen", "Berhenti"] },
+        "state": { "type": "string" },
+        "district": { "type": "string" },
+        "office": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "staffId"]
+    },
+    "Advertisement": {
+      "title": "Advertisement",
+      "description": "Sebut Harga / Tender Advertisements",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenderNo": { "type": "string" },
+        "title": { "type": "string" },
+        "office": { "type": "string" },
+        "description": { "type": "string" },
+        "state": { "type": "string" },
+        "category": { "type": "string" },
+        "closingDate": { "type": "string" },
+        "closingTime": { "type": "string" },
+        "closingVenue": { "type": "string" },
+        "briefingDate": { "type": "string" },
+        "briefingTime": { "type": "string" },
+        "briefingVenue": { "type": "string" },
+        "visitDate": { "type": "string" },
+        "visitVenue": { "type": "string" },
+        "docStartDate": { "type": "string" },
+        "docEndDate": { "type": "string" },
+        "docVenue": { "type": "string" },
+        "publishedDate": { "type": "string" },
+        "licenseRequirements": { "type": "string" },
+        "status": { "type": "string", "enum": ["AKTIF", "BATAL", "SELESAI (KEPUTUSAN)"] },
+        "licenses": {
+          "type": "object",
+          "properties": {
+            "cidb": { "type": "boolean" },
+            "stb": { "type": "boolean" },
+            "mof": { "type": "boolean" },
+            "tcc": { "type": "boolean" },
+            "pukonsa": { "type": "boolean" },
+            "kuhean": { "type": "boolean" },
+            "others": { "type": "string" }
+          }
+        },
+        "winner": {
+          "type": "object",
+          "properties": {
+            "companyName": { "type": "string" },
+            "representativeName": { "type": "string" },
+            "phoneNumber": { "type": "string" },
+            "timestamp": { "type": "string" }
+          }
+        },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenderNo", "title", "status"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Site briefing attendance records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "adId": { "type": "string" },
+        "companyName": { "type": "string" },
+        "representativeName": { "type": "string" },
+        "icNumber": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adId", "companyName", "representativeName"]
+    },
+    "Location": {
+      "title": "Location",
+      "description": "RISDA offices, districts and states",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "state": { "type": "string" },
+        "district": { "type": "string" },
+        "office": { "type": "string" },
+        "station": { "type": "string", "description": "Station under the office (optional)" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["state", "district", "office"]
+    }
+  },
+  "firestore": {
+    "/locations/{locationId}": {
+      "schema": "Location",
+      "description": "Collection of RISDA offices"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles"
+    },
+    "/ads/{adId}": {
+      "schema": "Advertisement",
+      "description": "Tender advertisements"
+    },
+    "/ads/{adId}/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Attendance records for a specific ad"
+    }
+  }
+}

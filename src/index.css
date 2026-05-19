@@ -1,0 +1,160 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-risda-dark: var(--risda-dark);
+  --color-risda-sidebar: var(--risda-sidebar);
+  --color-risda-card: var(--risda-card);
+  --color-risda-orange: var(--risda-orange);
+  --color-risda-gold: var(--risda-gold);
+  --color-risda-gold-light: var(--risda-gold-light);
+  --color-risda-accent: var(--risda-accent);
+  --color-risda-orange-glow: var(--risda-orange-glow);
+  --color-risda-border: var(--risda-border);
+  --color-risda-text-secondary: var(--risda-text-secondary);
+  --color-risda-muted: var(--risda-muted);
+  --color-risda-text: var(--risda-text);
+  
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-poppins: "Poppins", sans-serif;
+}
+
+:root {
+  /* Default (Deep Blue/Azure - Comfort Mode) */
+  --risda-dark: #020617;
+  --risda-sidebar: #010413;
+  --risda-card: rgba(8, 14, 28, 0.95);
+  --risda-orange: #0091EA;
+  --risda-gold: #00B0FF;
+  --risda-gold-light: #E0F2F1;
+  --risda-accent: #0284c7;
+  --risda-orange-glow: rgba(0, 145, 234, 0.15);
+  --risda-border: rgba(0, 145, 234, 0.1);
+  --risda-text: #e2e8f0;
+  --risda-text-secondary: #94A3B8;
+  --risda-muted: #64748B;
+  --risda-glow-color: rgba(0, 145, 234, 0.1);
+  --risda-gradient-color: rgba(0, 145, 234, 0.05);
+}
+
+.custom-theme {
+  --risda-dark: #0f0a05;
+  --risda-sidebar: #0a0703;
+  --risda-card: rgba(20, 15, 10, 0.95);
+  --risda-orange: #A48418;
+  --risda-gold: #C5A021;
+  --risda-gold-light: #F4E4BC;
+  --risda-accent: #735911;
+  --risda-orange-glow: rgba(164, 132, 24, 0.15);
+  --risda-border: rgba(164, 132, 24, 0.1);
+  --risda-text: #f1f5f9;
+  --risda-text-secondary: #a8a29e;
+  --risda-muted: #78716c;
+  --risda-glow-color: rgba(164, 132, 24, 0.08);
+  --risda-gradient-color: rgba(197, 160, 33, 0.03);
+}
+
+@layer base {
+  body {
+    @apply bg-risda-dark text-slate-100 antialiased selection:bg-risda-orange/30;
+    font-family: var(--font-sans);
+    background-image: 
+      radial-gradient(circle at 50% -20%, var(--risda-glow-color) 0%, transparent 60%),
+      radial-gradient(circle at 0% 0%, var(--risda-gradient-color) 0%, transparent 40%),
+      radial-gradient(circle at 100% 100%, var(--risda-glow-color) 0%, transparent 30%);
+    background-attachment: fixed;
+    color: var(--risda-text);
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-risda-card backdrop-blur-xl border border-risda-border rounded-[24px];
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    @apply hover:border-risda-orange/20 transition-all duration-500;
+  }
+  
+  .technical-grid {
+    background-image: 
+      linear-gradient(to right, rgba(128, 128, 128, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(128, 128, 128, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .text-glow-orange {
+    text-shadow: 0 0 25px var(--risda-orange-glow);
+  }
+
+  .text-glow-gold {
+    text-shadow: 0 0 20px var(--risda-orange-glow);
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 229, 255, 0.08) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 3s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .btn-gold {
+    @apply bg-gradient-to-br from-risda-gold via-risda-orange to-risda-accent text-white font-black uppercase tracking-[2px] px-8 py-4 rounded-xl transition-all duration-300 hover:brightness-110 hover:shadow-[0_10px_30px_rgba(0,176,255,0.3)] active:scale-[0.98] flex items-center justify-center gap-2 text-[10px];
+    @apply border border-white/20;
+  }
+
+  .sidebar-item-active {
+    @apply bg-gradient-to-r from-risda-orange/15 to-transparent text-risda-gold border-l-4 border-risda-orange;
+    @apply shadow-[inset_15px_0_30px_rgba(0,176,255,0.08)];
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full border-2 border-transparent bg-clip-content hover:bg-risda-orange/40 transition-all;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  width: 100vw;
+  max-width: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  width: 100vw;
+  max-width: 100%;
+  position: relative;
+}
+
+@media (max-width: 1024px) {
+  ::-webkit-scrollbar {
+    width: 0px;
+    background: transparent; /* Hide on mobile for cleaner look */
+  }
+}
