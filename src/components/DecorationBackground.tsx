@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 
 export default function DecorationBackground() {
-  const [logoSrc, setLogoSrc] = React.useState("https://www.risda.gov.my/images/logo_risda.png");
+  const [logoSrc, setLogoSrc] = React.useState("/api/logo");
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">

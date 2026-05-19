@@ -1,12 +1,10 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import fetch from "node-fetch";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
@@ -39,7 +37,7 @@ async function startServer() {
       const prompt = "Extract tender details from this document. Return in JSON format. Use these keys: tenderNo, title, state, office, closingDate (YYYY-MM-DD), closingTime, closingVenue, briefingDate (YYYY-MM-DD), briefingTime, briefingVenue, visitDate (YYYY-MM-DD), visitVenue, docStartDate (YYYY-MM-DD), docEndDate (YYYY-MM-DD), docVenue, publishedDate (YYYY-MM-DD), licenses (object with booleans for cidb, stb, mof, tcc, pukonsa, kuhean).";
 
       const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
+        model: "gemini-3-flash-preview",
         contents: [
           {
             parts: [
@@ -52,14 +50,16 @@ async function startServer() {
 
       let text = response.text || "";
       
-      // Clean up JSON response if it's wrapped in markdown blocks
-      if (text.includes("```json")) {
-        text = text.split("```json")[1].split("```")[0].trim();
-      } else if (text.includes("```")) {
-        text = text.split("```")[1].trim();
+      // Better JSON cleaning
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      
+      try {
+        const parsedData = JSON.parse(text);
+        res.json(parsedData);
+      } catch (parseError) {
+        console.error("JSON Parse Error. Raw text:", text);
+        res.status(500).json({ error: "Failed to parse AI response as JSON" });
       }
-
-      res.json(JSON.parse(text));
     } catch (error: any) {
       console.error("AI Analysis Error:", error);
       res.status(500).json({ error: error.message || "Failed to analyze document" });
@@ -69,12 +69,20 @@ async function startServer() {
   // Proxy for Logo to avoid CORS
   app.get("/api/logo", async (req, res) => {
     try {
-      const logoUrl = 'https://www.risda.gov.my/images/logo_risda.png';
+      // 1. Check if local logo exists in public folder
+      const localLogoPath = path.join(process.cwd(), "public", "logo.png");
+      if (fs.existsSync(localLogoPath) && fs.statSync(localLogoPath).size > 0) {
+        res.setHeader('Content-Type', 'image/png');
+        return fs.createReadStream(localLogoPath).pipe(res);
+      }
+
+      // 2. Fallback to Gold Logo URL
+      const logoUrl = 'https://risdaagro.com.my/wp-content/uploads/2021/04/Logo-RISDA-1.png';
       const response = await fetch(logoUrl);
       
       if (!response.ok) {
-        // Fallback to Wikipedia logo if primary fails
-        const fallbackUrl = 'https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png';
+        // 3. Fallback to official site logo
+        const fallbackUrl = 'https://www.risda.gov.my/images/logo_risda.png';
         const fallbackRes = await fetch(fallbackUrl);
         if (fallbackRes.ok) {
           res.setHeader('Content-Type', 'image/png');

@@ -355,17 +355,30 @@ export default function TenderManagement() {
 
   const handleDelete = async (id: string) => {
     if (!isStaff) return;
-    if (!window.confirm('Adakah anda pasti untuk padam iklan ini? SEMUA DATA berkaitan (termasuk rekod kehadiran) akan dipadam secara kekal dari database.')) return;
+    if (!window.confirm('Adakah anda pasti untuk padam iklan ini? SEMUA DATA berkaitan (termasuk rekod kehadiran & serahan) akan dipadam secara kekal dari database.')) return;
     
     const loadingToast = toast.loading('Memadam data...');
     try {
-      // 1. Delete the ad doc
+      // 1. Delete all related attendance/submission records
+      const attQuery = query(collection(db, 'attendance'), where('adId', '==', id));
+      const attSnap = await getDocs(attQuery);
+      
+      if (!attSnap.empty) {
+        const batch = writeBatch(db);
+        attSnap.docs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+      }
+
+      // 2. Delete the ad doc
       await deleteDoc(doc(db, 'ads', id));
       
       setAds(prev => prev.filter(ad => ad.id !== id));
-      toast.success('Iklan telah dipadam.', { id: loadingToast });
+      toast.success('Iklan dan semua rekod berkaitan telah dipadam.', { id: loadingToast });
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `ads/${id}`);
+      toast.dismiss(loadingToast);
     }
   };
 

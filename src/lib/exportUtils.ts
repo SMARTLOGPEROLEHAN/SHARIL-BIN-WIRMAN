@@ -547,22 +547,17 @@ export const exportResultToPDF = async (res: ResultData) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  // Header - Right aligned
+  // Header - Right aligned info, Logo centered
   const logo = await loadLogo();
   if (logo) {
-    doc.addImage(logo, 'PNG', 15, 10, 25, 25);
+    doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 10, 24, 24);
     // Add watermark
     addWatermark(doc, logo);
   }
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text(`URUSETIA PEROLEHAN PRD ${res.office.toUpperCase()}`, pageWidth - 15, 15, { align: 'right' });
-  
-  // LOGO (centered)
-  if (logo) {
-    doc.addImage(logo, 'PNG', pageWidth / 2 - 15, 25, 30, 30);
-  }
+  doc.text(`URUSETIA PEROLEHAN PRD ${res.office.toUpperCase()}`, pageWidth - 15, 40, { align: 'right' });
   
   // Title
   doc.setFontSize(30);
@@ -749,28 +744,28 @@ export const exportAttendanceListToPDF = async (ad: AdData, records: AttendanceR
   // Header
   const logo = await loadLogo();
   if (logo) {
-    doc.addImage(logo, 'PNG', 15, 10, 20, 20);
+    doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 10, 24, 24);
     // Add watermark
     addWatermark(doc, logo);
   }
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('R I S D A', pageWidth / 2, 20, { align: 'center' });
+  doc.text('R I S D A', pageWidth / 2, 40, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('(PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH)', pageWidth / 2, 25, { align: 'center' });
-  doc.text('(KEMENTERIAN KEMAJUAN DESA DAN WILAYAH)', pageWidth / 2, 30, { align: 'center' });
+  doc.text('(PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH)', pageWidth / 2, 45, { align: 'center' });
+  doc.text('(KEMENTERIAN KEMAJUAN DESA DAN WILAYAH)', pageWidth / 2, 50, { align: 'center' });
   
   doc.setFontSize(14);
-  doc.text('SENARAI KEHADIRAN TAKLIMAT', pageWidth / 2, 45, { align: 'center' });
+  doc.text('SENARAI KEHADIRAN TAKLIMAT', pageWidth / 2, 65, { align: 'center' });
   
   doc.setFontSize(11);
-  doc.text(`NO SEBUTHARGA : ${ad.tenderNo}`, 20, 55);
+  doc.text(`NO SEBUTHARGA : ${ad.tenderNo}`, 20, 75);
   
   const splitTitle = doc.splitTextToSize(`TAJUK: ${ad.title.toUpperCase()}`, pageWidth - 40);
-  doc.text(splitTitle, 20, 62);
+  doc.text(splitTitle, 20, 82);
   
-  const tablesStartY = 62 + (splitTitle.length * 6);
+  const tablesStartY = 82 + (splitTitle.length * 6);
 
   autoTable(doc, {
     startY: tablesStartY,
@@ -899,28 +894,28 @@ export const exportSubmissionListToPDF = async (ad: AdData, records: AttendanceR
   // Header
   const logo = await loadLogo();
   if (logo) {
-    doc.addImage(logo, 'PNG', 15, 10, 20, 20);
+    doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 10, 24, 24);
     // Add watermark
     addWatermark(doc, logo);
   }
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('R I S D A', pageWidth / 2, 20, { align: 'center' });
+  doc.text('R I S D A', pageWidth / 2, 40, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('(PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH)', pageWidth / 2, 25, { align: 'center' });
-  doc.text('(KEMENTERIAN KEMAJUAN DESA DAN WILAYAH)', pageWidth / 2, 30, { align: 'center' });
+  doc.text('(PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH)', pageWidth / 2, 45, { align: 'center' });
+  doc.text('(KEMENTERIAN KEMAJUAN DESA DAN WILAYAH)', pageWidth / 2, 50, { align: 'center' });
   
   doc.setFontSize(14);
-  doc.text('BORANG SERAHAN DOKUMEN SEBUTHARGA', pageWidth / 2, 45, { align: 'center' });
+  doc.text('BORANG SERAHAN DOKUMEN SEBUTHARGA', pageWidth / 2, 65, { align: 'center' });
   
   doc.setFontSize(11);
-  doc.text(`NO SEBUTHARGA : ${ad.tenderNo}`, 20, 55);
+  doc.text(`NO SEBUTHARGA : ${ad.tenderNo}`, 20, 75);
   
   const splitTitle = doc.splitTextToSize(`TAJUK: ${ad.title.toUpperCase()}`, pageWidth - 40);
-  doc.text(splitTitle, 20, 62);
+  doc.text(splitTitle, 20, 82);
   
-  const tablesStartY = 62 + (splitTitle.length * 6);
+  const tablesStartY = 82 + (splitTitle.length * 6);
 
   autoTable(doc, {
     startY: tablesStartY,
@@ -1022,7 +1017,7 @@ export const exportIndividualSiteVisitForm = async (ad: AdData, rec: AttendanceR
 
     // Logo
     if (logo) {
-      doc.addImage(logo, 'PNG', 15, offsetY + 10, 15, 15);
+      doc.addImage(logo, 'PNG', pageWidth / 2 - 7.5, offsetY + 5, 15, 15);
     }
 
     // Header Right
@@ -1032,11 +1027,11 @@ export const exportIndividualSiteVisitForm = async (ad: AdData, rec: AttendanceR
 
     // Main Header
     doc.setFontSize(9);
-    doc.text('PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)', 35, offsetY + 18);
+    doc.text('PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)', pageWidth / 2, offsetY + 23, { align: 'center' });
     
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('BORANG LAWATAN TAPAK UNTUK:-', 15, offsetY + 28);
+    doc.text('BORANG LAWATAN TAPAK UNTUK:-', pageWidth / 2, offsetY + 28, { align: 'center' });
 
     // Project Title
     doc.setFontSize(9);

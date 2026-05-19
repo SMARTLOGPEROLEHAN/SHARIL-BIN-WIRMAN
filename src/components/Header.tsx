@@ -160,28 +160,30 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
       </div>
 
       <div className="flex items-center gap-6">
-        <div className="flex items-center gap-4 text-risda-muted relative">
-          {/* RISDA Logo moved to right */}
-          <div className="w-9 h-9 bg-white p-1.5 rounded-lg flex items-center justify-center shadow-lg hover:scale-105 transition-all overflow-hidden hidden sm:flex">
-            <img src="/api/logo" alt="RISDA" className="w-full h-full object-contain" />
-          </div>
-
+        <div className="flex items-center gap-3 text-risda-muted relative">
           {/* Technical Support Notification Icon */}
           {isAdmin && (
-            <div className="relative">
-              <button 
-                onClick={() => setShowNotifications(!showNotifications)}
-                className={`relative p-2 rounded-xl transition-all ${
-                  notifications.length > 0 
-                  ? 'bg-risda-orange/10 text-risda-orange' 
-                  : 'hover:text-white'
-                }`}
-              >
-                <LifeBuoy size={20} className={notifications.length > 0 ? "animate-pulse" : ""} />
-                {notifications.length > 0 && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-risda-sidebar" />
-                )}
-              </button>
+            <div className="flex items-center gap-3">
+              {/* RISDA Gold Logo next to help */}
+              <div className="w-10 h-10 bg-white/5 border border-white/10 p-1.5 rounded-xl flex items-center justify-center shadow-lg hover:bg-white/10 transition-all overflow-hidden hidden sm:flex">
+                <img src="/api/logo" alt="RISDA" className="w-full h-full object-contain filter drop-shadow-sm" />
+              </div>
+              
+              <div className="relative">
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`relative p-2.5 rounded-xl transition-all ${
+                    notifications.length > 0 
+                    ? 'bg-risda-orange/10 text-risda-orange border border-risda-orange/20' 
+                    : 'bg-white/5 border border-white/5 hover:text-white hover:border-white/10'
+                  }`}
+                  title="Bantuan & Sokongan"
+                >
+                  <LifeBuoy size={20} className={notifications.length > 0 ? "animate-pulse" : ""} />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-risda-sidebar" />
+                  )}
+                </button>
 
               <AnimatePresence>
                 {showNotifications && (
@@ -251,9 +253,10 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 )}
               </AnimatePresence>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Theme Switcher */}
+        {/* Theme Switcher */}
           <div className="flex items-center gap-1 bg-white/5 border border-white/5 rounded-2xl p-1 shrink-0">
             <button 
               onClick={() => setTheme('dark')}
