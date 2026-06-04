@@ -75,7 +75,7 @@ export default function AttendanceAndSubmission() {
       const adsData = snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
       setAds(adsData);
       
-      const uniqueOffices = Array.from(new Set(adsData.map((ad: any) => ad.office).filter(Boolean))) as string[];
+      const uniqueOffices = Array.from(new Set(adsData.map((ad: any) => ad.office?.trim().toUpperCase()).filter(Boolean))) as string[];
       setOffices(uniqueOffices.sort());
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'ads');

@@ -39,27 +39,65 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
   const [filters, setFilters] = useState({
     state: '',
     office: '',
+    category: 'SEMUA',
     year: initialStatus === 'SELESAI (KEPUTUSAN)' ? 'ALL' : currentYear,
     status: initialStatus || (isStaff ? 'SEMUA' : 'AKTIF')
   });
 
   const [selectedAd, setSelectedAd] = useState<any>(null);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [isViewOnlyList, setIsViewOnlyList] = useState(false);
   const [modalSearch, setModalSearch] = useState('');
 
   useEffect(() => {
     fetchAds();
   }, [filters, role, userOffice]);
 
+  // Read adId search param to auto-select and open attendance form
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const adIdParam = params.get('adId');
+    if (adIdParam && ads.length > 0) {
+      const foundAd = ads.find(a => a.id === adIdParam);
+      if (foundAd) {
+        setSelectedAd(foundAd);
+        setIsRegisterMode(true);
+        setIsViewOnlyList(false);
+      }
+    }
+  }, [ads]);
+
+  // Quietly remove adId search param when modal is closed
+  useEffect(() => {
+    if (!selectedAd) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('adId')) {
+        url.searchParams.delete('adId');
+        window.history.replaceState({}, '', url.pathname + url.search);
+      }
+    }
+  }, [selectedAd]);
+
   useEffect(() => {
     // Listen for custom trigger from Hero
     const handleRegisterTrigger = () => {
       setIsRegisterMode(true);
+      setIsViewOnlyList(false);
       setSelectedAd({}); // Open modal with empty selection
     };
 
+    const handleViewActiveAdsTrigger = () => {
+      setIsRegisterMode(false);
+      setIsViewOnlyList(true);
+      setSelectedAd({}); // Open modal to select active ad for viewing
+    };
+
     window.addEventListener('triggerRegister', handleRegisterTrigger);
-    return () => window.removeEventListener('triggerRegister', handleRegisterTrigger);
+    window.addEventListener('triggerViewActiveAds', handleViewActiveAdsTrigger);
+    return () => {
+      window.removeEventListener('triggerRegister', handleRegisterTrigger);
+      window.removeEventListener('triggerViewActiveAds', handleViewActiveAdsTrigger);
+    };
   }, []);
 
   const fetchAds = async () => {
@@ -79,7 +117,8 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
         // Update filtered offices based on current state filter
         const filteredOffices = locationList
           .filter(loc => (!filters.state || loc.state === filters.state) && loc.status === 'Aktif')
-          .map(loc => loc.name)
+          .map(loc => loc.name?.trim().toUpperCase())
+          .filter(Boolean)
           .sort();
         setOffices(Array.from(new Set(filteredOffices)));
       } catch (offErr) {
@@ -150,9 +189,12 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
     }).filter(Boolean)
   ])).sort((a, b) => b.localeCompare(a));
 
+  const isHomepageVisitor = !isStaff && showRegistration;
+
   return (
-    <section className="space-y-16 pb-20 text-left">
-      <div className="w-full">
+    <section className={isHomepageVisitor ? "" : "space-y-16 pb-20 text-left"}>
+      {!isHomepageVisitor && (
+        <div className="w-full">
         <div className="py-10 flex justify-between items-center border-b border-white/10">
           <div className="flex items-center gap-4">
             <div className="w-2.5 h-2.5 bg-risda-orange rounded-full shadow-[0_0_15px_rgba(255,176,0,0.6)]" />
@@ -179,7 +221,8 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                       setFilters({...filters, state: newState, office: ''});
                       const filtered = allLocations
                         .filter(loc => (!newState || loc.state === newState) && loc.status === 'Aktif')
-                        .map(loc => loc.name)
+                        .map(loc => loc.name?.trim().toUpperCase())
+                        .filter(Boolean)
                         .sort();
                       setOffices(Array.from(new Set(filtered)));
                     }}
@@ -313,6 +356,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                   </tr>
                 ) : ads
                     .filter(ad => filters.status === 'SEMUA' || ad.status === filters.status)
+                    .filter(ad => filters.category === 'SEMUA' || (ad.category || 'KERJA') === filters.category)
                     .filter(ad => {
                       if (filters.year === 'ALL') return true;
                       const date = ad.visitDate || ad.closingDate || ad.createdAt;
@@ -339,7 +383,14 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                     }}
                   >
                     <td className="px-6 py-6 border-l-2 border-transparent hover:border-risda-orange transition-all">
-                      <div className="font-mono text-[10px] text-risda-orange mb-0.5 font-bold tracking-widest">{item.tenderNo}</div>
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="font-mono text-[10px] text-risda-orange font-bold tracking-widest">{item.tenderNo}</span>
+                        {item.category && (
+                          <span className="px-2 py-0.5 text-[8px] font-black text-white bg-risda-gold/20 border border-risda-gold/30 rounded uppercase tracking-wider">
+                            {item.category}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[14px] font-black text-white group-hover:text-risda-orange transition-colors uppercase truncate max-w-[300px] font-display mb-3">{item.title}</div>
                       {showRegistration && 
                         (displayStatus === 'AKTIF') && 
@@ -347,8 +398,10 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedAd(item);
-                            setIsRegisterMode(true);
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('adId', item.id);
+                            window.history.pushState({}, '', url.pathname + url.search);
+                            window.dispatchEvent(new Event('popstate'));
                           }}
                           className="bg-risda-orange text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
                         >
@@ -407,6 +460,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
               </div>
             ) : ads
                 .filter(ad => filters.status === 'SEMUA' || ad.status === filters.status)
+                .filter(ad => filters.category === 'SEMUA' || (ad.category || 'KERJA') === filters.category)
                 .filter(ad => {
                   if (filters.year === 'ALL') return true;
                   const date = ad.visitDate || ad.closingDate || ad.createdAt;
@@ -435,7 +489,14 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                 className="bg-transparent border border-white/5 rounded-3xl p-6 space-y-4 active:scale-[0.98] transition-all"
               >
                 <div className="flex justify-between items-start">
-                  <span className="font-mono text-[10px] text-risda-orange font-bold tracking-widest">{item.tenderNo}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[10px] text-risda-orange font-bold tracking-widest">{item.tenderNo}</span>
+                    {item.category && (
+                      <span className="px-2 py-0.5 text-[8px] font-black text-white bg-risda-gold/20 border border-risda-gold/30 rounded uppercase tracking-wider">
+                        {item.category}
+                      </span>
+                    )}
+                  </div>
                   <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
                     displayStatus === 'AKTIF' ? 'bg-green-500/10 text-green-400 border border-green-400/20' : 
                     displayStatus === 'SELESAI (KEPUTUSAN)' ? 'bg-blue-500/10 text-blue-400 border border-blue-400/20' :
@@ -457,8 +518,10 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedAd(item);
-                      setIsRegisterMode(true);
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('adId', item.id);
+                      window.history.pushState({}, '', url.pathname + url.search);
+                      window.dispatchEvent(new Event('popstate'));
                     }}
                     className="bg-risda-orange text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest w-full py-3"
                   >
@@ -483,6 +546,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
           </div>
         </div>
       </div>
+      )}
 
       {/* Details / Attendance Modal */}
       <AnimatePresence>
@@ -510,13 +574,19 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
               </button>
 
               <div className="flex-1 overflow-y-auto">
-                {isRegisterMode ? (
+                {isRegisterMode || (isViewOnlyList && !selectedAd?.id) ? (
                   <div className="bg-black/20">
                     {!selectedAd.id ? (
                       <div className="p-8 md:p-14 space-y-10">
                         <div className="space-y-3 border-l-4 border-risda-orange pl-6">
-                          <h3 className="text-2xl font-black text-white uppercase tracking-tight leading-none">Pilih Rujukan Projek</h3>
-                          <p className="text-[11px] text-risda-orange font-black uppercase tracking-[4px]">Sila pilih projek untuk pendaftaran taklimat tapak</p>
+                          <h3 className="text-2xl font-black text-white uppercase tracking-tight leading-none">
+                            {isRegisterMode ? 'Pilih Rujukan Projek' : 'Senarai Iklan Aktif'}
+                          </h3>
+                          <p className="text-[11px] text-risda-orange font-black uppercase tracking-[4px]">
+                            {isRegisterMode 
+                              ? 'Sila pilih projek untuk pendaftaran taklimat tapak' 
+                              : 'Sila pilih projek untuk melihat maklumat & muat turun dokumen sebut harga'}
+                          </p>
                         </div>
 
                         <div className="relative">
@@ -589,9 +659,9 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-1 min-h-full">
-                    {/* Information - Full Width */}
-                    <div className="p-8 md:p-14 space-y-10">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 min-h-full divide-y lg:divide-y-0 lg:divide-x divide-white/10">
+                    {/* Information - Column 1 & 2 on Large Screens */}
+                    <div className="p-8 md:p-14 space-y-10 lg:col-span-2">
                       <div className="space-y-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg ${
@@ -605,7 +675,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                             }`}>
                               {(selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'Keputusan Rasmi Perolehan' : 'Maklumat Iklan'}
                             </div>
-                            {isStaff && (selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) && (
+                            {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) && (
                               <div className="flex gap-2 mt-4 sm:mt-0">
                                 <button 
                                   onClick={async () => {
@@ -627,8 +697,14 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                           </div>
                         </div>
                         <h2 className="text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{selectedAd.title}</h2>
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-wrap items-center gap-4">
                           <span className="font-mono text-sm text-risda-muted">{selectedAd.tenderNo}</span>
+                          {selectedAd.category && (
+                            <>
+                              <span className="w-1.5 h-1.5 bg-risda-muted rounded-full" />
+                              <span className="px-2.5 py-0.5 text-[9px] font-black text-white bg-risda-orange/20 border border-risda-orange/30 rounded uppercase tracking-wider">{selectedAd.category}</span>
+                            </>
+                          )}
                           <span className="w-1.5 h-1.5 bg-risda-muted rounded-full" />
                           <span className={`text-[10px] font-black uppercase tracking-[2px] ${
                             (selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'text-blue-400' : 'text-risda-orange'
@@ -782,9 +858,18 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                                 <div className="text-[7px] md:text-[10px] font-black text-right mb-4 md:mb-12 uppercase tracking-tighter opacity-80">URUSETIA PEROLEHAN PRD {selectedAd.office?.toUpperCase()}</div>
                                 
                                 <div className="flex flex-col items-center mb-6 md:mb-12">
-                                  <div className="w-12 h-12 md:w-20 md:h-20 mb-4 md:mb-8 flex items-center justify-center">
-                                    <img src="https://www.risda.gov.my/images/logo_risda.png" alt="RISDA" className="h-full object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-                                    <div className="font-bold text-green-700 text-lg border-2 border-green-700 px-2 rounded">RISDA</div>
+                                  <div className="w-12 h-12 md:w-24 md:h-24 mb-4 md:mb-6 flex items-center justify-center">
+                                    <img 
+                                      src="/PUBLIC/intrologo_RISDA.png" 
+                                      alt="RISDA" 
+                                      className="h-full object-contain" 
+                                      onError={(e) => { 
+                                        const img = e.currentTarget;
+                                        if (img.src !== "/api/logo") {
+                                          img.src = "/api/logo";
+                                        }
+                                      }} 
+                                    />
                                   </div>
                                   <h1 className="text-xl sm:text-2xl md:text-5xl font-black border-b-4 border-black pb-1 mb-4 md:mb-8 tracking-tight text-center">HEBAHAN</h1>
                                   <div className="text-center font-black text-[10px] sm:text-sm md:text-lg tracking-tight mb-4 md:mb-8 px-2">
@@ -834,6 +919,64 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                         </div>
                       )}
                     </div>
+
+                    {/* Column 3 - QR Code (Only for active or cancelled/briefing ads) */}
+                    {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) ? (
+                      <div className="p-8 md:p-14 bg-black/15 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-white/10 lg:col-span-1">
+                        <div className="w-full space-y-6">
+                          <div className="border-b border-white/5 pb-4 text-center">
+                            <h4 className="text-sm font-black text-white uppercase tracking-widest leading-none">PENDAFTARAN SEGERA</h4>
+                            <p className="text-[10px] text-risda-orange uppercase tracking-[3px] mt-1.5 font-bold">Imbas QR Kod</p>
+                          </div>
+                          
+                          <div className="relative mx-auto max-w-[220px] aspect-square bg-[#0d121c] p-4 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] group overflow-hidden flex items-center justify-center">
+                            <div className="absolute inset-0 bg-gradient-to-t from-risda-orange/10 via-transparent to-transparent opacity-80 group-hover:scale-110 transition-transform duration-500" />
+                            <img 
+                              src={`/api/qr-code.png?adId=${selectedAd.id}&origin=${encodeURIComponent(window.location.origin)}`} 
+                              alt="Kod QR Pendaftaran" 
+                              className="relative z-10 w-full h-full object-contain"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+
+                          <div className="space-y-3 bg-white/5 p-5 rounded-2xl border border-white/5 text-left">
+                            <p className="text-[11px] text-white/95 font-bold leading-relaxed uppercase">
+                              Kontraktor diminta untuk mengimbas QR Code ini untuk pendaftaran taklimat tapak digital secara terus menggunakan telefon pintar.
+                            </p>
+                            <div className="h-px bg-white/5" />
+                            <p className="text-[10px] text-risda-muted leading-relaxed uppercase">
+                              Pastikan anda berada di lokasi taklimat pada tarikh dan masa yang ditetapkan untuk mengimbas.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="w-full pt-6 border-t border-white/5 text-center">
+                          <p className="text-[9px] text-white/40 tracking-[2px] font-black uppercase">SMART LOG SYSTEM</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-8 md:p-14 bg-black/15 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-white/10 lg:col-span-1">
+                        <div className="w-full space-y-6">
+                          <div className="border-b border-white/5 pb-4 text-center">
+                            <h4 className="text-sm font-black text-white uppercase tracking-widest leading-none">MAKLUMAT KEPUTUSAN</h4>
+                            <p className="text-[10px] text-blue-400 uppercase tracking-[3px] mt-1.5 font-bold">RASMI PEROLEHAN</p>
+                          </div>
+                          
+                          <div className="space-y-4 text-left">
+                            <div className="bg-blue-500/5 p-4 rounded-2xl border border-blue-500/10 text-[11px] text-white/80 uppercase font-medium leading-relaxed">
+                              Sebut harga ini telah selesai dinilai dan keputusan rasmi telah dikeluarkan oleh jawatankuasa perolehan RISDA.
+                            </div>
+                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-[10px] text-risda-muted uppercase leading-relaxed">
+                              Sila rujuk lampiran sijil tawaran atau hubungi Pejabat RISDA Negeri/Daerah yang berkaitan untuk maklumat lanjut.
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="w-full pt-6 border-t border-white/5 text-center">
+                          <p className="text-[9px] text-white/40 tracking-[2px] font-black uppercase">SMART LOG SYSTEM</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, serverTimestamp, where, writeBatch, Timestamp, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Trash2, Shield, User, RefreshCcw, Plus, X, Search } from 'lucide-react';
+import { UserPlus, Trash2, Shield, User, RefreshCcw, Plus, X, Search, Folder, FolderOpen, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
 import { initializeApp, deleteApp, getApps } from 'firebase/app';
@@ -50,6 +50,8 @@ export default function StaffManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'penginput' | 'pelulus' | 'pentadbir'>('all');
   const [showModal, setShowModal] = useState(false);
+  const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>({});
+  const [expandedDistricts, setExpandedDistricts] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -456,6 +458,24 @@ export default function StaffManagement() {
     return matchesSearch && matchesRole;
   });
 
+  // Auto-expand states & districts when searching or filtering is active
+  useEffect(() => {
+    if (searchQuery.trim() !== '' || roleFilter !== 'all') {
+      const autoExpandStates: Record<string, boolean> = {};
+      const autoExpandDistricts: Record<string, boolean> = {};
+
+      filteredStaff.forEach(member => {
+        const stateName = member.state ? member.state.toUpperCase() : 'TIADA NEGERI';
+        const districtName = member.district ? member.district.toUpperCase() : 'TIADA DAERAH';
+        autoExpandStates[stateName] = true;
+        autoExpandDistricts[`${stateName}_${districtName}`] = true;
+      });
+
+      setExpandedStates(autoExpandStates);
+      setExpandedDistricts(autoExpandDistricts);
+    }
+  }, [searchQuery, roleFilter, staff]);
+
   if (!isStaff) {
     return <div className="p-20 text-center text-risda-muted font-black uppercase tracking-[4px]">Akses Terhad.</div>;
   }
@@ -525,7 +545,7 @@ export default function StaffManagement() {
         </div>
 
         {/* Staff List */}
-        <div className="grid grid-cols-1 gap-4">
+        <div className="w-full">
           {fetching ? (
             <div className="py-32 flex flex-col items-center justify-center gap-4 text-risda-muted">
               <div className="w-12 h-12 border-4 border-risda-orange/20 border-t-risda-orange rounded-full animate-spin" />
@@ -539,131 +559,315 @@ export default function StaffManagement() {
               <p className="font-black uppercase text-[10px] tracking-[6px] text-white/30">Tiada Rekod Dijumpai</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <AnimatePresence>
-                {filteredStaff.map((member) => (
-                  <motion.div 
-                    key={member.id}
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="group relative p-6 border border-white/5 rounded-[32px] hover:border-risda-orange/40 hover:bg-white/5 transition-all duration-500 overflow-hidden"
-                  >
-                    {/* Background Accent */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-risda-orange/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-risda-orange/10 transition-all pointer-events-none" />
-                    
-                    <div className="flex items-start gap-5 relative z-10">
-                      <div className="relative">
-                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl overflow-hidden border-2 border-white/5 ${
-                          member.role === 'admin' ? 'bg-risda-orange/20 text-risda-orange' : 'bg-risda-card text-risda-orange'
-                        }`}>
-                          {member.photoURL ? (
-                            <img src={member.photoURL} alt="Avatar" className="w-full h-full object-cover" />
-                          ) : (
-                            member.role === 'admin' ? <Shield size={28} /> : <User size={28} />
-                          )}
-                        </div>
-                        <div className={`absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full border-4 border-risda-card ${
-                          member.status === 'Aktif' ? 'bg-green-500' : 'bg-risda-muted'
-                        }`} />
-                      </div>
+            <div className="space-y-6 w-full">
+              <AnimatePresence mode="popLayout">
+                {(() => {
+                  // Group filtered staff by State
+                  const groupedByState = filteredStaff.reduce((acc, member) => {
+                    const stateName = member.state ? member.state.toUpperCase() : 'TIADA NEGERI';
+                    if (!acc[stateName]) {
+                      acc[stateName] = [];
+                    }
+                    acc[stateName].push(member);
+                    return acc;
+                  }, {} as Record<string, StaffMember[]>);
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="text-sm font-black text-white uppercase tracking-tight truncate">{member.displayName}</h4>
-                        </div>
-                        <p className="text-[10px] font-black text-risda-gold uppercase tracking-[2px] mb-3">
-                           {member.role === 'admin' || member.role === 'pentadbir' ? 'Pentadbir Sistem' : member.role === 'penginput' ? 'Pihak Penginput' : 'Pegawai Pelulus'}
-                        </p>
-                        
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2 text-[10px] text-white/40">
-                             <div className="w-1.5 h-1.5 bg-white/20 rounded-full" />
-                             <span className="font-semibold uppercase tracking-wider">{member.staffId}</span>
-                             <span className="opacity-30">•</span>
-                             <span className="truncate italic">{member.email}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-[9px] font-black text-risda-orange uppercase tracking-wider">
-                             <div className="w-1.5 h-1.5 bg-risda-orange/40 rounded-full" />
-                             {member.office || 'PEJABAT TIDAK DITETAPKAN'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  const sortedStates = Object.keys(groupedByState).sort((a, b) => a.localeCompare(b));
 
-                    <div className="mt-6 pt-6 border-t border-white/5 flex items-center justify-between relative z-10">
-                      <div className="flex items-center gap-1">
-                        {isAdmin ? (
-                          <>
-                            <button 
-                              onClick={() => handleEdit(member)}
-                              className="p-2.5 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all"
-                              title="Edit Profil"
-                            >
-                              <UserPlus size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleResetPassword(member)}
-                              className="p-2.5 text-white/30 hover:text-risda-orange hover:bg-risda-orange/10 rounded-xl transition-all"
-                              title="Update Password"
-                            >
-                              <Shield size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleSendResetEmail(member.email)}
-                              className="p-2.5 text-white/30 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all"
-                              title="Hantar Reset Email"
-                            >
-                              <RefreshCcw size={18} className="rotate-180" />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(member.id)}
-                              className="p-2.5 text-white/30 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                              title="Padam"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-[9px] font-black text-white/30 uppercase tracking-[2px]">Profil Sistem Anda</span>
-                        )}
-                      </div>
+                  const toggleStateExpand = (stateName: string) => {
+                    setExpandedStates(prev => ({
+                      ...prev,
+                      [stateName]: !prev[stateName]
+                    }));
+                  };
 
-                      <div className="flex items-center gap-2">
-                        {isAdmin && (
-                          <select 
-                            value={member.status || 'Aktif'}
-                            onChange={async (e) => {
-                              try {
-                                await updateDoc(doc(db, 'users', member.id), { status: e.target.value });
-                                fetchStaff();
-                              } catch (err) { 
-                                handleFirestoreError(err, OperationType.UPDATE, `users/${member.id}`);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider focus:outline-none transition-all ${
-                              member.status === 'Aktif' 
-                                ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
-                                : 'bg-red-500/10 text-red-500 border border-red-500/20'
-                            }`}
-                          >
-                            <option value="Aktif">AKTIF</option>
-                            <option value="Tidak Aktif">TIDAK AKTIF</option>
-                            <option value="Pencen">PENCEN</option>
-                            <option value="Berhenti">BERHENTI</option>
-                          </select>
-                        )}
-                        <button 
-                           onClick={() => handleEdit(member)}
-                           className="px-4 py-1.5 bg-white/5 border border-white/5 text-white/50 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+                  const toggleDistrictExpand = (stateAndDistrictKey: string) => {
+                    setExpandedDistricts(prev => ({
+                      ...prev,
+                      [stateAndDistrictKey]: !prev[stateAndDistrictKey]
+                    }));
+                  };
+
+                  return sortedStates.map((stateName) => {
+                    const isStateExpanded = !!expandedStates[stateName];
+                    const itemsUnderState = groupedByState[stateName];
+                    const totalCount = itemsUnderState.length;
+                    const activeCount = itemsUnderState.filter(item => item.status === 'Aktif').length;
+
+                    return (
+                      <motion.div 
+                        key={stateName} 
+                        layout="position"
+                        className="border border-white/5 bg-white/[0.01] rounded-[32px] overflow-hidden transition-all duration-300 hover:border-white/10 shadow-lg shadow-black/20"
+                      >
+                        {/* State Folder Header */}
+                        <button
+                          type="button"
+                          onClick={() => toggleStateExpand(stateName)}
+                          className="w-full flex items-center justify-between p-6 md:p-8 bg-white/[0.02] hover:bg-white/[0.04] transition-all duration-300 select-none text-left cursor-pointer group"
                         >
-                          {isAdmin ? 'DETAIL' : 'KEMASKINI PROFIL'}
+                          <div className="flex items-center gap-5">
+                            <div className={`p-4 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0 ${
+                              isStateExpanded 
+                                ? 'bg-risda-orange/15 text-risda-orange border border-risda-orange/20 shadow-lg shadow-risda-orange/5 scale-105' 
+                                : 'bg-white/5 text-white/40 border border-white/5 group-hover:bg-white/10 group-hover:text-white/75'
+                            }`}>
+                              {isStateExpanded ? <FolderOpen size={24} /> : <Folder size={24} />}
+                            </div>
+                            <div>
+                              <h3 className="text-base md:text-lg font-black text-white tracking-wider uppercase group-hover:text-risda-orange transition-colors">
+                                NEGERI {stateName}
+                              </h3>
+                              <div className="flex items-center gap-3 mt-1.5">
+                                <span className="text-[10px] font-black uppercase text-risda-muted tracking-widest bg-white/5 px-2.5 py-1 rounded-lg">
+                                  {totalCount} Kakitangan
+                                </span>
+                                {activeCount > 0 && (
+                                  <span className="text-[10px] font-black uppercase text-green-500 tracking-widest bg-green-500/10 px-2.5 py-1 rounded-lg">
+                                    {activeCount} Aktif
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <span className="hidden md:inline text-[9px] font-black tracking-[2px] uppercase text-risda-muted opacity-45 group-hover:opacity-100 transition-opacity">
+                              {isStateExpanded ? 'TUTUP FOLDER' : 'BUKA FOLDER'}
+                            </span>
+                            <div className={`p-2.5 rounded-xl bg-white/5 text-white/50 group-hover:bg-white/10 group-hover:text-white transition-transform duration-300 ${
+                              isStateExpanded ? 'rotate-180' : ''
+                            }`}>
+                              <ChevronDown size={18} />
+                            </div>
+                          </div>
                         </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+
+                        {/* State Folder Content / Collapsible Districts list */}
+                        <AnimatePresence initial={false}>
+                          {isStateExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.25, ease: 'easeInOut' }}
+                              className="border-t border-white/5 bg-black/15 p-6 md:p-8 space-y-6"
+                            >
+                              {(() => {
+                                // Group state staff by District
+                                const groupedByDistrict = itemsUnderState.reduce((acc, m) => {
+                                  const districtName = m.district ? m.district.toUpperCase() : 'TIADA DAERAH';
+                                  if (!acc[districtName]) {
+                                    acc[districtName] = [];
+                                  }
+                                  acc[districtName].push(m);
+                                  return acc;
+                                }, {} as Record<string, StaffMember[]>);
+
+                                const sortedDistricts = Object.keys(groupedByDistrict).sort((a, b) => a.localeCompare(b));
+
+                                return sortedDistricts.map((districtName) => {
+                                  const key = `${stateName}_${districtName}`;
+                                  const isDistrictExpanded = !!expandedDistricts[key];
+                                  const staffInDistrict = groupedByDistrict[districtName];
+                                  const distTotal = staffInDistrict.length;
+                                  const distActive = staffInDistrict.filter(m => m.status === 'Aktif').length;
+
+                                  return (
+                                    <div key={key} className="border border-white/5 bg-white/[0.005] rounded-2xl overflow-hidden hover:border-white/10 transition-all duration-300">
+                                      {/* District Folder Header */}
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleDistrictExpand(key)}
+                                        className="w-full flex items-center justify-between p-4 md:p-5 bg-white/[0.01] hover:bg-white/[0.03] transition-all duration-300 select-none text-left cursor-pointer group/dist"
+                                      >
+                                        <div className="flex items-center gap-4">
+                                          <div className={`p-2.5 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0 ${
+                                            isDistrictExpanded 
+                                              ? 'bg-risda-gold/15 text-risda-gold border border-risda-gold/20 scale-105' 
+                                              : 'bg-white/5 text-white/30 border border-white/5 group-hover/dist:bg-white/10 group-hover/dist:text-white/60'
+                                          }`}>
+                                            {isDistrictExpanded ? <FolderOpen size={18} /> : <Folder size={18} />}
+                                          </div>
+                                          <div>
+                                            <h4 className="text-xs md:text-sm font-black text-white/80 tracking-wide uppercase group-hover/dist:text-risda-gold transition-colors flex items-center gap-2">
+                                              DAERAH {districtName}
+                                            </h4>
+                                            <div className="flex items-center gap-2 mt-1">
+                                              <span className="text-[9px] font-black uppercase text-risda-muted tracking-widest">
+                                                {distTotal} Kakitangan
+                                              </span>
+                                              {distActive > 0 && (
+                                                <span className="text-[9px] font-semibold text-green-500/80">
+                                                  ({distActive} Aktif)
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2.5">
+                                          <div className={`p-2 rounded-lg bg-white/5 text-white/40 group-hover/dist:bg-white/10 group-hover/dist:text-white transition-transform duration-300 ${
+                                            isDistrictExpanded ? 'rotate-180' : ''
+                                          }`}>
+                                            <ChevronDown size={14} />
+                                          </div>
+                                        </div>
+                                      </button>
+
+                                      {/* District Folder Content / Staff Card Grid */}
+                                      <AnimatePresence initial={false}>
+                                        {isDistrictExpanded && (
+                                          <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="border-t border-white/5 bg-black/10 p-4 md:p-6"
+                                          >
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4">
+                                              {staffInDistrict.map((member) => (
+                                                <motion.div 
+                                                  key={member.id}
+                                                  layout
+                                                  initial={{ opacity: 0, scale: 0.95 }}
+                                                  animate={{ opacity: 1, scale: 1 }}
+                                                  exit={{ opacity: 0, scale: 0.95 }}
+                                                  className="group/card relative p-6 border border-white/5 bg-white/[0.01] rounded-[24px] hover:border-risda-orange/30 hover:bg-white/[0.03] transition-all duration-300 overflow-hidden"
+                                                >
+                                                  {/* Background Accent */}
+                                                  <div className="absolute top-0 right-0 w-24 h-24 bg-risda-orange/5 blur-2xl rounded-full -mr-12 -mt-12 group-hover/card:bg-risda-orange/10 transition-all pointer-events-none" />
+                                                  
+                                                  <div className="flex items-start gap-4 relative z-10">
+                                                    <div className="relative shrink-0">
+                                                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl overflow-hidden border border-white/10 ${
+                                                        member.role === 'admin' ? 'bg-risda-orange/20 text-risda-orange' : 'bg-risda-card text-risda-orange'
+                                                      }`}>
+                                                        {member.photoURL ? (
+                                                          <img src={member.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                          member.role === 'admin' ? <Shield size={24} /> : <User size={24} />
+                                                        )}
+                                                      </div>
+                                                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-risda-card ${
+                                                        member.status === 'Aktif' ? 'bg-green-500' : 'bg-risda-muted'
+                                                      }`} />
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                      <div className="flex items-center gap-2 mb-1">
+                                                        <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-tight truncate leading-tight group-hover/card:text-risda-orange transition-colors">{member.displayName}</h4>
+                                                      </div>
+                                                      <p className="text-[9px] font-black text-risda-gold uppercase tracking-[1.5px] mb-2 leading-none">
+                                                         {member.role === 'admin' || member.role === 'pentadbir' ? 'Pentadbir Sistem' : member.role === 'penginput' ? 'Pihak Penginput' : 'Pegawai Pelulus'}
+                                                      </p>
+                                                      
+                                                      <div className="space-y-1">
+                                                        <div className="flex items-center gap-1.5 text-[9px] text-white/40">
+                                                           <span className="font-semibold uppercase tracking-wider">{member.staffId}</span>
+                                                           <span className="opacity-30">•</span>
+                                                           <span className="truncate italic">{member.email}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-[9px] font-black text-risda-orange uppercase tracking-wider leading-none">
+                                                           <MapPin size={10} className="text-risda-orange/60" />
+                                                           <span className="truncate">{member.office || 'PEJABAT TIDAK DITETAPKAN'}</span>
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between relative z-10">
+                                                    <div className="flex items-center gap-1">
+                                                      {isAdmin ? (
+                                                        <>
+                                                          <button 
+                                                            type="button"
+                                                            onClick={() => handleEdit(member)}
+                                                            className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer"
+                                                            title="Edit Profil"
+                                                          >
+                                                            <UserPlus size={16} />
+                                                          </button>
+                                                          <button 
+                                                            type="button"
+                                                            onClick={() => handleResetPassword(member)}
+                                                            className="p-2 text-white/30 hover:text-risda-orange hover:bg-risda-orange/10 rounded-xl transition-all cursor-pointer"
+                                                            title="Update Password"
+                                                          >
+                                                            <Shield size={16} />
+                                                          </button>
+                                                          <button 
+                                                            type="button"
+                                                            onClick={() => handleSendResetEmail(member.email)}
+                                                            className="p-2 text-white/30 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all cursor-pointer"
+                                                            title="Hantar Reset Email"
+                                                          >
+                                                            <RefreshCcw size={16} className="rotate-180" />
+                                                          </button>
+                                                          <button 
+                                                            type="button"
+                                                            onClick={() => handleDelete(member.id)}
+                                                            className="p-2 text-white/30 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer"
+                                                            title="Padam"
+                                                          >
+                                                            <Trash2 size={16} />
+                                                          </button>
+                                                        </>
+                                                      ) : (
+                                                        <span className="text-[8px] font-black text-white/30 uppercase tracking-[2px]">Profil Sistem Anda</span>
+                                                      )}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                      {isAdmin && (
+                                                        <select 
+                                                          value={member.status || 'Aktif'}
+                                                          onChange={async (e) => {
+                                                            try {
+                                                              await updateDoc(doc(db, 'users', member.id), { status: e.target.value });
+                                                              fetchStaff();
+                                                            } catch (err) { 
+                                                              handleFirestoreError(err, OperationType.UPDATE, `users/${member.id}`);
+                                                            }
+                                                          }}
+                                                          className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider focus:outline-none transition-all cursor-pointer ${
+                                                            member.status === 'Aktif' 
+                                                              ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
+                                                              : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                                          }`}
+                                                        >
+                                                          <option value="Aktif">AKTIF</option>
+                                                          <option value="Tidak Aktif">TIDAK AKTIF</option>
+                                                          <option value="Pencen">PENCEN</option>
+                                                          <option value="Berhenti">BERHENTI</option>
+                                                        </select>
+                                                      )}
+                                                      <button 
+                                                         type="button"
+                                                         onClick={() => handleEdit(member)}
+                                                         className="px-3 py-1 bg-white/5 border border-white/5 text-white/50 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                                                      >
+                                                        {isAdmin ? 'DETAIL' : 'KEMASKINI PROFIL'}
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                </motion.div>
+                                              ))}
+                                            </div>
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    );
+                  });
+                })()}
               </AnimatePresence>
             </div>
           )}

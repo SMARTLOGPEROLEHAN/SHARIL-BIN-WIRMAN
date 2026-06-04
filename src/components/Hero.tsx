@@ -152,41 +152,28 @@ export default function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="flex flex-wrap items-center justify-center gap-6 pt-6"
+            className="flex flex-wrap items-center justify-center gap-6 pt-6 w-full"
           >
             <button 
               onClick={() => {
-                setIsLihatActive(true);
-                setTimeout(() => setIsLihatActive(false), 2000);
-                scrollToContent();
+                window.dispatchEvent(new CustomEvent('triggerViewActiveAds'));
               }}
-              className={`group relative overflow-hidden px-12 py-6 rounded-2xl transition-all active:scale-95 text-white border ${
-                isLihatActive 
-                  ? 'bg-white/10 border-white/20 shadow-xl' 
-                  : 'bg-transparent border-transparent shadow-none'
-              }`}
+              className="group relative overflow-hidden px-8 py-5 rounded-2xl transition-all active:scale-95 text-white border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/25 shadow-lg flex items-center justify-center gap-3 w-64 max-w-full text-center cursor-pointer font-semibold uppercase tracking-[2px] text-xs"
             >
-              <span className="relative z-10 flex items-center gap-4 font-black uppercase tracking-[4px] text-xs">
+              <span className="relative z-10 flex items-center justify-center gap-2 font-black uppercase tracking-[2px] text-[10px] sm:text-xs">
                 LIHAT IKLAN AKTIF
               </span>
             </button>
 
             <button 
               onClick={() => {
-                setIsDaftarActive(true);
-                setTimeout(() => setIsDaftarActive(false), 2000);
                 triggerRegistration();
               }}
-              className={`group relative overflow-hidden px-14 py-6 rounded-2xl transition-all active:scale-95 ${
-                isDaftarActive 
-                  ? 'btn-gold shadow-[0_30px_60px_rgba(0,176,255,0.4)]' 
-                  : 'bg-transparent border border-transparent text-white'
-              }`}
+              className="group relative overflow-hidden px-8 py-5 rounded-2xl transition-all hover:scale-[1.02] active:scale-95 btn-gold shadow-[0_15px_30px_rgba(0,176,255,0.2)] flex items-center justify-center gap-3 w-64 max-w-full text-center cursor-pointer"
             >
-              <div className={`absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ${isDaftarActive ? 'translate-y-0' : ''}`} />
-              <span className="relative z-10 flex items-center gap-4 font-black uppercase tracking-[4px] text-xs">
+              <span className="relative z-10 flex items-center justify-center gap-2 font-black uppercase tracking-[2px] text-[10px] sm:text-xs text-white">
                 DAFTAR ONLINE
-                <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
+                <ArrowRight size={16} className="group-hover:translate-x-1.5 transition-transform" />
               </span>
             </button>
           </motion.div>

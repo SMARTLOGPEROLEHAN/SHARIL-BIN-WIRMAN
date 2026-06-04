@@ -23,11 +23,33 @@ import InfoPortal from './components/InfoPortal';
 import SessionGuard from './components/SessionGuard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import PublicAttendancePage from './components/PublicAttendancePage';
 
 function AppContent() {
   const { user, role } = useAuth();
   const [view, setView] = useState<'dashboard' | 'login' | 'staff' | 'tenders' | 'attendance' | 'laporan' | 'info' | 'locations' | 'userInfo' | 'projek' | 'keputusan' | 'attendance-records'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [adIdParam, setAdIdParam] = useState<string | null>(null);
+
+  // Sync search parameters to detect if we have adId
+  useEffect(() => {
+    const checkParams = () => {
+      const params = new URLSearchParams(window.location.search);
+      setAdIdParam(params.get('adId'));
+    };
+
+    checkParams();
+    window.addEventListener('popstate', checkParams);
+    return () => window.removeEventListener('popstate', checkParams);
+  }, []);
+
+  const handleBackToPortal = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('adId');
+    window.history.replaceState({}, '', url.pathname + url.search);
+    setAdIdParam(null);
+  };
   
   // Simple routing logic
   useEffect(() => {
@@ -65,6 +87,30 @@ function AppContent() {
 
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  if (adIdParam) {
+    return (
+      <>
+        <PublicAttendancePage 
+          adId={adIdParam} 
+          onBackToPortal={handleBackToPortal} 
+        />
+        <Toaster 
+          position="top-center"
+          toastOptions={{
+            className: 'bg-risda-card text-white border border-white/10 rounded-2xl font-bold uppercase tracking-wider text-xs p-4',
+            duration: 4000,
+            style: {
+              background: 'rgba(17, 20, 25, 0.95)',
+              backdropFilter: 'blur(10px)',
+              color: '#fff',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            },
+          }}
+        />
+      </>
+    );
+  }
 
   if (view === 'login' && !user) {
     return <LoginPage />;
@@ -132,10 +178,18 @@ function AppContent() {
 
   return (
     <div className="flex bg-transparent min-h-screen text-risda-text font-sans technical-grid w-full relative">
-      <DecorationBackground />
+      <DecorationBackground 
+        isStaff={Boolean(isStaff)}
+        isSidebarCollapsed={isSidebarCollapsed}
+      />
       <SessionGuard />
       {isStaff && (
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+          collapsed={isSidebarCollapsed}
+          setCollapsed={setIsSidebarCollapsed}
+        />
       )}
       
       <div className="flex-1 flex flex-col min-h-screen relative">

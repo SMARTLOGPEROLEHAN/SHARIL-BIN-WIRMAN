@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, Users, Calendar, Building2, Trash2, Edit2, Search, ChevronDown } from 'lucide-react';
+import { ClipboardList, Users, Calendar, Building2, Trash2, Eye, Search, ChevronDown, X, Phone, Mail, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, getDocs, orderBy, where, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -47,7 +47,7 @@ export default function AttendanceList() {
   
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+  const [previewRecord, setPreviewRecord] = useState<any | null>(null);
   const currentYearStr = new Date().getFullYear().toString();
   const [searchTerm, setSearchTerm] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
@@ -293,10 +293,11 @@ export default function AttendanceList() {
                               <td className="px-6 py-5">
                                 <div className="flex gap-2">
                                   <button 
-                                    onClick={() => setEditingRecord(record)}
-                                    className="p-2 bg-white/5 hover:bg-risda-orange/20 text-risda-muted hover:text-risda-orange rounded-lg transition-all"
+                                    onClick={() => setPreviewRecord(record)}
+                                    className="p-2 bg-white/5 hover:bg-risda-gold/20 text-risda-muted hover:text-risda-gold rounded-lg transition-all"
+                                    title="Lihat Butiran Syarikat"
                                   >
-                                    <Edit2 size={14} />
+                                    <Eye size={14} />
                                   </button>
                                   <button 
                                     onClick={() => handleDelete(record.id)}
@@ -320,14 +321,14 @@ export default function AttendanceList() {
       </div>
 
       <AnimatePresence>
-        {editingRecord && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        {previewRecord && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
             <motion.div 
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                exit={{ opacity: 0 }}
                className="absolute inset-0 bg-black/90 backdrop-blur-xl"
-               onClick={() => setEditingRecord(null)}
+               onClick={() => setPreviewRecord(null)}
             />
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
@@ -335,16 +336,133 @@ export default function AttendanceList() {
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-risda-card border border-risda-border w-full max-w-2xl rounded-[40px] overflow-hidden relative z-10 shadow-2xl shadow-black/50"
             >
-              <AttendanceForm 
-                adId={editingRecord.adId}
-                adTitle={editingRecord.adTitle || `AD ID: ${editingRecord.adId}`}
-                office={userOffice || ''}
-                editingRecord={editingRecord}
-                onSuccess={() => {
-                  setEditingRecord(null);
-                  fetchAttendance();
-                }}
-              />
+              {/* Header */}
+              <div className="p-6 sm:p-8 border-b border-white/5 flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black text-risda-orange uppercase tracking-[3px]">Pratonton Butiran</span>
+                  <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight">Maklumat Berdaftar</h3>
+                </div>
+                <button 
+                  onClick={() => setPreviewRecord(null)}
+                  className="p-3 bg-white/5 hover:bg-white/10 text-risda-muted hover:text-white rounded-full transition-all"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 sm:p-8 space-y-8 max-h-[70vh] overflow-y-auto">
+                {/* Project Header */}
+                <div className="bg-black/30 p-6 rounded-[24px] border border-white/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-mono text-risda-gold uppercase tracking-[2px] font-bold">Projek Sebut Harga</span>
+                    <span className="bg-risda-orange/15 border border-risda-orange/30 text-risda-orange font-mono text-xs px-3 py-1 rounded-full font-bold">
+                      SIRI NO: {previewRecord.docSeriesNo || '-'}
+                    </span>
+                  </div>
+                  <h4 className="text-white text-sm sm:text-base font-black uppercase leading-snug">
+                    {previewRecord.adTitle || '-'}
+                  </h4>
+                  <div className="text-[9px] font-mono text-risda-muted uppercase">
+                    Tarikh Daftar: {previewRecord.timestamp ? formatDate(previewRecord.timestamp) : '-'}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Column - Company Info */}
+                  <div className="space-y-4">
+                    <h5 className="text-[10px] font-black text-risda-gold uppercase tracking-[2px]">Profil Syarikat</h5>
+                    
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <span className="text-[8px] font-black text-risda-muted uppercase">Nama Syarikat</span>
+                        <span className="text-white text-xs font-black uppercase tracking-wide leading-tight">
+                          {previewRecord.companyName}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <span className="text-[8px] font-black text-risda-muted uppercase">Alamat Syarikat</span>
+                        <span className="text-white text-xs font-medium uppercase leading-relaxed whitespace-pre-line">
+                          {previewRecord.companyAddress || 'Tiada Alamat'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Representative Info */}
+                  <div className="space-y-4">
+                    <h5 className="text-[10px] font-black text-risda-gold uppercase tracking-[2px]">Maklumat Wakil / Pemilik</h5>
+                    
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-2">
+                          <User size={12} className="text-risda-orange" />
+                          <span className="text-[8px] font-black text-risda-muted uppercase">Nama Penuh</span>
+                        </div>
+                        <span className="text-white text-xs font-bold uppercase">
+                          {previewRecord.ownerName}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <span className="text-[8px] font-black text-risda-muted uppercase">No. Kad Pengenalan</span>
+                        <span className="text-white text-xs font-mono font-bold">
+                          {previewRecord.icNumber || '-'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-2">
+                          <Phone size={12} className="text-risda-orange" />
+                          <span className="text-[8px] font-black text-risda-muted uppercase">No. Telefon Bimbit</span>
+                        </div>
+                        <span className="text-white text-xs font-mono font-bold">
+                          {previewRecord.phoneNumber}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-2">
+                          <Mail size={12} className="text-risda-orange" />
+                          <span className="text-[8px] font-black text-risda-muted uppercase">E-mel</span>
+                        </div>
+                        <span className="text-white text-xs font-mono select-all">
+                          {previewRecord.email || '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sijil / Dokumen Section */}
+                <div className="bg-black/20 p-5 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[8px] font-black text-risda-muted uppercase">Sijil CIDB & SSM Pembekal</span>
+                    <p className="text-white text-xs font-bold">
+                      {previewRecord.hasCertificate ? 'Dokumen Sijil Telah Dimuat Naik' : 'Tiada Sijil Dimuat Naik'}
+                    </p>
+                    {previewRecord.certificateName && (
+                      <span className="text-[9px] text-risda-gold italic font-mono block mt-1">{previewRecord.certificateName}</span>
+                    )}
+                  </div>
+                  {previewRecord.hasCertificate && (
+                    <span className="bg-green-500/10 text-green-400 border border-green-500/20 text-[9px] font-bold px-3 py-1.5 rounded-lg shrink-0 uppercase tracking-widest">
+                      Lengkap
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 bg-black/20 border-t border-white/5 flex justify-end">
+                <button 
+                  onClick={() => setPreviewRecord(null)}
+                  className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold hover:scale-95 transition-all uppercase tracking-wide"
+                >
+                  Tutup Pratonton
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

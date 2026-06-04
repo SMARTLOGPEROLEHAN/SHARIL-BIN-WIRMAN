@@ -27,6 +27,7 @@ const formatDate = (dateStr: string | undefined): string => {
 };
 
 interface AdData {
+  id?: string;
   tenderNo: string;
   title: string;
   state: string;
@@ -144,42 +145,64 @@ export const exportToExcel = (ad: AdData) => {
   XLSX.writeFile(wb, `Iklan_${ad.tenderNo.replace(/\//g, '_')}.xlsx`);
 };
 
-const loadLogo = (): Promise<HTMLImageElement | null> => {
+export const loadLogo = (): Promise<HTMLImageElement | null> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => {
-      // Try fallback URL if primary fails
-      const fallbackUrl = 'https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png';
-      if (img.src !== fallbackUrl) {
-        img.src = fallbackUrl;
+      // Try fallback APIs if primary local fails
+      const fallbackUrl1 = '/api/logo';
+      const fallbackUrl2 = 'https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png';
+      if (img.src !== fallbackUrl1 && !img.src.endsWith(fallbackUrl1)) {
+        img.src = fallbackUrl1;
+      } else if (img.src !== fallbackUrl2 && !img.src.endsWith(fallbackUrl2)) {
+        img.src = fallbackUrl2;
       } else {
         resolve(null);
       }
     };
-    // Using the proxied logo URL to avoid CORS issues on Netlify
-    img.src = '/api/logo';
+    // Prioritize the local file in the PUBLIC folder
+    img.src = '/PUBLIC/intrologo_RISDA.png';
   });
 };
 
-const addWatermark = (doc: jsPDF, logo: HTMLImageElement | null) => {
+export const loadQR = (adId?: string): Promise<HTMLImageElement | null> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => {
+      resolve(null);
+    };
+    img.src = adId ? `/api/qr-code.png?adId=${adId}&origin=${encodeURIComponent(window.location.origin)}` : '/api/qr-code.png';
+  });
+};
+
+export const addWatermark = (
+  doc: jsPDF, 
+  logo: HTMLImageElement | null, 
+  customY?: number, 
+  customSize?: number, 
+  customX?: number
+) => {
   if (!logo) return;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   
-  // Save current state
+  // Calculate size dynamically: 48% of the smaller dimension, up to 100mm
+  const size = customSize !== undefined ? customSize : Math.min(100, Math.min(pageWidth, pageHeight) * 0.48);
+  const x = customX !== undefined ? customX : (pageWidth - size) / 2;
+  const y = customY !== undefined ? customY : (pageHeight - size) / 2;
+
   try {
-    // Draw large, faint logo as watermark in the center
-    doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
-    doc.addImage(logo, 'PNG', pageWidth / 2 - 50, pageHeight / 2 - 50, 100, 100);
-    
+    // Elegant faint opacity (0.05 is standard, very subtle and does not distract the reader)
+    doc.setGState(new (doc as any).GState({ opacity: 0.05 }));
+    doc.addImage(logo, 'PNG', x, y, size, size);
     // Restore opacity
     doc.setGState(new (doc as any).GState({ opacity: 1 }));
   } catch (err) {
     console.error('Watermark failed:', err);
-    // Fallback without transparency if GState fails
-    // Only draw if we really need it, but let's avoid blocking if it fails
   }
 };
 
@@ -242,13 +265,25 @@ export const exportToPDF = async (ad: AdData) => {
     }
   }
 
-  // QR Code Placeholder (Top Right)
+  // QR Code (Top Right)
+  const qrImage = await loadQR(ad.id);
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
   doc.rect(pageWidth - 40, 10, 25, 25);
-  doc.setFontSize(6);
-  doc.setTextColor(0, 0, 0);
-  doc.text('QR CODE', pageWidth - 27.5, 22.5, { align: 'center' });
+  if (qrImage) {
+    try {
+      doc.addImage(qrImage, 'PNG', pageWidth - 40, 10, 25, 25);
+    } catch (e) {
+      console.error('Failed to add QR image to PDF:', e);
+      doc.setFontSize(6);
+      doc.setTextColor(0, 0, 0);
+      doc.text('QR CODE', pageWidth - 27.5, 22.5, { align: 'center' });
+    }
+  } else {
+    doc.setFontSize(6);
+    doc.setTextColor(0, 0, 0);
+    doc.text('QR CODE', pageWidth - 27.5, 22.5, { align: 'center' });
+  }
 
   // Header Title
   doc.setTextColor(0, 48, 96); // Dark blue
@@ -305,7 +340,7 @@ export const exportToPDF = async (ad: AdData) => {
     return lines.join('\n');
   };
 
-  const venueContent = `PENDAFTARAN :\n${ad.office.toUpperCase()}\n\nLAWATAN TAPAK :\n${ad.visitVenue?.toUpperCase() || ad.briefingVenue?.toUpperCase() || ad.title.toUpperCase()}`;
+  const venueContent = `PENDAFTARAN :\n${ad.briefingVenue?.toUpperCase() || ad.office.toUpperCase()}\n\nLAWATAN TAPAK :\n${ad.visitVenue?.toUpperCase() || ad.title.toUpperCase()}`;
   const docVenueContent = `Unit Kewangan\n${ad.docVenue || ad.office}`;
 
   autoTable(doc, {
@@ -406,7 +441,7 @@ export const exportToPDF = async (ad: AdData) => {
     body: [[
       ad.closingTime || '12.00 TENGAH HARI', 
       formatDate(ad.closingDate), 
-      `Unit Kewangan\n${ad.closingVenue || ad.docVenue || ad.office}`
+      `${ad.closingVenue || ad.docVenue || ad.office}`
     ]],
     theme: 'grid',
     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontSize: 8.5, fontStyle: 'bold', halign: 'center' },
@@ -546,70 +581,149 @@ export const exportToWord = async (ad: AdData) => {
 export const exportResultToPDF = async (res: ResultData) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  
+  // Outer Black Border (Page 1) to match preview border-slate-900
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(1.5);
+  doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+  
+  // Format Office name cleanly to avoid duplication
+  let officeClean = res.office.toUpperCase().trim();
+  if (officeClean.startsWith("PEJABAT RISDA DAERAH")) {
+    officeClean = officeClean.substring("PEJABAT RISDA DAERAH".length).trim();
+  } else if (officeClean.startsWith("RISDA")) {
+    officeClean = officeClean.substring("RISDA".length).trim();
+  }
+  // Remove any redundant "DAERAH" prefixes
+  if (officeClean.startsWith("DAERAH")) {
+    officeClean = officeClean.substring("DAERAH".length).trim();
+  }
+
+  const headerOfficeName = officeClean ? officeClean : "PRD";
+  
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text(`URUSETIA PEROLEHAN PRD ${headerOfficeName}`, pageWidth - 15, 13, { align: 'right' });
   
   // Header - Right aligned info, Logo centered
   const logo = await loadLogo();
   if (logo) {
-    doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 10, 24, 24);
-    // Add watermark
-    addWatermark(doc, logo);
+    doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 18, 24, 24);
   }
   
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`URUSETIA PEROLEHAN PRD ${res.office.toUpperCase()}`, pageWidth - 15, 40, { align: 'right' });
-  
   // Title
-  doc.setFontSize(30);
+  doc.setFontSize(32);
   doc.setFont('helvetica', 'bold');
-  doc.text('HEBAHAN', pageWidth / 2, 55, { align: 'center' });
-  doc.setLineWidth(1);
-  doc.line(pageWidth / 2 - 30, 57, pageWidth / 2 + 30, 57);
+  doc.text('HEBAHAN', pageWidth / 2, 54, { align: 'center' });
+  doc.setLineWidth(1.5);
+  const titleTextWidth = doc.getTextWidth('HEBAHAN');
+  doc.line(pageWidth / 2 - titleTextWidth / 2, 57, pageWidth / 2 + titleTextWidth / 2, 57);
   
   // Subtitle
-  doc.setFontSize(14);
-  doc.text('PEMBIDA YANG BERJAYA BAGI SEBUTHARGA', pageWidth / 2, 72, { align: 'center' });
-  doc.text(`PEJABAT RISDA DAERAH ${res.office.toUpperCase()}`, pageWidth / 2, 80, { align: 'center' });
-  doc.line(pageWidth / 2 - 70, 82, pageWidth / 2 + 70, 82);
-
-  // Box
+  doc.setFontSize(13);
+  doc.text('PEMBIDA YANG BERJAYA BAGI SEBUTHARGA', pageWidth / 2, 70, { align: 'center' });
   doc.setLineWidth(0.5);
-  const boxY = 95;
-  const boxHeight = 120;
+  const subtitleWidth = doc.getTextWidth('PEMBIDA YANG BERJAYA BAGI SEBUTHARGA');
+  doc.line(pageWidth / 2 - subtitleWidth / 2 - 5, 72, pageWidth / 2 + subtitleWidth / 2 + 5, 72);
+  
+  const officeDisplayText = `PEJABAT RISDA DAERAH ${officeClean}`;
+  doc.text(officeDisplayText, pageWidth / 2, 79, { align: 'center' });
+  const officeWidth = doc.getTextWidth(officeDisplayText);
+  doc.line(pageWidth / 2 - officeWidth / 2 - 5, 81, pageWidth / 2 + officeWidth / 2 + 5, 81);
+
+  // Dynamic Box Calculations to center the box vertically on the remaining page space
+  const tajukText = res.title.toUpperCase();
+  const winnerText = res.winnerName.toUpperCase();
+  const tempohText = `${formatDate(res.startDate)} SEHINGGA ${formatDate(res.endDate)}`.toUpperCase();
+  const tempatText = res.location.toUpperCase();
+
+  // Width for text wrapping to fit elegantly inside the box (which has 15mm margins on sides)
+  const wrapWidth = pageWidth - 102; // 210 - 102 = 108mm wrapping space
+  const tajukLines = doc.splitTextToSize(tajukText, wrapWidth);
+  const winnerLines = doc.splitTextToSize(winnerText, wrapWidth);
+  const tempohLines = doc.splitTextToSize(tempohText, wrapWidth);
+  const tempatLines = doc.splitTextToSize(tempatText, wrapWidth);
+
+  // Line height/spacing rules
+  const rowHeight = 6.2;
+  const itemPadding = 9; // Gap between sections inside the box
+  
+  // Calculate dynamic heights corresponding to each element
+  const h1 = rowHeight; // NO SEBUTHARGA is 1 line
+  const h2 = tajukLines.length * rowHeight;
+  const h3 = winnerLines.length * rowHeight;
+  const h4 = tempohLines.length * rowHeight;
+  const h5 = tempatLines.length * rowHeight;
+
+  const totalContentHeight = h1 + itemPadding + h2 + itemPadding + h3 + itemPadding + h4 + itemPadding + h5;
+  const boxPaddingTopBottom = 16; // Elegant internal padding
+  const boxHeight = totalContentHeight + (boxPaddingTopBottom * 2);
+
+  const boxY = 86;
+
+  // Draw Box with thick black border
+  doc.setLineWidth(1.5);
+  doc.setDrawColor(0, 0, 0);
   doc.rect(15, boxY, pageWidth - 30, boxHeight);
-  
-  const labelX = 25;
-  const valueX = 75;
-  let currentY = boxY + 15;
-  
+
+  // Add box-centered watermark inside the box for elegant visual balance
+  if (logo) {
+    const boxWatermarkSize = Math.min(80, Math.min(pageWidth - 40, boxHeight) * 0.60);
+    const watermarkX = (pageWidth - boxWatermarkSize) / 2;
+    const watermarkY = boxY + (boxHeight - boxWatermarkSize) / 2;
+    addWatermark(doc, logo, watermarkY, boxWatermarkSize, watermarkX);
+  }
+
+  // Positions inside the box
+  let currentY = boxY + boxPaddingTopBottom + 4;
+  const labelX = 23;
+  const colonX = 66;
+  const valueX = 69;
+
   doc.setFontSize(11);
-  
-  // NO SEBUTHARGA
+  doc.setTextColor(0, 0, 0);
+
+  // 1. NO SEBUTHARGA
+  doc.setFont('helvetica', 'bold');
   doc.text('NO SEBUTHARGA', labelX, currentY);
-  doc.text(`: ${res.tenderNo}`, valueX, currentY);
-  
-  // TAJUK SEBUTHARGA
-  currentY += 12;
+  doc.text(':', colonX, currentY);
+  doc.setTextColor(0, 51, 153); // Royal Blue
+  doc.text(res.tenderNo.toUpperCase(), valueX, currentY);
+
+  // 2. TAJUK SEBUTHARGA
+  currentY += h1 + itemPadding;
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
   doc.text('TAJUK SEBUTHARGA', labelX, currentY);
-  doc.text(':', valueX, currentY);
-  const splitTitle = doc.splitTextToSize(res.title.toUpperCase(), pageWidth - valueX - 25);
-  doc.text(splitTitle, valueX + 3, currentY);
-  currentY += (splitTitle.length * 6);
-  
-  // KONTRAKTOR
-  currentY += 6;
+  doc.text(':', colonX, currentY);
+  doc.text(tajukLines, valueX, currentY);
+
+  // 3. KONTRAKTOR
+  currentY += h2 + itemPadding;
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
   doc.text('KONTRAKTOR', labelX, currentY);
-  doc.text(`: ${res.winnerName.toUpperCase()}`, valueX, currentY);
-  
-  // TEMPOH KERJA
-  currentY += 12;
+  doc.text(':', colonX, currentY);
+  doc.setTextColor(0, 102, 51); // Elegant Green (#006633)
+  doc.text(winnerLines, valueX, currentY);
+
+  // 4. TEMPOH KERJA
+  currentY += h3 + itemPadding;
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
   doc.text('TEMPOH KERJA', labelX, currentY);
-  doc.text(`: ${formatDate(res.startDate)} SEHINGGA ${formatDate(res.endDate)}`, valueX, currentY);
-  
-  // TEMPAT
-  currentY += 12;
+  doc.text(':', colonX, currentY);
+  doc.text(tempohLines, valueX, currentY);
+
+  // 5. TEMPAT
+  currentY += h4 + itemPadding;
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
   doc.text('TEMPAT', labelX, currentY);
-  doc.text(`: ${res.location.toUpperCase()}`, valueX, currentY);
+  doc.text(':', colonX, currentY);
+  doc.text(tempatLines, valueX, currentY);
 
   doc.save(`Keputusan_${res.tenderNo.replace(/\//g, '_')}.pdf`);
 };
@@ -730,6 +844,7 @@ export const exportAttendanceListToExcel = (ad: AdData, records: AttendanceRecor
 export const exportAttendanceListToPDF = async (ad: AdData, records: AttendanceRecord[]) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   
   // Sort records by docSeriesNo (registration order) and fallback to timestamp
   const sortedRecords = [...records].sort((a, b) => {
@@ -741,12 +856,15 @@ export const exportAttendanceListToPDF = async (ad: AdData, records: AttendanceR
     return aTime - bTime;
   });
 
+  // Outer Blue Border (Page 1)
+  doc.setDrawColor(0, 51, 153); // Deep blue (#003399)
+  doc.setLineWidth(1.5);
+  doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+
   // Header
   const logo = await loadLogo();
   if (logo) {
     doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 10, 24, 24);
-    // Add watermark
-    addWatermark(doc, logo);
   }
 
   doc.setFontSize(14);
@@ -769,6 +887,7 @@ export const exportAttendanceListToPDF = async (ad: AdData, records: AttendanceR
 
   autoTable(doc, {
     startY: tablesStartY,
+    margin: { top: 15, bottom: 15, left: 15, right: 15 },
     head: [['NO. SIRI', 'NAMA SYARIKAT', 'NO. TEL SYARIKAT', 'NAMA PEMILIK/\nTANDATANGAN']],
     body: [
       ...sortedRecords.map((rec, idx) => [
@@ -792,6 +911,17 @@ export const exportAttendanceListToPDF = async (ad: AdData, records: AttendanceR
       0: { halign: 'center', cellWidth: 25, fontStyle: 'bold' },
       2: { halign: 'center', cellWidth: 40 },
       3: { halign: 'center', cellWidth: 40 }
+    },
+    didDrawPage: (data) => {
+      // Draw outer blue border on every page
+      doc.setDrawColor(0, 51, 153); // Deep blue (#003399)
+      doc.setLineWidth(1.5);
+      doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+      
+      // Draw watermark on all pages
+      if (logo) {
+        addWatermark(doc, logo);
+      }
     }
   });
 
@@ -880,6 +1010,7 @@ export const exportSubmissionListToExcel = (ad: AdData, records: AttendanceRecor
 export const exportSubmissionListToPDF = async (ad: AdData, records: AttendanceRecord[]) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   
   // Sort records by docSeriesNo (registration order) and fallback to timestamp
   const sortedRecords = [...records].sort((a, b) => {
@@ -891,12 +1022,15 @@ export const exportSubmissionListToPDF = async (ad: AdData, records: AttendanceR
     return aTime - bTime;
   });
 
+  // Outer Blue Border (Page 1)
+  doc.setDrawColor(0, 51, 153); // Deep blue (#003399)
+  doc.setLineWidth(1.5);
+  doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+
   // Header
   const logo = await loadLogo();
   if (logo) {
     doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 10, 24, 24);
-    // Add watermark
-    addWatermark(doc, logo);
   }
 
   doc.setFontSize(14);
@@ -919,6 +1053,7 @@ export const exportSubmissionListToPDF = async (ad: AdData, records: AttendanceR
 
   autoTable(doc, {
     startY: tablesStartY,
+    margin: { top: 15, bottom: 15, left: 15, right: 15 },
     head: [['NO. SIRI', 'NAMA SYARIKAT', 'NO. SIRI\nSEBUTHARGA', 'T/TANGAN & COP\nSYARIKAT']],
     body: [
       ...sortedRecords.map((rec, idx) => [
@@ -942,6 +1077,17 @@ export const exportSubmissionListToPDF = async (ad: AdData, records: AttendanceR
       0: { halign: 'center', cellWidth: 25, fontStyle: 'bold' },
       2: { halign: 'center', cellWidth: 40 },
       3: { halign: 'center', cellWidth: 40 }
+    },
+    didDrawPage: (data) => {
+      // Draw outer blue border on every page
+      doc.setDrawColor(0, 51, 153); // Deep blue (#003399)
+      doc.setLineWidth(1.5);
+      doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+      
+      // Draw watermark on all pages
+      if (logo) {
+        addWatermark(doc, logo);
+      }
     }
   });
 
@@ -1017,30 +1163,31 @@ export const exportIndividualSiteVisitForm = async (ad: AdData, rec: AttendanceR
 
     // Logo
     if (logo) {
-      doc.addImage(logo, 'PNG', pageWidth / 2 - 7.5, offsetY + 5, 15, 15);
+      doc.addImage(logo, 'PNG', 15, offsetY + 6, 16, 16);
     }
 
     // Header Right
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
     doc.text(titleCopy, pageWidth - 15, offsetY + 10, { align: 'right' });
 
     // Main Header
-    doc.setFontSize(9);
-    doc.text('PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)', pageWidth / 2, offsetY + 23, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)', 35, offsetY + 16);
     
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('BORANG LAWATAN TAPAK UNTUK:-', pageWidth / 2, offsetY + 28, { align: 'center' });
-
-    // Project Title
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
+    doc.text('BORANG LAWATAN TAPAK UNTUK:-', 15, offsetY + 28);
+
+    // Project Title
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'bold');
     const splitTitle = doc.splitTextToSize(ad.title.toUpperCase(), pageWidth - 30);
-    doc.text(splitTitle, 20, offsetY + 35);
+    doc.text(splitTitle, 15, offsetY + 33);
     
     const titleLines = splitTitle.length;
-    const projectInfoY = offsetY + 37 + (titleLines * 4);
+    const projectInfoY = offsetY + 35 + (titleLines * 4.5);
 
     // Info Section
     doc.setFontSize(8);
@@ -1061,7 +1208,7 @@ export const exportIndividualSiteVisitForm = async (ad: AdData, rec: AttendanceR
     
     // Office row
     const officeY = projectInfoY + 4;
-    doc.text(`PEJABAT RISDA ${ad.office.toUpperCase()}`, 118, officeY);
+    doc.text(`${ad.visitVenue?.toUpperCase() || `PEJABAT RISDA ${ad.office.toUpperCase()}`}`, 118, officeY);
 
     //Nama Syarikat
     const companyY = officeY + 6;
@@ -1203,32 +1350,58 @@ export const exportIndividualSiteVisitFormToWord = async (ad: AdData, rec: Atten
       alignment: AlignmentType.RIGHT,
     }));
 
-    // Logo & Main Title
+    // Logo & Main Title (side-by-side using borderless table)
     if (logoBuffer) {
-      children.push(new Paragraph({
-        children: [
-          new ImageRun({
-            data: logoBuffer,
-            transformation: { width: 60, height: 60 },
-          } as any),
-          new TextRun({ 
-            text: " PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)", 
-            bold: true, 
-            size: 20,
-          }),
-        ],
-        alignment: AlignmentType.CENTER,
+      children.push(new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BorderStyle.NONE as any,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new ImageRun({
+                        data: logoBuffer,
+                        transformation: { width: 45, height: 45 },
+                      } as any)
+                    ]
+                  })
+                ],
+                width: { size: 10, type: WidthType.PERCENTAGE },
+                borders: BorderStyle.NONE as any,
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({ 
+                        text: "PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)", 
+                        bold: true, 
+                        size: 20, // 10pt
+                      })
+                    ]
+                  })
+                ],
+                width: { size: 90, type: WidthType.PERCENTAGE },
+                verticalAlign: VerticalAlign.CENTER,
+                borders: BorderStyle.NONE as any,
+              })
+            ]
+          })
+        ]
       }));
     } else {
       children.push(new Paragraph({
-        children: [new TextRun({ text: "PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)", bold: true, size: 24 })],
-        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)", bold: true, size: 20 })],
+        alignment: AlignmentType.LEFT,
       }));
     }
 
     children.push(new Paragraph({
-      children: [new TextRun({ text: "BORANG LAWATAN TAPAK UNTUK:-", size: 18 })],
-      spacing: { before: 200 }
+      children: [new TextRun({ text: "BORANG LAWATAN TAPAK UNTUK:-", bold: true, size: 18 })],
+      spacing: { before: 150, after: 100 }
     }));
 
     children.push(new Paragraph({
@@ -1252,7 +1425,7 @@ export const exportIndividualSiteVisitFormToWord = async (ad: AdData, rec: Atten
           children: [
             new TableCell({ children: [new Paragraph({ text: "" })], borders: BorderStyle.NONE as any }),
             new TableCell({ children: [new Paragraph({ text: "" })], borders: BorderStyle.NONE as any }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `PEJABAT RISDA ${ad.office.toUpperCase()}`, size: 18 })], alignment: AlignmentType.RIGHT })], borders: BorderStyle.NONE as any }),
+            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: ad.visitVenue?.toUpperCase() || `PEJABAT RISDA ${ad.office.toUpperCase()}`, size: 18 })], alignment: AlignmentType.RIGHT })], borders: BorderStyle.NONE as any }),
           ]
         }),
       ]
@@ -1411,7 +1584,7 @@ export const exportIndividualSiteVisitFormToExcel = (ad: AdData, rec: Attendance
     [ad.title.toUpperCase()],
     [''],
     ['No. Tawaran', `: ${ad.tenderNo}`, '', 'Tarikh/Masa Lawatan :', `${formatDate(ad.visitDate)} / ${ad.briefingTime || '10.00 Pagi'}`],
-    ['', '', '', '', `PEJABAT RISDA ${ad.office.toUpperCase()}`],
+    ['', '', '', '', ad.visitVenue?.toUpperCase() || `PEJABAT RISDA ${ad.office.toUpperCase()}`],
     [''],
     ['MAKLUMAT SYARIKAT'],
     ['Nama Syarikat', `: ${rec.companyName.toUpperCase()}`],
@@ -1452,7 +1625,7 @@ export const exportIndividualSiteVisitFormToExcel = (ad: AdData, rec: Attendance
     [ad.title.toUpperCase()],
     [''],
     ['No. Tawaran', `: ${ad.tenderNo}`, '', 'Tarikh/Masa Lawatan :', `${formatDate(ad.visitDate)} / ${ad.briefingTime || '10.00 Pagi'}`],
-    ['', '', '', '', `PEJABAT RISDA ${ad.office.toUpperCase()}`],
+    ['', '', '', '', ad.visitVenue?.toUpperCase() || `PEJABAT RISDA ${ad.office.toUpperCase()}`],
     [''],
     ['MAKLUMAT SYARIKAT'],
     ['Nama Syarikat', `: ${rec.companyName.toUpperCase()}`],

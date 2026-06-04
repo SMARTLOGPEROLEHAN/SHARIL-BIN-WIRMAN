@@ -159,16 +159,26 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         )}
       </div>
 
-      <div className="flex items-center gap-6">
+       <div className="flex items-center gap-6">
         <div className="flex items-center gap-3 text-risda-muted relative">
+          {/* RISDA Gold Logo next to helper utilities */}
+          <div className="w-10 h-10 bg-white/5 border border-white/10 p-1.5 rounded-xl flex items-center justify-center shadow-lg hover:bg-white/10 transition-all overflow-hidden hidden sm:flex">
+            <img 
+              src="/PUBLIC/intrologo_RISDA.png" 
+              alt="RISDA" 
+              className="w-full h-full object-contain filter drop-shadow-sm" 
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (img.src !== "/api/logo") {
+                  img.src = "/api/logo";
+                }
+              }}
+            />
+          </div>
+
           {/* Technical Support Notification Icon */}
           {isAdmin && (
             <div className="flex items-center gap-3">
-              {/* RISDA Gold Logo next to help */}
-              <div className="w-10 h-10 bg-white/5 border border-white/10 p-1.5 rounded-xl flex items-center justify-center shadow-lg hover:bg-white/10 transition-all overflow-hidden hidden sm:flex">
-                <img src="/api/logo" alt="RISDA" className="w-full h-full object-contain filter drop-shadow-sm" />
-              </div>
-              
               <div className="relative">
                 <button 
                   onClick={() => setShowNotifications(!showNotifications)}

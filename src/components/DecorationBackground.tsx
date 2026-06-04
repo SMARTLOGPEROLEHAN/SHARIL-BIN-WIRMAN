@@ -1,11 +1,34 @@
 import React from 'react';
 import { motion } from 'motion/react';
 
-export default function DecorationBackground() {
-  const [logoSrc, setLogoSrc] = React.useState("/api/logo");
+interface DecorationBackgroundProps {
+  isStaff?: boolean;
+  isSidebarCollapsed?: boolean;
+}
+
+export default function DecorationBackground({ isStaff = false, isSidebarCollapsed = false }: DecorationBackgroundProps) {
+  const [logoSrc, setLogoSrc] = React.useState("/PUBLIC/intrologo_RISDA.png");
+  const [isDesktop, setIsDesktop] = React.useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const leftOffset = isStaff && isDesktop 
+    ? (isSidebarCollapsed ? 80 : 280) 
+    : 0;
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <motion.div 
+      initial={false}
+      animate={{ left: leftOffset }}
+      transition={{ type: "spring", damping: 25, stiffness: 200 }}
+      className="fixed top-0 right-0 bottom-0 pointer-events-none overflow-hidden z-0"
+    >
       {/* Diagonals and Pills from the image */}
       <motion.div 
         initial={{ opacity: 0 }}
@@ -56,8 +79,8 @@ export default function DecorationBackground() {
           transition={{ duration: 2 }}
           src={logoSrc}
           onError={() => {
-            if (logoSrc !== "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png") {
-              setLogoSrc("https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png");
+            if (logoSrc !== "/api/logo") {
+              setLogoSrc("/api/logo");
             }
           }}
           alt="RISDA BACKGROUND" 
@@ -66,6 +89,6 @@ export default function DecorationBackground() {
           className="w-[800px] h-[800px] object-contain select-none mix-blend-overlay"
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

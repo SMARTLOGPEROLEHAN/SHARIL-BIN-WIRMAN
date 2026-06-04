@@ -24,7 +24,8 @@ import {
   Map,
   FileText,
   FileDown,
-  FileUp
+  FileUp,
+  Copy
 } from 'lucide-react';
 import { exportResultToPDF } from '../lib/exportUtils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -51,6 +52,7 @@ interface Advertisement {
   id: string;
   tenderNo: string;
   title: string;
+  category?: 'KERJA' | 'BEKALAN' | 'PERKHIDMATAN';
   state: string;
   office: string;
   status: 'AKTIF' | 'BATAL' | 'SELESAI (KEPUTUSAN)';
@@ -77,6 +79,7 @@ interface Advertisement {
     contractStartDate?: string;
     contractEndDate?: string;
     location?: string;
+    winningPrice?: number;
   };
   licenses: {
     cidbSpkk: boolean;
@@ -136,6 +139,8 @@ export default function TenderManagement() {
   const [winnerDates, setWinnerDates] = useState({
     startDate: '',
     endDate: '',
+    winningPrice: '',
+    location: ''
   });
   const [notifyPrefs, setNotifyPrefs] = useState({
     whatsapp: true,
@@ -148,6 +153,7 @@ export default function TenderManagement() {
   const [formData, setFormData] = useState({
     tenderNo: '',
     title: '',
+    category: 'KERJA' as 'KERJA' | 'BEKALAN' | 'PERKHIDMATAN',
     state: userState || '',
     office: userOffice || '',
     status: 'AKTIF' as const,
@@ -190,6 +196,7 @@ export default function TenderManagement() {
     setFormData({
       tenderNo: '',
       title: '',
+      category: 'KERJA',
       state: userState || '',
       office: userOffice || '',
       status: 'AKTIF',
@@ -387,6 +394,7 @@ export default function TenderManagement() {
     setFormData({
       tenderNo: ad.tenderNo,
       title: ad.title,
+      category: ad.category || 'KERJA',
       state: ad.state,
       office: ad.office || '',
       status: ad.status,
@@ -427,12 +435,60 @@ export default function TenderManagement() {
     setShowModal(true);
   };
 
+  const handleCopy = (ad: Advertisement) => {
+    setEditingAd(null);
+    setFormData({
+      tenderNo: `${ad.tenderNo}-SALIN`,
+      title: `${ad.title} (SALINAN)`,
+      state: ad.state,
+      office: ad.office || '',
+      status: 'AKTIF',
+      closingDate: ad.closingDate || '',
+      closingTime: ad.closingTime || '12:00 PM',
+      closingVenue: ad.closingVenue || '',
+      briefingDate: ad.briefingDate || '',
+      briefingTime: ad.briefingTime || '',
+      briefingVenue: ad.briefingVenue || '',
+      visitDate: ad.visitDate || '',
+      visitVenue: ad.visitVenue || '',
+      docStartDate: ad.docStartDate || '',
+      docEndDate: ad.docEndDate || '',
+      docVenue: ad.docVenue || '',
+      publishedDate: ad.publishedDate || '',
+      licenseRequirements: ad.licenseRequirements || '',
+      licenses: ad.licenses ? { ...ad.licenses } : {
+        cidbSpkk: false,
+        cidbPkk: false,
+        stb: false,
+        mof: false,
+        tcc: false,
+        pukonsa: false,
+        kuhean: false,
+        others: ''
+      },
+      licenseDescriptions: ad.licenseDescriptions ? { ...ad.licenseDescriptions } : {
+        cidbSpkk: 'CIDB (SPKK) GRED G1 PENGKHUSUSAN CE01',
+        cidbPkk: 'CIDB (PKK) GRED G1',
+        stb: 'SIJIL TARAF BUMIPUTERA (STB)',
+        mof: 'SIJIL AKUAN PENDAFTARAN SYARIKAT (MOF)',
+        tcc: 'SIJIL PEMATUHAN CUKAI (TAX COMPLIANCE CERTIFICATE- TCC)',
+        pukonsa: 'PUKONSA KELAS F TAJUK 1, TAJUK KECIL 1',
+        kuhean: 'SIJIL PENGIKTIRAFAN STATUS PERNIAGAAN ANAK NEGERI SABAH (KUHEAN)',
+        others: ''
+      }
+    });
+    setShowModal(true);
+    toast.success('Iklan disalin! Sila kemaskini maklumat sebelum menyimpan.');
+  };
+
   const handleSelectWinnerPreview = (attendee: any) => {
     setPendingWinner(attendee);
     setShowWinnerConfirm(true);
     setWinnerDates({
       startDate: '',
-      endDate: ''
+      endDate: '',
+      winningPrice: '',
+      location: selectedAdForWinner?.visitVenue || selectedAdForWinner?.docVenue || '-'
     });
     setNotifyPrefs({
       whatsapp: true,
@@ -460,7 +516,8 @@ export default function TenderManagement() {
         timestamp: new Date().toISOString(),
         contractStartDate: winnerDates.startDate,
         contractEndDate: winnerDates.endDate,
-        location: selectedAdForWinner.visitVenue || selectedAdForWinner.docVenue || '-'
+        winningPrice: Number(winnerDates.winningPrice) || 0,
+        location: winnerDates.location || selectedAdForWinner.visitVenue || selectedAdForWinner.docVenue || '-'
       };
 
       await updateDoc(doc(db, 'ads', adId), {
@@ -471,22 +528,6 @@ export default function TenderManagement() {
 
       toast.success(`Keputusan rasmi telah dikemaskini. ${pendingWinner.companyName} terpilih!`, { id: loadingToast });
       
-      // Auto-generate PDF for record keeping
-      try {
-        await exportResultToPDF({
-          tenderNo: selectedAdForWinner.tenderNo,
-          title: selectedAdForWinner.title,
-          office: selectedAdForWinner.office,
-          winnerName: winnerData.companyName,
-          startDate: winnerData.contractStartDate,
-          endDate: winnerData.contractEndDate,
-          location: winnerData.location
-        });
-        toast.success('PDF Keputusan Rasmi berjaya dijana.');
-      } catch (e) {
-        console.error('PDF fail:', e);
-      }
-
       // Auto-trigger notifications based on preferences
       const fullAdData = {...selectedAdForWinner, winner: winnerData} as Advertisement;
       
@@ -535,7 +576,8 @@ export default function TenderManagement() {
     setWinnerDates({
       startDate: ad.winner?.contractStartDate || '',
       endDate: ad.winner?.contractEndDate || '',
-      location: ad.winner?.location || ad.visitVenue || ''
+      winningPrice: ad.winner?.winningPrice ? String(ad.winner.winningPrice) : '',
+      location: ad.winner?.location || ad.visitVenue || ad.docVenue || ''
     });
     fetchAttendees(ad);
     setShowWinnerModal(true);
@@ -708,14 +750,13 @@ export default function TenderManagement() {
                     className="bg-transparent border-b-2 border-white/10 rounded-none py-5 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5"
                   >
                     <option value="">SEMUA PEJABAT</option>
-                    {locations
+                    {Array.from(new Set(locations
                       .filter(l => !filters.state || l.state === filters.state)
-                      .map(l => l.office)
-                      .sort()
-                      .map(office => (
-                        <option key={office} value={office}>{office}</option>
-                      ))
-                    }
+                      .map(l => l.office?.trim().toUpperCase())
+                      .filter(Boolean)
+                    )).sort().map(office => (
+                      <option key={office} value={office}>{office}</option>
+                    ))}
                   </select>
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
                     <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -759,12 +800,26 @@ export default function TenderManagement() {
                     <Users size={16} />
                   </button>
                 )}
-                <button onClick={() => openEdit(ad)} className="p-2 text-white/40 hover:text-risda-orange"><Edit3 size={16} /></button>
-                <button onClick={() => handleDelete(ad.id)} className="p-2 text-white/40 hover:text-red-500"><Trash2 size={16} /></button>
+                {isStaff && (
+                  <button 
+                    onClick={() => handleCopy(ad)} 
+                    className="p-2 text-white/40 hover:text-green-400" 
+                    title="Salin Iklan"
+                  >
+                    <Copy size={16} />
+                  </button>
+                )}
+                <button onClick={() => openEdit(ad)} className="p-2 text-white/40 hover:text-risda-orange" title="Kemaskini"><Edit3 size={16} /></button>
+                <button onClick={() => handleDelete(ad.id)} className="p-2 text-white/40 hover:text-red-500" title="Padam"><Trash2 size={16} /></button>
               </div>
             </div>
             
             <div>
+              {ad.category && (
+                <span className="inline-block px-2.5 py-0.5 text-[8px] font-black text-white bg-risda-orange/20 border border-risda-orange/30 rounded-md uppercase tracking-wider mb-2 mr-2">
+                  {ad.category}
+                </span>
+              )}
               <h4 className="text-sm font-black text-white uppercase leading-tight mb-2">{ad.title}</h4>
               <p className="text-[10px] font-mono text-risda-gold/80 font-black uppercase tracking-[1px]">{ad.tenderNo}</p>
             </div>
@@ -824,7 +879,14 @@ export default function TenderManagement() {
                     </span>
                   </td>
                   <td className="px-8 py-8">
-                    <div className="text-base font-black text-white group-hover:text-risda-gold transition-colors mb-2 leading-tight uppercase max-w-xl">{ad.title}</div>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      {ad.category && (
+                        <span className="inline-block px-2 py-0.5 text-[8px] font-black text-white bg-risda-orange/25 border border-risda-orange/40 rounded uppercase tracking-wider">
+                          {ad.category}
+                        </span>
+                      )}
+                      <div className="text-base font-black text-white group-hover:text-risda-gold transition-colors leading-tight uppercase max-w-xl">{ad.title}</div>
+                    </div>
                     <div className="text-xs font-mono text-risda-gold/60 font-black uppercase tracking-[2px]">{ad.tenderNo}</div>
                   </td>
                   <td className="px-8 py-8">
@@ -848,14 +910,23 @@ export default function TenderManagement() {
                           </button>
                         )}
                         <button 
+                          onClick={() => handleCopy(ad)}
+                          className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:border-green-500/50 hover:text-green-400 transition-all"
+                          title="Salin Iklan Sebut Harga"
+                        >
+                          <Copy size={16} />
+                        </button>
+                        <button 
                           onClick={() => openEdit(ad)}
                           className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:border-risda-orange/50 transition-all"
+                          title="Kemaskini"
                         >
                           <Edit3 size={16} />
                         </button>
                         <button 
                           onClick={() => handleDelete(ad.id)}
                           className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:border-red-500/50 hover:text-red-500 transition-all"
+                          title="Padam"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -937,6 +1008,28 @@ export default function TenderManagement() {
                       placeholder="Sila nyatakan keperluan lesen khusus untuk pelantikan pembekal ini jika ada..."
                       className="w-full bg-black/40 border border-risda-border rounded-xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none min-h-[80px] resize-none"
                     />
+                  </div>
+                  <div className="col-span-2 space-y-2">
+                    <label className="text-[10px] font-black text-risda-muted uppercase tracking-[3px]">Kategori Perolehan</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {(['KERJA', 'BEKALAN', 'PERKHIDMATAN'] as const).map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, category: cat })}
+                          className={`py-3.5 px-4 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 border flex items-center justify-center gap-2 ${
+                            formData.category === cat
+                              ? 'bg-risda-orange text-white border-risda-orange shadow-lg shadow-risda-orange/30 scale-[1.01]'
+                              : 'bg-black/40 text-risda-muted border-risda-border hover:bg-black/60 hover:text-white'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${
+                            formData.category === cat ? 'bg-white' : 'bg-risda-muted'
+                          }`} />
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-risda-muted uppercase tracking-[3px]">Sebut Harga No.</label>
@@ -1320,6 +1413,16 @@ export default function TenderManagement() {
                             value={winnerDates.endDate}
                             onChange={(e) => setWinnerDates({...winnerDates, endDate: e.target.value})}
                             className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Harga Perolehan Terpilih / Nilai Keputusan (RM)</label>
+                          <input 
+                            type="number"
+                            placeholder="Contoh: 125000"
+                            value={winnerDates.winningPrice}
+                            onChange={(e) => setWinnerDates({...winnerDates, winningPrice: e.target.value})}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </div>
                         <div className="p-5 bg-white/5 rounded-2xl border border-white/5">

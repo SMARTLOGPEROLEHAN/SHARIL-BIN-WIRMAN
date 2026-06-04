@@ -126,9 +126,18 @@ const SidebarItem = ({ icon: Icon, label, active, collapsed, onClick, subItems }
   );
 };
 
-export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean, onClose?: () => void }) {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  collapsed?: boolean;
+  setCollapsed?: (val: boolean) => void;
+}
+
+export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, setCollapsed: propSetCollapsed }: SidebarProps) {
   const { user, role } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [localCollapsed, setLocalCollapsed] = useState(false);
+  const collapsed = propCollapsed !== undefined ? propCollapsed : localCollapsed;
+  const setCollapsed = propSetCollapsed !== undefined ? propSetCollapsed : setLocalCollapsed;
   const [loginHovered, setLoginHovered] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [currentHash, setCurrentHash] = useState(window.location.hash);

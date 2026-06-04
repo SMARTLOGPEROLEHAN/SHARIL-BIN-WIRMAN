@@ -1,7 +1,6 @@
 import { Cpu, Send, X, MessageSquare, Bot, User, LifeBuoy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -68,36 +67,28 @@ export default function AIButton() {
     setLoading(true);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-      
-      if (!apiKey) {
-        throw new Error('API_KEY_MISSING');
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-        config: {
-          systemInstruction: `You are an AI assistant for the SMART LOG PEROLEHAN system. 
-          Your goal is to answer questions about the Tender Management System. 
-          Key info:
-          - This system is for site briefing attendance registration for RISDA tenders.
-          - Roles: Admin (System Admin), Penginput (Staff), Pelulus (Approver), Pelawat (Visitors/Contractors).
-          - Features: Ads management, Attendance tracking, Role management, Reports.
-          - Contractors use the system to register their presence at site briefings via QR or manual entry.
-          Answer in Bahasa Melayu properly. Be professional and helpful.`
-        }
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: userMessage }),
       });
 
-      setMessages(prev => [...prev, { role: 'ai', text: response.text || 'Maaf, saya tidak dapat menjawab soalan itu buat masa sekarang.' }]);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Ralat pelayan");
+      }
+
+      const data = await response.json();
+      setMessages(prev => [...prev, { role: 'ai', text: data.text }]);
     } catch (error: any) {
       console.error('AI Error:', error);
       let errorMessage = 'Maaf, ralat teknikal berlaku. Sila cuba sebentar lagi.';
       
-      if (error.message === 'API_KEY_MISSING' || error.message?.includes('403') || error.message?.includes('400')) {
+      if (error.message?.includes('configured') || error.message?.includes('403') || error.message?.includes('400')) {
         errorMessage = 'Sila pastikan API Key telah dikonfigurasi dalam tetapan sistem.';
-      } else if (error.message?.includes('429')) {
+      } else if (error.message?.includes('429') || error.message?.includes('rate limit')) {
         errorMessage = 'Had penggunaan AI telah dicapai. Sila cuba sebentar lagi.';
       }
       
