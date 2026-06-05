@@ -138,6 +138,37 @@
   @apply bg-white/10 rounded-full border-2 border-transparent bg-clip-content hover:bg-risda-orange/40 transition-all;
 }
 
+/* Explicit Table Scrollbar Styling for .custom-scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 10px !important;
+  width: 10px !important;
+  display: block !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-radius: 9999px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(to right, var(--risda-orange) 0%, var(--risda-gold) 100%) !important;
+  border-radius: 9999px !important;
+  border: 2px solid #020617 !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to right, var(--risda-gold) 0%, var(--risda-orange) 100%) !important;
+}
+
+@media (max-width: 1024px) {
+  /* Keep custom scrollbar highly visible on table elements even on mobile */
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 10px !important;
+    width: 10px !important;
+    display: block !important;
+  }
+}
+
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;

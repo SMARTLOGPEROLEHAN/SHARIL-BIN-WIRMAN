@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   FileBarChart, 
@@ -14,6 +14,7 @@ import {
   FileSpreadsheet, 
   FileCheck,
   ArrowLeft,
+  ArrowRight,
   Edit2,
   Save,
   X
@@ -43,6 +44,19 @@ export default function ReportPanel() {
   const [view, setView] = useState<'summary' | 'sukuan' | 'tahunan'>('summary');
   const [loading, setLoading] = useState<boolean>(false);
 
+  // Scroll ref for the annual report table scrollbar container
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (tableRef.current) {
+      const scrollAmount = 450;
+      tableRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   // States for Quarterly/Monthly Report (Format Lampiran A1 & A2)
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedQuarter, setSelectedQuarter] = useState<string>('Q1'); // Q1, Q2, Q3, Q4
@@ -52,32 +66,16 @@ export default function ReportPanel() {
 
   // Rows state for A1
   const [rowsA1, setRowsA1] = useState<RowA1[]>([
-    { category: 'BEKALAN', perancanganBil: 1, perancanganNilai: 70000, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 70000, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '12 MINGGU' },
+    { category: 'BEKALAN', perancanganBil: 0, perancanganNilai: 0, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 0, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '' },
     { category: 'PERKHIDMATAN', perancanganBil: 0, perancanganNilai: 0, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 0, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '' },
-    { category: 'KERJA', perancanganBil: 1, perancanganNilai: 127000, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 127000, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '11 MINGGU' }
+    { category: 'KERJA', perancanganBil: 0, perancanganNilai: 0, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 0, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '' }
   ]);
 
-  // Rows state for A2 (Initialized with 10 empty rows as requested)
-  const [rowsA2, setRowsA2] = useState<RowA2[]>(() => 
-    Array.from({ length: 10 }, (_, i) => ({
-      id: `initial-row-${i + 1}`,
-      tenderNo: '',
-      category: '',
-      jenisPeruntukan: '',
-      title: '',
-      winnerName: '',
-      winningPrice: 0
-    }))
-  );
+  // Rows state for A2 (Initialized completely empty because they do not have data filled yet)
+  const [rowsA2, setRowsA2] = useState<RowA2[]>([]);
 
   // Tracks which Lampiran A2 rows are in edit/input mode
-  const [activeA2Edits, setActiveA2Edits] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    for (let i = 1; i <= 10; i++) {
-      initial[`initial-row-${i}`] = true;
-    }
-    return initial;
-  });
+  const [activeA2Edits, setActiveA2Edits] = useState<Record<string, boolean>>({});
 
   // States for Annual Report
   const [selectedAnnualYear, setSelectedAnnualYear] = useState<string | null>(null);
@@ -85,116 +83,7 @@ export default function ReportPanel() {
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   const getInitialMockAnnual = (yearStr: string): RowAnnual[] => {
-    const y = yearStr;
-    const nextY = String(Number(y) + 1);
-    
-    return [
-      {
-        id: 'ann-1',
-        title: `CADANGAN PROJEK JALAN BAGI PROGRAM PRASARANA ASAS PERTANIAN (PAP) ${y} KAMPUNG IBURU, SIPITANG`,
-        category: 'KERJA',
-        tenderNo: `SH/S.6-01/${y}`,
-        tarikhSetujuTerima: `06/03/${y}`,
-        tarikhSiapKerja: `29/05/${y}`,
-        tempohSiapKerja: '12 MINGGU',
-        winnerName: 'PUNCAK BAYU',
-        winningPrice: 141720,
-        noBaucar: '12545070447',
-        tarikhDibayar: `23/06/${y}`,
-        tarikhSiapBaru: '',
-        statusPelaksanaan: 'ON TIME'
-      },
-      {
-        id: 'ann-2',
-        title: `CADANGAN PROJEK JALAN BAGI PROGRAM PRASARANA ASAS PERTANIAN (PAP) ${y} KAMPUNG SINOKO, MEMBAKUT`,
-        category: 'KERJA',
-        tenderNo: `SH/S.6-02/${y}`,
-        tarikhSetujuTerima: `26/02/${y}`,
-        tarikhSiapKerja: `07/05/${y}`,
-        tempohSiapKerja: '10 MINGGU',
-        winnerName: 'JOH TEKNOLOGI ENTERPRISE',
-        winningPrice: 115000,
-        noBaucar: '12545070448',
-        tarikhDibayar: `23/06/${y}`,
-        tarikhSiapBaru: '',
-        statusPelaksanaan: 'LEWAT BERSYARAT'
-      },
-      {
-        id: 'ann-3',
-        title: `CADANGAN PERKHIDMATAN MEMBEKAL INPUT PERTANIAN BAGI PROJEK TERNAKAN ITIK PENELUR DIBAWAH PROGRAM AGRO MAKANAN TAHUN ${y} DI KAMPUNG PALU-PALU, KUALA PENYU`,
-        category: 'BEKALAN',
-        tenderNo: `SH/S.6-03/${y}`,
-        tarikhSetujuTerima: `19/03/${y}`,
-        tarikhSiapKerja: `11/06/${y}`,
-        tempohSiapKerja: '12 MINGGU',
-        winnerName: 'RISDA PLANTATION SDN BHD',
-        winningPrice: 70000,
-        noBaucar: '12545070612',
-        tarikhDibayar: `28/07/${y}`,
-        tarikhSiapBaru: '',
-        statusPelaksanaan: 'LEWAT BERSYARAT'
-      },
-      {
-        id: 'ann-4',
-        title: `CADANGAN PROJEK JALAN BAGI PROGRAM PRASARANA ASAS PERTANIAN (PAP) ${y} KAMPUNG SUNGAI BATAT SIPITANG`,
-        category: 'KERJA',
-        tenderNo: `SH/S.6-04/${y}`,
-        tarikhSetujuTerima: `25/07/${y}`,
-        tarikhSiapKerja: `10/10/${y}`,
-        tempohSiapKerja: '11 MINGGU',
-        winnerName: 'MULONG ENTERPRISE',
-        winningPrice: 127000,
-        noBaucar: '12545071061',
-        tarikhDibayar: `14/11/${y}`,
-        tarikhSiapBaru: '',
-        statusPelaksanaan: 'ON TIME'
-      },
-      {
-        id: 'ann-5',
-        title: `CADANGAN PERKHIDMATAN MEMBEKAL INPUT PERTANIAN BAGI TANAMAN SAYURAN FERTIGASI SISTEM PARA DIBAWAH AGROMAKANAN TAHUN ${y} DI KAMPUNG BINGKULAS, MEMBAKUT`,
-        category: 'BEKALAN',
-        tenderNo: `SH/S.6-05/${y}`,
-        tarikhSetujuTerima: `07/08/${y}`,
-        tarikhSiapKerja: `30/10/${y}`,
-        tempohSiapKerja: '12 MINGGU',
-        winnerName: 'RISDA SECURITY & SERVICES SDN BHD',
-        winningPrice: 70000,
-        noBaucar: '12545071068',
-        tarikhDibayar: `14/11/${y}`,
-        tarikhSiapBaru: '',
-        statusPelaksanaan: 'ON TIME'
-      },
-      {
-        id: 'ann-6',
-        title: `CADANGAN PROJEK JALAN BAGI PROGRAM PRASARANA ASAS PERTANIAN (PAP) ${y} KAMPUNG BAMBANGAN, MEMBAKUT`,
-        category: 'KERJA',
-        tenderNo: `SH/S.6-06/${y}`,
-        tarikhSetujuTerima: `29/10/${y}`,
-        tarikhSiapKerja: `24/12/${y}`,
-        tempohSiapKerja: '8 MINGGU',
-        winnerName: 'AMANAH KONTRAKTOR ENTERPRISE',
-        winningPrice: 209000,
-        noBaucar: '12645070179',
-        tarikhDibayar: `03/03/${nextY}`,
-        tarikhSiapBaru: '',
-        statusPelaksanaan: 'ON TIME'
-      },
-      {
-        id: 'ann-7',
-        title: `CADANGAN PROJEK JALAN BAGI PROGRAM PRASARANA ASAS PERTANIAN (PAP) ${y} KAMPUNG SERAYO, MEMBAKUT`,
-        category: 'KERJA',
-        tenderNo: `SH/S.6-07/${y}`,
-        tarikhSetujuTerima: `29/10/${y}`,
-        tarikhSiapKerja: `24/12/${y}`,
-        tempohSiapKerja: '8 MINGGU',
-        winnerName: 'Z & Z ELEKTRIK ENTERPRISE',
-        winningPrice: 149000,
-        noBaucar: '',
-        tarikhDibayar: '',
-        tarikhSiapBaru: '',
-        statusPelaksanaan: 'LEWAT BERSYARAT'
-      }
-    ];
+    return [];
   };
 
   const getDBAnnualRowsForYear = (yearStr: string): RowAnnual[] => {
@@ -635,33 +524,19 @@ export default function ReportPanel() {
   // Reset reporting tables back to standard mockup data patterns matching the pdf images
   const handleResetMockup = () => {
     setRowsA1([
-      { category: 'BEKALAN', perancanganBil: 1, perancanganNilai: 70000, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 70000, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '12 MINGGU' },
+      { category: 'BEKALAN', perancanganBil: 0, perancanganNilai: 0, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 0, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '' },
       { category: 'PERKHIDMATAN', perancanganBil: 0, perancanganNilai: 0, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 0, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '' },
-      { category: 'KERJA', perancanganBil: 1, perancanganNilai: 127000, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 127000, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '11 MINGGU' }
+      { category: 'KERJA', perancanganBil: 0, perancanganNilai: 0, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 0, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '' }
     ]);
-    setRowsA2(
-      Array.from({ length: 10 }, (_, i) => ({
-        id: `initial-row-${i + 1}`,
-        tenderNo: '',
-        category: '',
-        jenisPeruntukan: '',
-        title: '',
-        winnerName: '',
-        winningPrice: 0
-      }))
-    );
-    // Reset active edits to true for all 10 freshly reset empty rows
-    const initialEdits: Record<string, boolean> = {};
-    for (let i = 1; i <= 10; i++) {
-      initialEdits[`initial-row-${i}`] = true;
-    }
-    setActiveA2Edits(initialEdits);
+    setRowsA2([]);
+    // Reset active edits to empty
+    setActiveA2Edits({});
 
     setSelectedYear(new Date().getFullYear().toString());
     setSelectedQuarter('Q1');
     setOffice('PEJABAT RISDA DAERAH BEAUFORT');
     setAsOfDate(`31 Mac ${new Date().getFullYear()}`);
-    toast.success('Laporan diset semula dengan 10 baris projek kosong');
+    toast.success('Laporan diset semula dengan rekod kosong');
   };
 
   // Inline Handlers for A1 Edit Cells
@@ -860,9 +735,8 @@ export default function ReportPanel() {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-8"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <ReportStat cardTitle="Iklan Berdaftar" value={summaryStats.totalAds.toString()} trend="Sistem" icon={FileText} />
-              <ReportStat cardTitle="Kakitangan Berdaftar" value={summaryStats.totalStaff.toString()} trend="Aktif" icon={Users} />
               <ReportStat cardTitle="Pembekal Berjaya" value={summaryStats.successfulSuppliers.toString()} trend="SST" icon={FileCheck} />
               <ReportStat cardTitle="Keputusan Rasmi" value={summaryStats.officialDecisions.toString()} trend="Urus setia" icon={CheckCircle} />
             </div>
@@ -1570,13 +1444,16 @@ export default function ReportPanel() {
                   </div>
                 </div>
 
-                {/* Spreadsheet style table with 13 columns */}
-                <div className="overflow-x-auto w-full border border-white/10 rounded-2xl">
+                {/* Spreadsheet style table with 13 columns with custom-scrollbar */}
+                <div 
+                  ref={tableRef}
+                  className="overflow-x-auto w-full border border-white/10 rounded-2xl custom-scrollbar"
+                >
                   <table className="w-full text-xs text-left border-collapse min-w-[2000px]">
                     <thead>
                       <tr className="bg-gradient-to-r from-[#FAB21E] to-[#F5A623] text-black font-black uppercase border-b border-white/10 text-center">
-                        <th className="p-3 w-12 border-r border-[#D49010] text-center">BIL</th>
-                        <th className="p-3 w-96 border-r border-[#D49010]">TAJUK SEBUTHARGA</th>
+                        <th className="sticky left-0 bg-[#FAB21E] z-20 p-3 min-w-[3rem] w-12 border-r border-[#D49010] text-center shadow-md">BIL</th>
+                        <th className="sticky left-12 bg-[#F5A11F] z-20 p-3 min-w-[24rem] w-96 border-r border-[#D49010] text-left shadow-[5px_0_10px_-3px_rgba(0,0,0,0.3)]">TAJUK SEBUTHARGA</th>
                         <th className="p-3 w-40 border-r border-[#D49010]">KERJA / PERKHIDMATAN / BEKALAN</th>
                         <th className="p-3 w-48 border-r border-[#D49010]">NO SEBUTHARGA</th>
                         <th className="p-3 w-36 border-r border-[#D49010]">TARIKH SETUJU TERIMA</th>
@@ -1586,12 +1463,12 @@ export default function ReportPanel() {
                         <th className="p-3 w-36 border-r border-[#D49010] text-right">NILAI TAWARAN (RM)</th>
                         <th className="p-3 w-36 border-r border-[#D49010]">NO BAUCAR BAYARAN</th>
                         <th className="p-3 w-36 border-r border-[#D49010]">TARIKH DIBAYAR</th>
-                        <th className="p-3 w-48 border-r border-[#D49010]">TARIKH SIAP KERJA BARU (EOT)</th>
+                        <th className="p-3 h-auto w-48 border-r border-[#D49010]">TARIKH SIAP KERJA BARU (EOT)</th>
                         <th className="p-3 w-36 border-r border-[#D49010]">STATUS</th>
                         <th className="p-3 w-64 text-center">TINDAKAN</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5 font-medium bg-black/20">
+                    <tbody className="divide-y divide-white/5 font-medium bg-[#0b0e14]">
                       {rowsAnnual.length === 0 ? (
                         <tr>
                           <td colSpan={14} className="p-12 text-center text-risda-muted text-sm uppercase font-black tracking-widest">
@@ -1602,12 +1479,12 @@ export default function ReportPanel() {
                         rowsAnnual.map((r, idx) => {
                           const isEditing = editingRowId === r.id;
                           return (
-                            <tr key={r.id} className="hover:bg-white/5 transition-all text-center">
+                            <tr key={r.id} className="group hover:bg-white/5 transition-all text-center">
                               {/* BIL */}
-                              <td className="p-2 border-r border-white/5 text-white/50">{idx + 1}</td>
+                              <td className="sticky left-0 bg-[#0e121a] group-hover:bg-[#151b27] z-10 p-2 border-r border-white/10 text-white/50 text-center min-w-[3rem] w-12 border-b border-white/5 transition-colors">{idx + 1}</td>
                               
                               {/* TAJUK SEBUTHARGA */}
-                              <td className="p-2 border-r border-white/5 text-left">
+                              <td className="sticky left-12 bg-[#0e121a] group-hover:bg-[#151b27] z-10 p-2 border-r border-white/10 text-left min-w-[24rem] w-96 border-b border-white/5 transition-colors shadow-[5px_0_10px_-3px_rgba(0,0,0,0.3)]">
                                 {isEditing ? (
                                   <textarea
                                     value={r.title}
@@ -1884,19 +1761,6 @@ export default function ReportPanel() {
                     const yrNum = Number(item.year);
                     let countVal = getAdCountForYear(yrNum);
                     
-                    // For backward compatibility and nice previews, if count is 0, give nice static dummy numbers for archives
-                    if (countVal === 0) {
-                      if (index === 0) {
-                        countVal = rowsA2.length;
-                      } else if (index === 1) {
-                        countVal = 124;
-                      } else if (index === 2) {
-                        countVal = 458;
-                      } else {
-                        countVal = 412;
-                      }
-                    }
-
                     return (
                       <AnnualReportItem 
                         key={item.year}
@@ -1910,25 +1774,9 @@ export default function ReportPanel() {
                             setRowsAnnual(dbRows);
                             toast.success(`Berjaya memadankan ${dbRows.length} rekod dari pangkalan data bagi tahun ${item.year}`);
                           } else {
-                            // If there is no DB data, display empty format (one empty, writable row) for the user to fill from scratch as requested
-                            const emptyRow: RowAnnual = {
-                              id: `empty-ann-${Math.random()}`,
-                              title: '',
-                              category: 'KERJA',
-                              tenderNo: `SH/S.6-01/${item.year}`,
-                              tarikhSetujuTerima: '',
-                              tarikhSiapKerja: '',
-                              tempohSiapKerja: '',
-                              winnerName: '',
-                              winningPrice: 0,
-                              noBaucar: '',
-                              tarikhDibayar: '',
-                              tarikhSiapBaru: '',
-                              statusPelaksanaan: 'ON TIME',
-                              isCustom: true
-                            };
-                            setRowsAnnual([emptyRow]);
-                            toast(`Tiada data database bagi tahun ${item.year}. Paparan format kosong disediakan.`);
+                            // Empty report initially as requested because no database data is registered yet
+                            setRowsAnnual([]);
+                            toast(`Tiada data database bagi tahun ${item.year}. Laporan tahunan bermula kosong.`);
                           }
                         }}
                       />

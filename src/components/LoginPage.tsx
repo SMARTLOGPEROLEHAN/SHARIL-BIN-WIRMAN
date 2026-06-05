@@ -2,8 +2,8 @@ import { useState, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, Mail, Lock, ShieldCheck, ArrowRight, Chrome, AlertCircle, Eye, EyeOff, X, User } from 'lucide-react';
 import { signInWithGoogle, auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { collection, addDoc, Timestamp, query, where, getDocs, limit } from 'firebase/firestore';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { collection, addDoc, Timestamp, query, where, getDocs, limit, updateDoc, doc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -73,10 +73,12 @@ export default function LoginPage() {
     try {
       const cleanIdentifier = identifier.trim();
       let targetEmail = cleanIdentifier;
+      let dbUserDoc: any = null;
+      let dbUserDocId: string | null = null;
+      const usersRef = collection(db, 'users');
 
       // If it doesn't look like an email, try lookup by staffId or displayName
       if (!cleanIdentifier.includes('@')) {
-        const usersRef = collection(db, 'users');
         const searchId = cleanIdentifier;
         
         // Try exact match first
@@ -111,11 +113,23 @@ export default function LoginPage() {
           });
           if (foundDoc) {
             targetEmail = foundDoc.data().email;
+            dbUserDoc = foundDoc.data();
+            dbUserDocId = foundDoc.id;
           } else {
             throw new Error('ID / Nama tidak dijumpai dalam sistem.');
           }
         } else {
           targetEmail = snapshot.docs[0].data().email;
+          dbUserDoc = snapshot.docs[0].data();
+          dbUserDocId = snapshot.docs[0].id;
+        }
+      } else {
+        // It is an email, let's fetch the Firestore document to compare passwords
+        const qEmail = query(usersRef, where('email', '==', targetEmail.trim()), limit(1));
+        const snapshot = await getDocs(qEmail);
+        if (!snapshot.empty) {
+          dbUserDoc = snapshot.docs[0].data();
+          dbUserDocId = snapshot.docs[0].id;
         }
       }
 
@@ -123,7 +137,33 @@ export default function LoginPage() {
         throw new Error('E-mel akaun tidak ditemui.');
       }
 
-      await signInWithEmailAndPassword(auth, targetEmail.trim(), password);
+      try {
+        await signInWithEmailAndPassword(auth, targetEmail.trim(), password);
+      } catch (signInErr: any) {
+        // AUTO-HEALING AUTH AND CREDENTIALS:
+        // If sign-in failed but the user provided the exact password stored in their Firestore document,
+        // we can dynamically provision or sync the auth account!
+        if (dbUserDoc && dbUserDoc.password === password) {
+          if (signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/user-not-found') {
+            try {
+              const res = await createUserWithEmailAndPassword(auth, targetEmail.trim(), password);
+              
+              if (dbUserDocId) {
+                await updateDoc(doc(db, 'users', dbUserDocId), {
+                  uid: res.user.uid,
+                  updatedAt: Timestamp.now()
+                });
+              }
+              toast.success('Penyelarasan kata laluan & akaun berjaya! Selamat datang.');
+              return;
+            } catch (createErr: any) {
+              console.error('Auto-healing registration error:', createErr);
+              throw signInErr;
+            }
+          }
+        }
+        throw signInErr;
+      }
     } catch (err: any) {
       console.error('Login error details:', err.code, err.message);
       

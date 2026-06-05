@@ -30,7 +30,10 @@ function AppContent() {
   const [view, setView] = useState<'dashboard' | 'login' | 'staff' | 'tenders' | 'attendance' | 'laporan' | 'info' | 'locations' | 'userInfo' | 'projek' | 'keputusan' | 'attendance-records'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [adIdParam, setAdIdParam] = useState<string | null>(null);
+  const [adIdParam, setAdIdParam] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('adId');
+  });
 
   // Sync search parameters to detect if we have adId
   useEffect(() => {
@@ -39,7 +42,6 @@ function AppContent() {
       setAdIdParam(params.get('adId'));
     };
 
-    checkParams();
     window.addEventListener('popstate', checkParams);
     return () => window.removeEventListener('popstate', checkParams);
   }, []);
