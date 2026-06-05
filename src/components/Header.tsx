@@ -169,8 +169,10 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
               className="w-full h-full object-contain filter drop-shadow-sm" 
               onError={(e) => {
                 const img = e.currentTarget;
-                if (img.src !== "/api/logo") {
+                if (!img.src.includes("/api/logo") && !img.src.endsWith("/api/logo")) {
                   img.src = "/api/logo";
+                } else if (!img.src.includes("Logo_RISDA.png") && !img.src.includes("logo_risda.png")) {
+                  img.src = "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png";
                 }
               }}
             />

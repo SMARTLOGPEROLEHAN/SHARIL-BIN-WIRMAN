@@ -205,8 +205,10 @@ export default function LoginPage() {
               className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-transform duration-500 group-hover:scale-110" 
               onError={(e) => {
                 const img = e.currentTarget;
-                if (img.src !== "/api/logo") {
+                if (!img.src.includes("/api/logo") && !img.src.endsWith("/api/logo")) {
                   img.src = "/api/logo";
+                } else if (!img.src.includes("Logo_RISDA.png") && !img.src.includes("logo_risda.png")) {
+                  img.src = "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png";
                 }
               }}
             />

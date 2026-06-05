@@ -79,8 +79,10 @@ export default function DecorationBackground({ isStaff = false, isSidebarCollaps
           transition={{ duration: 2 }}
           src={logoSrc}
           onError={() => {
-            if (logoSrc !== "/api/logo") {
+            if (!logoSrc.includes("/api/logo") && !logoSrc.endsWith("/api/logo")) {
               setLogoSrc("/api/logo");
+            } else if (!logoSrc.includes("Logo_RISDA.png") && !logoSrc.includes("logo_risda.png")) {
+              setLogoSrc("https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png");
             }
           }}
           alt="RISDA BACKGROUND" 
