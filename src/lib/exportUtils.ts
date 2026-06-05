@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, HeadingLevel, VerticalAlign, ImageRun } from 'docx';
 import { saveAs } from 'file-saver';
@@ -169,13 +170,34 @@ export const loadLogo = (): Promise<HTMLImageElement | null> => {
 
 export const loadQR = (adId?: string): Promise<HTMLImageElement | null> => {
   return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => {
-      resolve(null);
-    };
-    img.src = adId ? `/api/qr-code.png?adId=${adId}&origin=${encodeURIComponent(window.location.origin)}` : '/api/qr-code.png';
+    const url = adId 
+      ? `${window.location.origin}/?adId=${adId}` 
+      : `${window.location.origin}/`;
+
+    QRCode.toDataURL(url, {
+      width: 400,
+      margin: 2,
+      color: {
+        dark: '#0f172a',
+        light: '#ffffff'
+      }
+    })
+    .then((dataUrl) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => {
+        resolve(null);
+      };
+      img.src = dataUrl;
+    })
+    .catch((err) => {
+      console.error('Client-side QR generation failed in PDF export, trying API fallback...', err);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = adId ? `/api/qr-code.png?adId=${adId}&origin=${encodeURIComponent(window.location.origin)}` : '/api/qr-code.png';
+    });
   });
 };
 

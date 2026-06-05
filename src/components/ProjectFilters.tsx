@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, query, getDocs, orderBy, where } from 'firebase/firestore';
+import QRCode from 'qrcode';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -48,6 +49,31 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [isViewOnlyList, setIsViewOnlyList] = useState(false);
   const [modalSearch, setModalSearch] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+
+  // Generate client-side base64 QR Code for selected advertisement
+  useEffect(() => {
+    if (selectedAd && selectedAd.id) {
+      const url = `${window.location.origin}/?adId=${selectedAd.id}`;
+      QRCode.toDataURL(url, {
+        width: 400,
+        margin: 2,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff'
+        }
+      })
+      .then((dataUrl) => {
+        setQrCodeUrl(dataUrl);
+      })
+      .catch((err) => {
+        console.error('Client-side QR generation failed, falling back to server path...', err);
+        setQrCodeUrl(`/api/qr-code.png?adId=${selectedAd.id}&origin=${encodeURIComponent(window.location.origin)}`);
+      });
+    } else {
+      setQrCodeUrl('');
+    }
+  }, [selectedAd]);
 
   useEffect(() => {
     fetchAds();
@@ -932,7 +958,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                           <div className="relative mx-auto max-w-[220px] aspect-square bg-[#0d121c] p-4 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] group overflow-hidden flex items-center justify-center">
                             <div className="absolute inset-0 bg-gradient-to-t from-risda-orange/10 via-transparent to-transparent opacity-80 group-hover:scale-110 transition-transform duration-500" />
                             <img 
-                              src={`/api/qr-code.png?adId=${selectedAd.id}&origin=${encodeURIComponent(window.location.origin)}`} 
+                              src={qrCodeUrl || `/api/qr-code.png?adId=${selectedAd.id}&origin=${encodeURIComponent(window.location.origin)}`} 
                               alt="Kod QR Pendaftaran" 
                               className="relative z-10 w-full h-full object-contain"
                               referrerPolicy="no-referrer"
