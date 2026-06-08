@@ -824,7 +824,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                             }`}>
                               {(selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'Keputusan Rasmi Perolehan' : 'Maklumat Iklan'}
                             </div>
-                            {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) && (
+                            {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) && isStaff && (
                               <div className="flex gap-2 mt-4 sm:mt-0">
                                 <button 
                                   onClick={async () => {
