@@ -50,6 +50,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
   const [isViewOnlyList, setIsViewOnlyList] = useState(false);
   const [modalSearch, setModalSearch] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Generate client-side base64 QR Code for selected advertisement
   useEffect(() => {
@@ -217,194 +218,326 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
 
   const isHomepageVisitor = !isStaff && showRegistration;
 
+  // We'll calculate counts in memory for our status tabs!
+  const activeCount = ads.filter(ad => {
+    const itemDate = ad.visitDate || ad.closingDate || ad.createdAt;
+    const itemYear = itemDate ? new Date(itemDate).getFullYear() : 0;
+    const isOld = itemYear > 0 && itemYear < parseInt(currentYear);
+    const displayStatus = isOld ? 'SELESAI (KEPUTUSAN)' : ad.status;
+    return displayStatus === 'AKTIF';
+  }).length;
+
+  const resolvedCount = ads.filter(ad => {
+    const itemDate = ad.visitDate || ad.closingDate || ad.createdAt;
+    const itemYear = itemDate ? new Date(itemDate).getFullYear() : 0;
+    const isOld = itemYear > 0 && itemYear < parseInt(currentYear);
+    const displayStatus = isOld ? 'SELESAI (KEPUTUSAN)' : ad.status;
+    return displayStatus === 'SELESAI (KEPUTUSAN)';
+  }).length;
+
+  const totalCount = ads.length;
+
+  // Pre-calculate filtered ads to avoid logic branch mess in JSX
+  const filteredAds = ads
+    .map(ad => {
+      const itemDate = ad.visitDate || ad.closingDate || ad.createdAt;
+      const itemYear = itemDate ? new Date(itemDate).getFullYear() : 0;
+      const isOldProject = itemYear > 0 && itemYear < parseInt(currentYear);
+      const displayStatus = isOldProject ? 'SELESAI (KEPUTUSAN)' : ad.status;
+      return { ...ad, displayStatus, isOldProject };
+    })
+    .filter(ad => {
+      if (filters.status === 'SEMUA') return true;
+      return ad.displayStatus === filters.status;
+    })
+    .filter(ad => {
+      return filters.category === 'SEMUA' || (ad.category || 'KERJA') === filters.category;
+    })
+    .filter(ad => {
+      if (filters.year === 'ALL') return true;
+      const date = ad.visitDate || ad.closingDate || ad.createdAt;
+      if (!date) return false;
+      return new Date(date).getFullYear().toString() === filters.year;
+    })
+    .filter(ad => {
+      if (!filters.state) return true;
+      return ad.state === filters.state;
+    })
+    .filter(ad => {
+      if (!filters.office) return true;
+      return ad.office === filters.office;
+    })
+    .filter(ad => {
+      if (!searchQuery) return true;
+      const queryStr = searchQuery.toLowerCase();
+      return (
+        (ad.title || '').toLowerCase().includes(queryStr) ||
+        (ad.tenderNo || '').toLowerCase().includes(queryStr) ||
+        (ad.office || '').toLowerCase().includes(queryStr) ||
+        (ad.state || '').toLowerCase().includes(queryStr)
+      );
+    });
+
   return (
-    <section className={isHomepageVisitor ? "" : "space-y-16 pb-20 text-left"}>
-      {!isHomepageVisitor && (
-        <div className="w-full">
-        <div className="py-10 flex justify-between items-center border-b border-white/10">
-          <div className="flex items-center gap-4">
-            <div className="w-2.5 h-2.5 bg-risda-orange rounded-full shadow-[0_0_15px_rgba(255,176,0,0.6)]" />
-            <h3 className="text-xl font-black uppercase tracking-[6px] text-white">
-              {filters.status === 'SELESAI (KEPUTUSAN)' ? 'Keputusan Rasmi Perolehan' : `Senarai Iklan & Keputusan`}
-            </h3>
-          </div>
-        </div>
-        
-        <div className="py-12">
-          <div className="space-y-12 mb-20">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
-              {/* Negeri Filter */}
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 px-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
-                  <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Negeri</label>
-                </div>
-                <div className="relative group">
-                  <select 
-                    value={filters.state}
-                    onChange={(e) => {
-                      const newState = e.target.value;
-                      setFilters({...filters, state: newState, office: ''});
-                      const filtered = allLocations
-                        .filter(loc => (!newState || loc.state === newState) && loc.status === 'Aktif')
-                        .map(loc => loc.name?.trim().toUpperCase())
-                        .filter(Boolean)
-                        .sort();
-                      setOffices(Array.from(new Set(filtered)));
-                    }}
-                    className="bg-transparent border-b-2 border-white/10 py-5 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider"
-                  >
-                    <option value="" className="bg-risda-dark">SEMUA NEGERI (MALAYSIA)</option>
-                    <option value="SABAH" className="bg-risda-dark">SABAH</option>
-                    <option value="SARAWAK" className="bg-risda-dark">SARAWAK</option>
-                    <option value="SELANGOR" className="bg-risda-dark">SELANGOR</option>
-                    <option value="KUALA LUMPUR" className="bg-risda-dark">KUALA LUMPUR</option>
-                    <option value="JOHOR" className="bg-risda-dark">JOHOR</option>
-                    <option value="KEDAH" className="bg-risda-dark">KEDAH</option>
-                    <option value="KELANTAN" className="bg-risda-dark">KELANTAN</option>
-                    <option value="MELAKA" className="bg-risda-dark">MELAKA</option>
-                    <option value="NEGERI SEMBILAN" className="bg-risda-dark">NEGERI SEMBILAN</option>
-                    <option value="PAHANG" className="bg-risda-dark">PAHANG</option>
-                    <option value="PERAK" className="bg-risda-dark">PERAK</option>
-                    <option value="PERLIS" className="bg-risda-dark">PERLIS</option>
-                    <option value="PULAU PINANG" className="bg-risda-dark">PULAU PINANG</option>
-                    <option value="TERENGGANU" className="bg-risda-dark">TERENGGANU</option>
-                  </select>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                    <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
-                </div>
+    <section className="space-y-12 pb-24 text-left w-full relative">
+      <div className="w-full">
+        {/* Portal Header with Premium Glassmorphism Statistics Overview */}
+        <div className="relative overflow-hidden bg-white/[0.02] border border-white/5 rounded-[40px] p-6 md:p-10 mb-8 shadow-2xl">
+          {/* Ambient light glow backdrop */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-gradient-to-r from-risda-orange/10 to-risda-gold/10 blur-[130px] pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2.5 px-4 py-1.5 bg-risda-orange/15 border border-risda-orange/20 rounded-full">
+                <span className="w-1.5 h-1.5 bg-risda-orange rounded-full animate-pulse shadow-[0_0_8px_rgba(255,176,0,1)]" />
+                <span className="text-[9px] font-black uppercase tracking-[3px] text-risda-orange">KEMAS KINI LANGSUNG (LIVE)</span>
               </div>
+              <h2 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tight font-display !leading-tight">
+                PORTAL PEROLEHAN <span className="text-transparent bg-clip-text bg-gradient-to-r from-risda-orange to-risda-gold font-black italic">& KEPUTUSAN</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-risda-muted font-bold max-w-2xl leading-relaxed">
+                Papar iklan sebut harga aktif semasa, pendaftaran taklimat tapak, serta keputusan rasmi pemenang lantikan kontraktor RISDA secara bersepadu dan telus.
+              </p>
+            </div>
 
-              {/* Pejabat Filter */}
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 px-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
-                  <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Pejabat RISDA</label>
-                </div>
-                <div className="relative group">
-                  <select 
-                    value={filters.office}
-                    onChange={(e) => setFilters({...filters, office: e.target.value})}
-                    className="bg-transparent border-b-2 border-white/10 py-5 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider"
-                  >
-                    <option value="" className="bg-risda-dark">SEMUA PEJABAT CAWANGAN</option>
-                    {offices.map((office) => (
-                      <option key={office} value={office} className="bg-risda-dark uppercase">{office}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                    <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
-                </div>
+            {/* Live Stats badging */}
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 shrink-0 lg:w-96">
+              <div 
+                onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
+                className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
+                  filters.status === 'AKTIF' ? 'border-risda-orange/50 shadow-[0_0_15px_rgba(255,176,0,0.1)]' : 'border-white/5'
+                }`}
+              >
+                <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-risda-orange transition-colors">{activeCount}</div>
+                <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Iklan Aktif Terbit</div>
               </div>
-
-              {/* Status Filter */}
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 px-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
-                  <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Status Perolehan</label>
-                </div>
-                <div className="relative group">
-                  <select 
-                    value={filters.status}
-                    onChange={(e) => setFilters({...filters, status: e.target.value})}
-                    disabled={!showRegistration}
-                    className={`bg-transparent border-b-2 border-white/10 py-5 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider ${!showRegistration ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  >
-                    {(isStaff 
-                      ? ['SEMUA', 'AKTIF', 'BATAL', 'SELESAI (KEPUTUSAN)'] 
-                      : ['AKTIF', 'SELESAI (KEPUTUSAN)']
-                    ).map((status) => (
-                      <option key={status} value={status} className="bg-risda-dark uppercase">
-                        {status === 'SELESAI (KEPUTUSAN)' ? 'KEPUTUSAN RASMI' : status}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                    <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
-                </div>
-              </div>
-
-              {/* Year Filter */}
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 px-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
-                  <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Pilih Tahun</label>
-                </div>
-                <div className="relative group">
-                  <select 
-                    value={filters.year}
-                    onChange={(e) => setFilters({...filters, year: e.target.value})}
-                    className="bg-transparent border-b-2 border-white/10 py-5 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider"
-                  >
-                    {['ALL', ...years].map(year => (
-                      <option key={year} value={year} className="bg-risda-dark">
-                        {year === 'ALL' ? 'SEMUA TAHUN ARKIB' : year}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                    <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
-                </div>
+              <div 
+                onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
+                className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
+                  filters.status === 'SELESAI (KEPUTUSAN)' ? 'border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'border-white/5'
+                }`}
+              >
+                <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-blue-400 transition-colors">{resolvedCount}</div>
+                <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Sebut Harga Selesai</div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="text-[10px] font-black text-risda-muted uppercase tracking-[3px] border-b border-white/10">
-                  <th className="px-2 py-8">Sebut Harga / Projek</th>
-                  <th className="px-6 py-8">Negeri / Pejabat</th>
-                  <th className="px-6 py-8 text-center">Status</th>
-                  {filters.status === 'SELESAI (KEPUTUSAN)' && <th className="px-6 py-8 text-center">Pembekal Terpilih</th>}
-                  <th className="px-6 py-8 text-right">Tarikh Tutup</th>
+        {/* Master Selector Tab Bar */}
+        <div className="flex flex-wrap items-center gap-3 mb-8 overflow-x-auto pb-2 scrollbar-none border-b border-white/5">
+          <button
+            onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
+            className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
+              filters.status === 'AKTIF'
+                ? 'bg-gradient-to-r from-risda-orange/20 to-risda-gold/10 text-white border-risda-orange/40 shadow-[0_0_20px_rgba(255,176,0,0.15)]'
+                : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
+            }`}
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+            IKLAN SEBUT HARGA AKTIF
+            <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{activeCount}</span>
+          </button>
+
+          <button
+            onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
+            className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
+              filters.status === 'SELESAI (KEPUTUSAN)'
+                ? 'bg-gradient-to-r from-blue-500/20 to-indigo-500/10 text-white border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
+                : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
+            }`}
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+            KEPUTUSAN RASMI PEROLEHAN
+            <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{resolvedCount}</span>
+          </button>
+
+          {isStaff && (
+            <>
+              <button
+                onClick={() => setFilters({ ...filters, status: 'SEMUA' })}
+                className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
+                  filters.status === 'SEMUA'
+                    ? 'bg-white/15 text-white border-white/20'
+                    : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
+                }`}
+              >
+                SEMUA REKOD (STAF)
+                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{totalCount}</span>
+              </button>
+
+              <button
+                onClick={() => setFilters({ ...filters, status: 'BATAL' })}
+                className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
+                  filters.status === 'BATAL'
+                    ? 'bg-red-500/20 text-red-400 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
+                    : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
+                }`}
+              >
+                BATAL / PENAGGuhan
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Filters and Searching Deck */}
+        <div className="bg-white/[0.01] border border-white/5 p-6 md:p-8 rounded-[36px] shadow-2xl backdrop-blur-md mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-end w-full">
+            
+            {/* Realtime Search Searchbar */}
+            <div className="flex flex-col gap-3 md:col-span-4">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-risda-orange animate-pulse" />
+                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">CARI DOKUMEN / PROJEK</label>
+              </div>
+              <div className="relative group">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari No Sebut Harga atau Tajuk..."
+                  className="bg-transparent border-b-2 border-white/10 py-4 px-1 pl-8 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full placeholder:text-white/20 uppercase tracking-wider"
+                />
+                <Search size={16} className="absolute left-1 top-[18px] text-white/35 group-focus-within:text-risda-orange transition-colors" />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-1 top-[14px] p-1.5 text-risda-muted hover:text-white transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Negeri Filter */}
+            <div className="flex flex-col gap-3 md:col-span-3">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
+                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Negeri</label>
+              </div>
+              <div className="relative group">
+                <select 
+                  value={filters.state}
+                  onChange={(e) => {
+                    const newState = e.target.value;
+                    setFilters({...filters, state: newState, office: ''});
+                    const filtered = allLocations
+                      .filter(loc => (!newState || loc.state === newState) && loc.status === 'Aktif')
+                      .map(loc => loc.name?.trim().toUpperCase())
+                      .filter(Boolean)
+                      .sort();
+                    setOffices(Array.from(new Set(filtered)));
+                  }}
+                  className="bg-transparent border-b-2 border-white/10 py-4 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider"
+                >
+                  <option value="" className="bg-risda-dark">SEMUA NEGERI (MALAYSIA)</option>
+                  <option value="SABAH" className="bg-risda-dark">SABAH</option>
+                  <option value="SARAWAK" className="bg-risda-dark">SARAWAK</option>
+                  <option value="SELANGOR" className="bg-risda-dark">SELANGOR</option>
+                  <option value="KUALA LUMPUR" className="bg-risda-dark">KUALA LUMPUR</option>
+                  <option value="JOHOR" className="bg-risda-dark">JOHOR</option>
+                  <option value="KEDAH" className="bg-risda-dark">KEDAH</option>
+                  <option value="KELANTAN" className="bg-risda-dark">KELANTAN</option>
+                  <option value="MELAKA" className="bg-risda-dark">MELAKA</option>
+                  <option value="NEGERI SEMBILAN" className="bg-risda-dark">NEGERI SEMBILAN</option>
+                  <option value="PAHANG" className="bg-risda-dark">PAHANG</option>
+                  <option value="PERAK" className="bg-risda-dark">PERAK</option>
+                  <option value="PERLIS" className="bg-risda-dark">PERLIS</option>
+                  <option value="PULAU PINANG" className="bg-risda-dark">PULAU PINANG</option>
+                  <option value="TERENGGANU" className="bg-risda-dark">TERENGGANU</option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+                  <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Pejabat Filter */}
+            <div className="flex flex-col gap-3 md:col-span-3">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
+                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Pejabat RISDA</label>
+              </div>
+              <div className="relative group">
+                <select 
+                  value={filters.office}
+                  onChange={(e) => setFilters({...filters, office: e.target.value})}
+                  className="bg-transparent border-b-2 border-white/10 py-4 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider"
+                >
+                  <option value="" className="bg-risda-dark">SEMUA PEJABAT CAWANGAN</option>
+                  {offices.map((office) => (
+                    <option key={office} value={office} className="bg-risda-dark uppercase">{office}</option>
+                  ))}
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+                  <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Year Filter */}
+            <div className="flex flex-col gap-3 md:col-span-2">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
+                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Pilih Tahun</label>
+              </div>
+              <div className="relative group">
+                <select 
+                  value={filters.year}
+                  onChange={(e) => setFilters({...filters, year: e.target.value})}
+                  className="bg-transparent border-b-2 border-white/10 py-4 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider"
+                >
+                  {['ALL', ...years].map(year => (
+                    <option key={year} value={year} className="bg-risda-dark">
+                      {year === 'ALL' ? 'SEMUA TAHUN' : year}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+                  <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Desktop View Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="text-[10px] font-black text-risda-muted uppercase tracking-[3px] border-b border-white/10">
+                <th className="px-2 py-6">Sebut Harga / Projek</th>
+                <th className="px-6 py-6">Negeri / Pejabat</th>
+                <th className="px-6 py-6 text-center">Status</th>
+                {(filters.status === 'SELESAI (KEPUTUSAN)' || filters.status === 'SEMUA') && <th className="px-6 py-6 text-center">Pembekal Terpilih</th>}
+                <th className="px-6 py-6 text-right">Tarikh Tutup</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-20 text-center">
+                     <div className="flex flex-col items-center gap-4">
+                       <div className="w-10 h-10 border-t-2 border-risda-orange rounded-full animate-spin" />
+                       <span className="text-risda-muted font-black uppercase tracking-[3px] text-[9px]">Menyelaras Data...</span>
+                     </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {loading ? (
-                  <tr>
-                    <td colSpan={4} className="py-20 text-center">
-                       <div className="flex flex-col items-center gap-4">
-                         <div className="w-10 h-10 border-t-2 border-risda-orange rounded-full animate-spin" />
-                         <span className="text-risda-muted font-black uppercase tracking-[3px] text-[9px]">Menyelaras Data...</span>
-                       </div>
-                    </td>
-                  </tr>
-                ) : ads.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-20 text-center text-risda-muted font-bold uppercase tracking-widest italic opacity-50">
-                      Tiada rekod dijumpai.
-                    </td>
-                  </tr>
-                ) : ads
-                    .filter(ad => filters.status === 'SEMUA' || ad.status === filters.status)
-                    .filter(ad => filters.category === 'SEMUA' || (ad.category || 'KERJA') === filters.category)
-                    .filter(ad => {
-                      if (filters.year === 'ALL') return true;
-                      const date = ad.visitDate || ad.closingDate || ad.createdAt;
-                      if (!date) return false;
-                      return new Date(date).getFullYear().toString() === filters.year;
-                    })
-                    .map((item, idx) => {
-                      // Logic: If the item is from a previous year, automatically treat it as SELESAI (KEPUTUSAN)
-                      const itemDate = item.visitDate || item.closingDate || item.createdAt;
-                      const itemYear = itemDate ? new Date(itemDate).getFullYear() : 0;
-                      const isOldProject = itemYear > 0 && itemYear < parseInt(currentYear);
-                      const displayStatus = isOldProject ? 'SELESAI (KEPUTUSAN)' : item.status;
-                      
-                      // Check if it matches status filter after override
-                      if (filters.status !== 'SEMUA' && displayStatus !== filters.status) return null;
-
-                      return (
+              ) : filteredAds.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-20 text-center text-risda-muted font-bold uppercase tracking-widest italic opacity-50">
+                    Tiada rekod perolehan sepadan dijumpai.
+                  </td>
+                </tr>
+              ) : (
+                filteredAds.map((item, idx) => (
                   <tr 
                     key={idx} 
                     className="group hover:bg-white/[0.02] transition-all cursor-pointer"
                     onClick={() => {
-                      setSelectedAd({...item, status: displayStatus});
+                      setSelectedAd({...item, status: item.displayStatus});
                       setIsRegisterMode(false);
                     }}
                   >
@@ -417,9 +550,9 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                           </span>
                         )}
                       </div>
-                      <div className="text-[14px] font-black text-white group-hover:text-risda-orange transition-colors uppercase truncate max-w-[300px] font-display mb-3">{item.title}</div>
+                      <div className="text-[14px] font-black text-white group-hover:text-risda-orange transition-colors uppercase truncate max-w-[420px] font-display mb-3">{item.title}</div>
                       {showRegistration && 
-                        (displayStatus === 'AKTIF') && 
+                        (item.displayStatus === 'AKTIF') && 
                         !(item.title?.toUpperCase().includes('PROJEK JALAN') && (role === 'pelawat' || !role)) && (
                         <button 
                           onClick={(e) => {
@@ -429,36 +562,39 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                             window.history.pushState({}, '', url.pathname + url.search);
                             window.dispatchEvent(new Event('popstate'));
                           }}
-                          className="bg-risda-orange text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
+                          className="bg-risda-orange text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,176,0,0.25)]"
                         >
                           Daftar Online
                         </button>
                       )}
                     </td>
                     <td className="px-6 py-6">
-                      <div className="text-[10px] font-bold text-white uppercase">{item.state}</div>
+                      <div className="text-[10px] font-black text-white uppercase">{item.state}</div>
                       <div className="text-[8px] text-risda-muted font-bold uppercase">{item.office}</div>
                     </td>
                     <td className="px-6 py-6 text-center">
                       <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg ${
-                        displayStatus === 'AKTIF' 
-                          ? 'bg-green-500/10 text-green-400 border border-green-400/20' 
-                          : displayStatus === 'BATAL'
+                        item.displayStatus === 'AKTIF' 
+                          ? 'bg-green-500/10 text-green-400 border border-green-400/20 shadow-[0_0_10px_rgba(74,222,128,0.05)]' 
+                          : item.displayStatus === 'BATAL'
                           ? 'bg-red-500/10 text-red-400 border border-red-500/20'
                           : 'bg-blue-500/10 text-blue-400 border border-blue-400/20'
                       }`}>
-                        {displayStatus === 'SELESAI (KEPUTUSAN)' ? (isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : displayStatus}
+                        {item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus}
                       </span>
                     </td>
-                    {filters.status === 'SELESAI (KEPUTUSAN)' && (
+                    {(filters.status === 'SELESAI (KEPUTUSAN)' || filters.status === 'SEMUA') && (
                       <td className="px-6 py-6 text-center">
                         {item.winner ? (
                           <div className="flex flex-col items-center">
+                            <span className="w-2 h-2 inline-block rounded-full bg-blue-400 animate-pulse mb-1" />
                             <div className="text-[11px] font-black text-blue-400 uppercase leading-tight">{item.winner.companyName}</div>
                             <div className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{item.winner.ownerName || item.winner.representativeName}</div>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-risda-muted font-black uppercase italic opacity-50">Menunggu Pelantikan</span>
+                          <div className="flex flex-col items-center">
+                            <span className="text-[10px] text-risda-muted font-black uppercase italic opacity-40">Menunggu Pelantikan</span>
+                          </div>
                         )}
                       </td>
                     )}
@@ -467,52 +603,36 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                       <div className="text-[8px] text-risda-muted font-black uppercase tracking-[1px]">{item.closingTime || '12:00 PM'}</div>
                     </td>
                   </tr>
-                      );
-                    })}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-          {/* Mobile Card View */}
-          <div className="md:hidden space-y-4">
-            {loading ? (
-              <div className="py-20 text-center flex flex-col items-center gap-4">
-                <div className="w-10 h-10 border-t-2 border-risda-orange rounded-full animate-spin" />
-                <span className="text-risda-muted font-black uppercase tracking-[3px] text-[9px]">Memuatkan Iklan...</span>
-              </div>
-            ) : ads.length === 0 ? (
-              <div className="py-20 text-center text-risda-muted font-bold uppercase tracking-widest italic opacity-50">
-                Tiada rekod.
-              </div>
-            ) : ads
-                .filter(ad => filters.status === 'SEMUA' || ad.status === filters.status)
-                .filter(ad => filters.category === 'SEMUA' || (ad.category || 'KERJA') === filters.category)
-                .filter(ad => {
-                  if (filters.year === 'ALL') return true;
-                  const date = ad.visitDate || ad.closingDate || ad.createdAt;
-                  if (!date) return false;
-                  return new Date(date).getFullYear().toString() === filters.year;
-                })
-                .map((item, idx) => {
-                  const itemDate = item.visitDate || item.closingDate || item.createdAt;
-                  const itemYear = itemDate ? new Date(itemDate).getFullYear() : 0;
-                  const isOldProject = itemYear > 0 && itemYear < parseInt(currentYear);
-                  const displayStatus = isOldProject ? 'SELESAI (KEPUTUSAN)' : item.status;
-                  
-                  if (filters.status !== 'SEMUA' && displayStatus !== filters.status) return null;
-
-                  return (
+        {/* Mobile Grid/Cards View */}
+        <div className="md:hidden space-y-4">
+          {loading ? (
+            <div className="py-20 text-center flex flex-col items-center gap-4">
+              <div className="w-10 h-10 border-t-2 border-risda-orange rounded-full animate-spin" />
+              <span className="text-risda-muted font-black uppercase tracking-[3px] text-[9px]">Memuatkan Iklan...</span>
+            </div>
+          ) : filteredAds.length === 0 ? (
+            <div className="py-20 text-center text-risda-muted font-bold uppercase tracking-widest italic opacity-50">
+              Tiada rekod sepadan ditemui.
+            </div>
+          ) : (
+            filteredAds.map((item, idx) => (
               <motion.div 
                 key={idx} 
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.05 }}
                 onClick={() => {
-                  setSelectedAd({...item, status: displayStatus});
+                  setSelectedAd({...item, status: item.displayStatus});
                   setIsRegisterMode(false);
                 }}
-                className="bg-transparent border border-white/5 rounded-3xl p-6 space-y-4 active:scale-[0.98] transition-all"
+                className="bg-black/30 border border-white/5 rounded-3xl p-6 space-y-4 active:scale-[0.98] transition-all"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex flex-wrap items-center gap-2">
@@ -524,22 +644,23 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                     )}
                   </div>
                   <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                    displayStatus === 'AKTIF' ? 'bg-green-500/10 text-green-400 border border-green-400/20' : 
-                    displayStatus === 'SELESAI (KEPUTUSAN)' ? 'bg-blue-500/10 text-blue-400 border border-blue-400/20' :
+                    item.displayStatus === 'AKTIF' ? 'bg-green-500/10 text-green-400 border border-green-400/20' : 
+                    item.displayStatus === 'SELESAI (KEPUTUSAN)' ? 'bg-blue-500/10 text-blue-400 border border-blue-400/20' :
                     'bg-risda-muted/10 text-risda-muted border border-risda-muted/20'
                   }`}>
-                    {displayStatus === 'SELESAI (KEPUTUSAN)' ? (isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : displayStatus}
+                    {item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus}
                   </span>
                 </div>
                 <h4 className="text-sm font-black text-white leading-tight uppercase line-clamp-2">{item.title}</h4>
-                {item.status === 'SELESAI (KEPUTUSAN)' && item.winner && (
+                {item.displayStatus === 'SELESAI (KEPUTUSAN)' && item.winner && (
                   <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
                     <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Pembekal Terpilih:</p>
                     <p className="text-[10px] font-black text-white uppercase">{item.winner.companyName}</p>
+                    <p className="text-[8px] text-risda-muted uppercase font-semibold">{item.winner.ownerName || item.winner.representativeName}</p>
                   </div>
                 )}
                 {showRegistration && 
-                  (displayStatus === 'AKTIF') && 
+                  (item.displayStatus === 'AKTIF') && 
                   !(item.title?.toUpperCase().includes('PROJEK JALAN') && (role === 'pelawat' || !role)) && (
                   <button 
                     onClick={(e) => {
@@ -556,23 +677,25 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                 )}
                 <div className="flex items-center justify-between pt-4 border-t border-white/5">
                   <div className="flex flex-col">
+                    <span className="text-[8px] text-risda-muted font-bold uppercase tracking-[1px]">Cawangan</span>
+                    <span className="text-[10px] font-black text-white uppercase">{item.office}</span>
+                  </div>
+                  <div className="flex flex-col text-right">
                     <span className="text-[8px] text-risda-muted font-bold uppercase tracking-[1px]">Tarikh Tutup</span>
                     <span className="text-xs font-black text-white">{formatDate(item.closingDate)}</span>
                   </div>
                 </div>
               </motion.div>
-                );
-              })}
-            </div>
-          
-          <div className="mt-10 p-6 bg-gradient-to-r from-risda-orange/5 to-transparent border-l-2 border-risda-orange rounded-r-xl">
-             <p className="text-[11px] text-risda-text-secondary leading-relaxed italic">
-               Sistem RISDA memastikan ketelusan seratus peratus dalam setiap fasa perolehan. Sila pastikan anda mempunyai dokumen yang sah sebelum menyertai sebut harga.
-             </p>
-          </div>
+            ))
+          )}
+        </div>
+      
+        <div className="mt-8 p-6 bg-gradient-to-r from-risda-orange/5 to-transparent border-l-2 border-risda-orange rounded-r-xl">
+           <p className="text-[11px] text-risda-text-secondary leading-relaxed italic uppercase tracking-wider">
+             Sistem RISDA memastikan ketelusan seratus peratus dalam setiap fasa perolehan. Sila pastikan anda mempunyai dokumen dan lesen sah pendaftaran sebelum menyertai sebut harga.
+           </p>
         </div>
       </div>
-      )}
 
       {/* Details / Attendance Modal */}
       <AnimatePresence>
