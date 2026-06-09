@@ -269,12 +269,12 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[8px] md:text-[9px] font-bold text-risda-muted uppercase tracking-[2px] px-1">E-mel Rasmi</label>
+                <label className="text-[8px] md:text-[9px] font-bold text-risda-muted uppercase tracking-[2px] px-1">E-mel Rasmi (Masukkan '-' jika tiada)</label>
                 <input 
-                  type="email"
+                  type="text"
                   value={formData.email || ''}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  placeholder="cth: syarikat@gmail.com"
+                  placeholder="cth: syarikat@gmail.com (atau '-' jika tiada)"
                   className="w-full bg-black/40 border border-risda-border rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 text-xs md:text-sm text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10"
                   required
                 />

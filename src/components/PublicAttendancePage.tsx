@@ -452,14 +452,14 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
 
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block px-1">
-                          E-mel Rasmi
+                          E-mel Rasmi (Masukkan '-' jika tiada)
                         </label>
                         <input 
-                          type="email"
+                          type="text"
                           required
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          placeholder="cth: syarikat@gmail.com"
+                          placeholder="cth: syarikat@gmail.com (atau '-' jika tiada)"
                           className="w-full bg-[#060b13] border border-slate-800/80 rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-all placeholder:text-white/10"
                         />
                       </div>
