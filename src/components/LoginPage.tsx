@@ -2,7 +2,7 @@ import { useState, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, Mail, Lock, ShieldCheck, ArrowRight, Chrome, AlertCircle, Eye, EyeOff, X, User } from 'lucide-react';
 import { signInWithGoogle, auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, addDoc, Timestamp, query, where, getDocs, limit, updateDoc, doc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
@@ -27,16 +27,31 @@ export default function LoginPage() {
     const path = 'notifications';
     setResetLoading(true);
     try {
+      // 1. Try sending the automated reset password email directly via Firebase
+      let authMailSent = false;
+      try {
+        await sendPasswordResetEmail(auth, resetEmail.trim());
+        authMailSent = true;
+      } catch (authMailErr: any) {
+        console.warn('Direct Auth Reset Email send warning/failed:', authMailErr);
+      }
+
+      // 2. Log request in system notifications so Admin is also looped in
       await addDoc(collection(db, 'notifications'), {
         type: 'reset_password',
         userId: 'anonymous',
         userName: 'Permohonan Reset',
-        userEmail: resetEmail,
-        message: `Memohon reset kata laluan untuk akaun: ${resetEmail}`,
+        userEmail: resetEmail.trim(),
+        message: `Memohon reset kata laluan untuk akaun: ${resetEmail.trim()}`,
         status: 'pending',
         createdAt: Timestamp.now()
       });
-      toast.success('Permintaan reset kata laluan telah dihantar ke Pentadbir Sistem.');
+
+      if (authMailSent) {
+        toast.success('Pautan reset kata laluan telah dihantar ke e-mel anda! Permintaan juga direkodkan untuk pentadbir.', { duration: 6000 });
+      } else {
+        toast.success('Permintaan reset kata laluan telah dihantar ke Pentadbir Sistem untuk tindakan manual.');
+      }
       setShowResetModal(false);
       setResetEmail('');
     } catch (err: any) {

@@ -236,6 +236,7 @@ export default function StaffManagement() {
         delete dataToSave.password;
       }
 
+      let registrationEmailSent = false;
       if (!editingId) {
         // Create
         const q = query(collection(db, 'users'), where('email', '==', email));
@@ -252,6 +253,14 @@ export default function StaffManagement() {
             uid: authUid || emailSlug
           });
         }
+
+        // Try to trigger a password reset/activation email directly to the newly registered staff
+        try {
+          await sendPasswordResetEmail(getAuth(), email);
+          registrationEmailSent = true;
+        } catch (mailErr: any) {
+          console.warn("Could not send automated registration email notification:", mailErr);
+        }
       } else {
         // Update
         await updateDoc(doc(db, 'users', editingId), dataToSave);
@@ -264,7 +273,14 @@ export default function StaffManagement() {
 
       resetForm();
       fetchStaff();
-      toast.success(editingId ? 'Data telah dikemaskini!' : 'Kakitangan telah didaftarkan!', { id: toastId });
+      
+      let successMsg = editingId ? 'Data telah dikemaskini!' : 'Kakitangan telah didaftarkan!';
+      if (!editingId && registrationEmailSent) {
+        successMsg += ' E-mel notifikasi pendaftaran & pautan penetapan kata laluan telah dihantar ke inbox kakitangan.';
+      } else if (!editingId) {
+        successMsg += ' (Gagal menghantar e-mel notifikasi automatik secara terus)';
+      }
+      toast.success(successMsg, { id: toastId, duration: 6000 });
     } catch (error) {
       console.error('Error saving staff:', error);
       handleFirestoreError(error, OperationType.WRITE, `users/${editingId || email}`);
