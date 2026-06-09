@@ -1300,7 +1300,7 @@ export default function TenderManagement() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-risda-card border border-white/5 w-full max-w-6xl rounded-[40px] overflow-hidden relative z-10 shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+              className="bg-risda-card border border-white/5 w-full max-w-6xl rounded-[40px] overflow-y-auto md:overflow-hidden relative z-10 shadow-2xl flex flex-col md:flex-row max-h-[90vh] scrollbar-thin scrollbar-thumb-white/10"
             >
               {/* Left Side: Participant List */}
               <div className={`flex flex-col border-r border-white/5 transition-all duration-500 ${pendingWinner ? 'w-full md:w-[60%]' : 'w-full'}`}>
@@ -1392,10 +1392,10 @@ export default function TenderManagement() {
                     initial={{ x: 300, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 300, opacity: 0 }}
-                    className="w-full md:w-[40%] bg-black/40 p-8 flex flex-col h-full border-l border-white/5"
+                    className="w-full md:w-[40%] bg-black/40 p-6 md:p-8 flex flex-col h-auto md:h-full border-t md:border-t-0 md:border-l border-white/5 overflow-hidden"
                   >
-                    <div className="flex-1 overflow-y-auto space-y-8 pr-2">
-                       <div className="text-center space-y-2">
+                    <div className="flex-1 overflow-y-auto space-y-8 pr-2 scrollbar-thin scrollbar-thumb-white/10 scroll-smooth pb-6">
+                      <div className="text-center space-y-2">
                         <div className="inline-flex px-3 py-1 bg-risda-orange/10 border border-risda-orange/20 rounded-full text-[9px] font-black text-risda-orange uppercase tracking-widest">Langkah Pengesahan</div>
                         <h3 className="text-xl font-black text-white uppercase">Maklumat Kontrak</h3>
                         <p className="text-[10px] text-risda-muted font-bold uppercase tracking-widest italic">{pendingWinner.companyName}</p>
@@ -1475,26 +1475,27 @@ export default function TenderManagement() {
                             </button>
                           </div>
                         </div>
-                      </div>
-                    </div>
 
-                    <div className="pt-8 flex flex-col gap-3">
-                      <button 
-                        onClick={handleConfirmWinner}
-                        className="w-full py-5 bg-risda-orange text-black rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl shadow-risda-orange/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
-                      >
-                        <Send size={18} />
-                        Simpan & Hebah Keputusan
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setPendingWinner(null);
-                          setWinnerDates({ startDate: '', endDate: '', winningPrice: '', location: '', decisionDate: '' });
-                        }}
-                        className="w-full py-4 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-risda-muted hover:text-white rounded-2xl transition-all"
-                      >
-                        Kembali ke Senarai
-                      </button>
+                        {/* Action buttons inside scrolling container to ensure they are always visible and clickable */}
+                        <div className="pt-6 flex flex-col gap-3 border-t border-white/5">
+                          <button 
+                            onClick={handleConfirmWinner}
+                            className="w-full py-5 bg-risda-orange text-black rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl shadow-risda-orange/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                          >
+                            <Send size={18} />
+                            Simpan & Hebah Keputusan
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setPendingWinner(null);
+                              setWinnerDates({ startDate: '', endDate: '', winningPrice: '', location: '', decisionDate: '' });
+                            }}
+                            className="w-full py-4 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-risda-muted hover:text-white rounded-2xl transition-all"
+                          >
+                            Kembali ke Senarai
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 )}
