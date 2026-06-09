@@ -4,6 +4,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Shield, Upload, UserCheck, CheckCircle, AlertCircle, ArrowLeft, FileText, Landmark } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { optimizeImage } from '../lib/imageOptimizer';
 
 interface PublicAttendancePageProps {
   adId: string;
@@ -68,29 +69,52 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Saiz fail melebihi format dibenarkan (Maks 5MB)');
+  const processAndSetFile = async (file: File) => {
+    if (file.type.startsWith('image/')) {
+      const compressToastId = toast.loading('Mengoptimumkan saiz imej...');
+      try {
+        const optimized = await optimizeImage(file);
+        toast.dismiss(compressToastId);
+        
+        if (optimized.size > 2 * 1024 * 1024) {
+          toast.error('Gagal mengoptimumkan: Imej melebihi had saiz 2MB.');
+          return;
+        }
+        
+        setCertificateFile(optimized);
+        toast.success(`Imej berjaya dioptimumkan! Saiz sekarang: ${(optimized.size / 1024 / 1024).toFixed(2)} MB`);
+      } catch (optimizeErr) {
+        toast.dismiss(compressToastId);
+        console.error('Resize error:', optimizeErr);
+        if (file.size > 2 * 1024 * 1024) {
+          toast.error('Gagal: Fail imej melebihi had saiz 2MB.');
+          return;
+        }
+        setCertificateFile(file);
+      }
+    } else {
+      // PDF or other non-image format
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Gagal: Fail melebihi had saiz 2MB.');
         return;
       }
       setCertificateFile(file);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      await processAndSetFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Saiz fail melebihi format dibenarkan (Maks 5MB)');
-        return;
-      }
-      setCertificateFile(file);
+      await processAndSetFile(e.target.files[0]);
     }
   };
 

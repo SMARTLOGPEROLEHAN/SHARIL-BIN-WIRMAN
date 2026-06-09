@@ -4,6 +4,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { motion } from 'motion/react';
 import { UserCheck, CheckCircle, Shield, X, Upload, FileText as FileIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { optimizeImage } from '../lib/imageOptimizer';
 
 interface AttendanceFormProps {
   adId: string;
@@ -48,14 +49,40 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Saiz fail melebihi 5MB');
-        return;
+      
+      if (file.type.startsWith('image/')) {
+        const compressToastId = toast.loading('Mengoptimumkan saiz imej...');
+        try {
+          const optimized = await optimizeImage(file);
+          toast.dismiss(compressToastId);
+          
+          if (optimized.size > 2 * 1024 * 1024) {
+            toast.error('Gagal mengoptimumkan: Imej melebihi had saiz 2MB.');
+            return;
+          }
+          
+          setCertificateFile(optimized);
+          toast.success(`Imej berjaya dioptimumkan! Saiz sekarang: ${(optimized.size / 1024 / 1024).toFixed(2)} MB`);
+        } catch (optimizeErr) {
+          toast.dismiss(compressToastId);
+          console.error('Resize error:', optimizeErr);
+          if (file.size > 2 * 1024 * 1024) {
+            toast.error('Had saiz fail imej adalah 2MB.');
+            return;
+          }
+          setCertificateFile(file);
+        }
+      } else {
+        // PDF or other non-image format
+        if (file.size > 2 * 1024 * 1024) {
+          toast.error('Had saiz fail adalah maksimum 2MB.');
+          return;
+        }
+        setCertificateFile(file);
       }
-      setCertificateFile(file);
     }
   };
 
