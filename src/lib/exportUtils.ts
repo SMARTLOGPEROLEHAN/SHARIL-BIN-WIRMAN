@@ -72,6 +72,7 @@ interface AdData {
     contractStartDate?: string;
     contractEndDate?: string;
     location?: string;
+    decisionDate?: string;
   };
   contractStartDate?: string;
   contractEndDate?: string;

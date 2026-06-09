@@ -80,6 +80,7 @@ interface Advertisement {
     contractEndDate?: string;
     location?: string;
     winningPrice?: number;
+    decisionDate?: string;
   };
   licenses: {
     cidbSpkk: boolean;
@@ -140,7 +141,8 @@ export default function TenderManagement() {
     startDate: '',
     endDate: '',
     winningPrice: '',
-    location: ''
+    location: '',
+    decisionDate: ''
   });
   const [notifyPrefs, setNotifyPrefs] = useState({
     whatsapp: true,
@@ -488,7 +490,8 @@ export default function TenderManagement() {
       startDate: '',
       endDate: '',
       winningPrice: '',
-      location: selectedAdForWinner?.visitVenue || selectedAdForWinner?.docVenue || '-'
+      location: selectedAdForWinner?.visitVenue || selectedAdForWinner?.docVenue || '-',
+      decisionDate: new Date().toISOString().split('T')[0]
     });
     setNotifyPrefs({
       whatsapp: true,
@@ -499,8 +502,8 @@ export default function TenderManagement() {
   const handleConfirmWinner = async () => {
     if (!selectedAdForWinner || !pendingWinner) return;
     
-    if (!winnerDates.startDate || !winnerDates.endDate) {
-      toast.error('Sila masukkan tarikh mula dan tarikh akhir kerja.');
+    if (!winnerDates.startDate || !winnerDates.endDate || !winnerDates.decisionDate) {
+      toast.error('Sila masukkan tarikh mula, tarikh akhir kerja, dan tarikh pemenang dipilih.');
       return;
     }
 
@@ -514,6 +517,7 @@ export default function TenderManagement() {
         phoneNumber: pendingWinner.phoneNumber,
         email: pendingWinner.email || '',
         timestamp: new Date().toISOString(),
+        decisionDate: winnerDates.decisionDate,
         contractStartDate: winnerDates.startDate,
         contractEndDate: winnerDates.endDate,
         winningPrice: Number(winnerDates.winningPrice) || 0,
@@ -577,7 +581,8 @@ export default function TenderManagement() {
       startDate: ad.winner?.contractStartDate || '',
       endDate: ad.winner?.contractEndDate || '',
       winningPrice: ad.winner?.winningPrice ? String(ad.winner.winningPrice) : '',
-      location: ad.winner?.location || ad.visitVenue || ad.docVenue || ''
+      location: ad.winner?.location || ad.visitVenue || ad.docVenue || '',
+      decisionDate: ad.winner?.decisionDate || (ad.winner?.timestamp ? ad.winner.timestamp.split('T')[0] : new Date().toISOString().split('T')[0])
     });
     fetchAttendees(ad);
     setShowWinnerModal(true);
@@ -1398,6 +1403,15 @@ export default function TenderManagement() {
 
                       <div className="space-y-6">
                         <div className="space-y-2">
+                          <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Pemenang Dipilih / Keputusan</label>
+                          <input 
+                            type="date"
+                            value={winnerDates.decisionDate}
+                            onChange={(e) => setWinnerDates({...winnerDates, decisionDate: e.target.value})}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
+                          />
+                        </div>
+                        <div className="space-y-2">
                           <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Mula Kerja</label>
                           <input 
                             type="date"
@@ -1475,7 +1489,7 @@ export default function TenderManagement() {
                       <button 
                         onClick={() => {
                           setPendingWinner(null);
-                          setWinnerDates({ startDate: '', endDate: '' });
+                          setWinnerDates({ startDate: '', endDate: '', winningPrice: '', location: '', decisionDate: '' });
                         }}
                         className="w-full py-4 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-risda-muted hover:text-white rounded-2xl transition-all"
                       >

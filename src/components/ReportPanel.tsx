@@ -96,7 +96,7 @@ export default function ReportPanel() {
       const isWinnerDecided = ad.status === 'SELESAI (KEPUTUSAN)' || (ad.winner && ad.winner.companyName && ad.winner.companyName !== 'TIADA');
       if (!isWinnerDecided) return false;
 
-      const dateStr = ad.winner?.timestamp || ad.winner?.contractStartDate || ad.updatedAt || ad.closingDate || ad.createdAt;
+      const dateStr = ad.winner?.decisionDate || ad.winner?.timestamp || ad.winner?.contractStartDate || ad.updatedAt || ad.closingDate || ad.createdAt;
       if (!dateStr) return false;
 
       const date = new Date(dateStr);
@@ -284,7 +284,7 @@ export default function ReportPanel() {
         const adOffice = ad.office || '';
         if (adOffice.trim().toLowerCase() !== selectedOffice.trim().toLowerCase()) return false;
       }
-      const dateStr = ad.winner?.timestamp || ad.visitDate || ad.closingDate || ad.createdAt || ad.publishedDate;
+      const dateStr = ad.winner?.decisionDate || ad.winner?.timestamp || ad.visitDate || ad.closingDate || ad.createdAt || ad.publishedDate;
       if (!dateStr) return false;
       const date = new Date(dateStr);
       return !isNaN(date.getTime()) && date.getFullYear() === yr;
@@ -392,7 +392,7 @@ export default function ReportPanel() {
       if (!isWinnerDecided) return false;
 
       // Classify the quarter based strictly on the winner decision date
-      const dateStr = ad.winner?.timestamp || ad.updatedAt || ad.closingDate || ad.createdAt;
+      const dateStr = ad.winner?.decisionDate || ad.winner?.timestamp || ad.updatedAt || ad.closingDate || ad.createdAt;
       if (!dateStr) return false;
 
       const date = new Date(dateStr);
