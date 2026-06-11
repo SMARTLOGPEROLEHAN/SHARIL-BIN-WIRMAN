@@ -21,25 +21,37 @@ import LocationManagement from './components/LocationManagement';
 import ReportPanel from './components/ReportPanel';
 import InfoPortal from './components/InfoPortal';
 import SessionGuard from './components/SessionGuard';
+import SupplierInvitation from './components/SupplierInvitation';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import PublicAttendancePage from './components/PublicAttendancePage';
+import PublicLetterPage from './components/PublicLetterPage';
 
 function AppContent() {
   const { user, role } = useAuth();
-  const [view, setView] = useState<'dashboard' | 'login' | 'staff' | 'tenders' | 'attendance' | 'laporan' | 'info' | 'locations' | 'userInfo' | 'projek' | 'keputusan' | 'attendance-records'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'login' | 'staff' | 'tenders' | 'attendance' | 'laporan' | 'info' | 'locations' | 'userInfo' | 'projek' | 'keputusan' | 'attendance-records' | 'pelawaan'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [adIdParam, setAdIdParam] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('adId');
   });
+  const [letterParam, setLetterParam] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('viewLetter');
+  });
+  const [companyParam, setCompanyParam] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('company');
+  });
 
-  // Sync search parameters to detect if we have adId
+  // Sync search parameters to detect if we have adId, viewLetter, etc.
   useEffect(() => {
     const checkParams = () => {
       const params = new URLSearchParams(window.location.search);
       setAdIdParam(params.get('adId'));
+      setLetterParam(params.get('viewLetter'));
+      setCompanyParam(params.get('company'));
     };
 
     window.addEventListener('popstate', checkParams);
@@ -52,6 +64,15 @@ function AppContent() {
     window.history.replaceState({}, '', url.pathname + url.search);
     setAdIdParam(null);
   };
+
+  const handleBackToLetterPortal = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('viewLetter');
+    url.searchParams.delete('company');
+    window.history.replaceState({}, '', url.pathname + url.search);
+    setLetterParam(null);
+    setCompanyParam(null);
+  };
   
   // Simple routing logic
   useEffect(() => {
@@ -63,6 +84,8 @@ function AppContent() {
         setView('staff');
       } else if (path === '/urus-sebut-harga') {
         setView('tenders');
+      } else if (path === '/pelawaan-sebutharga') {
+        setView('pelawaan');
       } else if (path === '/data-kehadiran') {
         setView('attendance');
       } else if (path === '/laporan') {
@@ -89,6 +112,31 @@ function AppContent() {
 
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  if (letterParam) {
+    return (
+      <>
+        <PublicLetterPage 
+          invitationId={letterParam}
+          companyName={companyParam}
+          onBackToPortal={handleBackToLetterPortal}
+        />
+        <Toaster 
+          position="top-center"
+          toastOptions={{
+            className: 'bg-risda-card text-white border border-white/10 rounded-2xl font-bold uppercase tracking-wider text-xs p-4',
+            duration: 4000,
+            style: {
+              background: 'rgba(17, 20, 25, 0.95)',
+              backdropFilter: 'blur(10px)',
+              color: '#fff',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            },
+          }}
+        />
+      </>
+    );
+  }
 
   if (adIdParam) {
     return (
@@ -130,6 +178,8 @@ function AppContent() {
         return <StaffManagement />;
       case 'tenders':
         return <TenderManagement />;
+      case 'pelawaan':
+        return <SupplierInvitation />;
       case 'attendance':
         return <AttendanceList />;
       case 'laporan':

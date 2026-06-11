@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { FileText, Download, UserCheck, X, Shield, Search, AlertCircle, FileSpreadsheet, FileArchive, File as FileIcon, Send, MessageCircle, Mail } from 'lucide-react';
 import AttendanceForm from './AttendanceForm';
-import { exportToPDF, exportResultToPDF, exportResultToWord } from '../lib/exportUtils';
+import { exportToPDF, exportToWord, exportResultToPDF, exportResultToWord } from '../lib/exportUtils';
 
 const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
@@ -33,6 +33,8 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
   const isAdmin = role === 'admin';
   
   const [ads, setAds] = useState<any[]>([]);
+  const [showHelpTip, setShowHelpTip] = useState(true);
+  const [adViewFormat, setAdViewFormat] = useState<'preview' | 'data'>('preview');
   const [offices, setOffices] = useState<any[]>([]);
   const [allLocations, setAllLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -362,7 +364,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                     : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
                 }`}
               >
-                SEMUA REKOD (STAF)
+                SEMUA IKLAN
                 <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{totalCount}</span>
               </button>
 
@@ -811,199 +813,346 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                   <div className="grid grid-cols-1 lg:grid-cols-3 min-h-full divide-y lg:divide-y-0 lg:divide-x divide-white/10">
                     {/* Information - Column 1 & 2 on Large Screens */}
                     <div className="p-8 md:p-14 space-y-10 lg:col-span-2">
+                      
+                      {/* High Fidelity Metadata Tracker line matching user's image exactly */}
+                      <div className="flex flex-wrap items-center gap-2.5 text-[10px] font-black tracking-[4px] text-risda-muted uppercase mb-1">
+                        <span className="font-mono text-risda-orange font-black">{selectedAd.tenderNo}</span>
+                        <span className="w-1.5 h-1.5 bg-white/20 rounded-full" />
+                        <span>{selectedAd.category || 'KERJA'}</span>
+                        <span className="w-1.5 h-1.5 bg-white/20 rounded-full" />
+                        <span>{selectedAd.state || 'MALAYSIA'}</span>
+                      </div>
+
                       <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg ${
-                            (selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'bg-blue-500 shadow-blue-500/20' : 'bg-risda-orange shadow-risda-orange/20'
-                          }`}>
-                            <FileText size={24} className={(selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'text-white' : 'text-black'} />
-                          </div>
-                          <div className="flex flex-col">
-                            <div className={`text-[10px] font-black uppercase tracking-[4px] ${
-                              (selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'text-blue-400' : 'text-risda-orange'
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg ${
+                              (selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'bg-blue-500 shadow-blue-500/20' : 'bg-risda-orange shadow-risda-orange/20'
                             }`}>
-                              {(selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'Keputusan Rasmi Perolehan' : 'Maklumat Iklan'}
+                              <FileText size={24} className={(selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'text-white' : 'text-black'} />
                             </div>
-                            {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) && isStaff && (
-                              <div className="flex gap-2 mt-4 sm:mt-0">
-                                <button 
-                                  onClick={async () => {
-                                    const t = toast.loading('Menjana PDF...');
-                                    try {
-                                      await exportToPDF(selectedAd);
-                                      toast.success('PDF berjaya dijana', { id: t });
-                                    } catch (err) {
-                                      toast.error('Gagal menjana PDF', { id: t });
-                                    }
-                                  }}
-                                  className="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
-                                  title="Muat Turun PDF Iklan"
-                                 >
-                                  <Download size={14} /> MUAT TURUN PDF IKLAN
-                                </button>
+                            <div className="flex flex-col">
+                              <div className={`text-[10px] font-black uppercase tracking-[4px] ${
+                                (selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'text-blue-400' : 'text-risda-orange'
+                              }`}>
+                                {(selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'Keputusan Rasmi Perolehan' : 'Maklumat Iklan'}
                               </div>
-                            )}
+                            </div>
                           </div>
                         </div>
                         <h2 className="text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{selectedAd.title}</h2>
-                        <div className="flex flex-wrap items-center gap-4">
-                          <span className="font-mono text-sm text-risda-muted">{selectedAd.tenderNo}</span>
-                          {selectedAd.category && (
-                            <>
-                              <span className="w-1.5 h-1.5 bg-risda-muted rounded-full" />
-                              <span className="px-2.5 py-0.5 text-[9px] font-black text-white bg-risda-orange/20 border border-risda-orange/30 rounded uppercase tracking-wider">{selectedAd.category}</span>
-                            </>
-                          )}
-                          <span className="w-1.5 h-1.5 bg-risda-muted rounded-full" />
-                          <span className={`text-[10px] font-black uppercase tracking-[2px] ${
-                            (selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'text-blue-400' : 'text-risda-orange'
-                          }`}>{selectedAd.state || 'Seluruh Malaysia'}</span>
+                      </div>
+
+                      {/* Beautiful Unified Download Bar exactly matching the image layout */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#0a0f1d] p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-2xl text-left">
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                          <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
+                            <Download size={20} className="stroke-[3]" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-xs sm:text-sm font-black text-white uppercase tracking-widest leading-none mb-1.5">
+                              {selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'MUAT TURUN KEPUTUSAN' : 'MUAT TURUN IKLAN SEBUT HARGA'}
+                            </p>
+                            <p className="text-[9px] text-slate-400 font-semibold tracking-wide">Pilih format untuk simpanan rasmi atau perkongsian.</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-3 w-full sm:w-auto self-stretch sm:self-auto">
+                          <button 
+                            onClick={async () => {
+                              const t = toast.loading('Menjana PDF...');
+                              try {
+                                if (selectedAd.status === 'SELESAI (KEPUTUSAN)') {
+                                  await exportResultToPDF({
+                                    tenderNo: selectedAd.tenderNo,
+                                    title: selectedAd.title,
+                                    office: selectedAd.office,
+                                    winnerName: selectedAd.winner?.companyName || '-',
+                                    startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
+                                    endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
+                                    location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
+                                  });
+                                } else {
+                                  await exportToPDF(selectedAd);
+                                }
+                                toast.success('PDF berjaya dijana', { id: t });
+                              } catch (err) {
+                                toast.error('Gagal menjana PDF', { id: t });
+                              }
+                            }}
+                            className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                          >
+                            <Download size={14} className="stroke-[3]" /> PDF
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              try {
+                                if (selectedAd.status === 'SELESAI (KEPUTUSAN)') {
+                                  await exportResultToWord({
+                                    tenderNo: selectedAd.tenderNo,
+                                    title: selectedAd.title,
+                                    office: selectedAd.office,
+                                    winnerName: selectedAd.winner?.companyName || '-',
+                                    startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
+                                    endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
+                                    location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
+                                  });
+                                } else {
+                                  await exportToWord(selectedAd);
+                                }
+                              } catch (err) {
+                                console.error(err);
+                                toast.error('Gagal menjana Word file');
+                              }
+                            }}
+                            className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                          >
+                            <FileText size={14} className="stroke-[3]" /> WORD
+                          </button>
                         </div>
                       </div>
 
-                      {/* Case 1: Active or Cancelled Ad - Show Full Info */}
-                      {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) && (
-                        <>
-                          {selectedAd.licenseRequirements && (
-                            <div className="bg-risda-orange/5 border border-risda-orange/20 p-6 rounded-3xl space-y-2">
-                               <h4 className="text-[10px] font-black text-risda-orange uppercase tracking-[4px]">Keperluan Lesen Pelantikan</h4>
-                               <p className="text-xs text-white leading-relaxed uppercase">{selectedAd.licenseRequirements}</p>
-                            </div>
-                          )}
-
-                          {selectedAd.licenses && (
-                            <div className="space-y-4">
-                              <h4 className="text-[10px] font-black text-risda-gold uppercase tracking-[4px]">Sijil & Lesen Berdaftar</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {selectedAd.licenses.cidbSpkk && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">CIDB (SPKK)</span>}
-                                {selectedAd.licenses.cidbPkk && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">CIDB (PKK)</span>}
-                                {selectedAd.licenses.stb && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">STB</span>}
-                                {selectedAd.licenses.mof && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">MOF</span>}
-                                {selectedAd.licenses.tcc && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">TCC</span>}
-                                {selectedAd.licenses.pukonsa && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">PUKONSA</span>}
-                                {selectedAd.licenses.kuhean && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">KUHEAN</span>}
-                                {selectedAd.licenses.others && (
-                                  <span className="px-3 py-1.5 bg-white/10 border border-white/10 text-white rounded-lg text-[9px] font-black uppercase tracking-widest">
-                                    {selectedAd.licenses.others}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-2 bg-white/5 p-6 rounded-3xl border border-white/5">
-                              <p className="text-[9px] font-black text-risda-muted uppercase tracking-[3px]">Status Perolehan</p>
-                              <span className={`px-3 py-1 rounded text-[10px] font-black uppercase ${
-                                selectedAd.status === 'AKTIF' ? 'text-green-400' : 
-                                selectedAd.status === 'BATAL' ? 'text-red-400' : 
-                                'text-blue-400'
-                              }`}>
-                                {selectedAd.status}
-                              </span>
-                            </div>
-                            <div className="space-y-2 bg-white/5 p-6 rounded-3xl border border-white/5">
-                              <p className="text-[9px] font-black text-risda-muted uppercase tracking-[3px]">Tarikh Tutup Penyerahan</p>
-                              <p className="text-lg font-black text-red-500 tracking-tight">{formatDate(selectedAd.closingDate)}</p>
-                              <p className="text-[10px] font-bold text-risda-muted uppercase tracking-widest">{selectedAd.closingTime || '12:00 PM'}</p>
-                            </div>
+                      {/* View Format Selector for Active Ads to switch between Document Preview and Structured Data */}
+                      {selectedAd.status !== 'SELESAI (KEPUTUSAN)' && (
+                        <div className="flex justify-start border-b border-white/5 pb-2">
+                          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
+                            <button 
+                              onClick={() => setAdViewFormat('preview')} 
+                              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
+                                adViewFormat === 'preview' ? 'bg-[#ff9c3a] text-black shadow-md font-black' : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              Papar Format PDF
+                            </button>
+                            <button 
+                              onClick={() => setAdViewFormat('data')} 
+                              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
+                                adViewFormat === 'data' ? 'bg-[#ff9c3a] text-black shadow-md font-black' : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              Papar Maklumat Terperinci
+                            </button>
                           </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/5">
-                              <h4 className="text-[10px] font-black text-risda-orange uppercase tracking-[4px]">Lawatan Tapak</h4>
-                              <div className="space-y-1">
-                                <p className="text-white font-bold text-sm">{formatDate(selectedAd.visitDate)}</p>
-                                <p className="text-risda-muted text-[10px] uppercase font-bold">{selectedAd.visitVenue || '-'}</p>
-                              </div>
-                            </div>
-                            <div className="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/5">
-                              <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[4px]">Taklimat Tapak</h4>
-                              <div className="space-y-1">
-                                <p className="text-white font-bold text-sm">{formatDate(selectedAd.briefingDate)}</p>
-                                <p className="text-risda-muted text-[10px] uppercase font-bold">{selectedAd.briefingVenue || '-'}</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-6">
-                            <h4 className="text-[10px] font-black text-risda-gold uppercase tracking-[4px]">Pemerolehan Dokumen</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/5 p-8 rounded-3xl border border-white/5">
-                              <div>
-                                <p className="text-risda-muted text-[9px] uppercase font-bold mb-1">Tarikh Mula</p>
-                                <p className="text-white font-bold text-base">{formatDate(selectedAd.docStartDate)}</p>
-                              </div>
-                              <div>
-                                <p className="text-risda-muted text-[9px] uppercase font-bold mb-1">Tarikh Akhir</p>
-                                <p className="text-white font-bold text-base">{formatDate(selectedAd.docEndDate)}</p>
-                              </div>
-                              <div className="md:col-span-2 pt-4 border-t border-white/5 text-left">
-                                <p className="text-risda-muted text-[9px] uppercase font-bold mb-2">Tempat / Kaunter</p>
-                                <p className="text-white font-black text-sm uppercase leading-relaxed">{selectedAd.docVenue || '-'}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </>
+                        </div>
                       )}
 
-                      {/* Case 2: Decision Available - Show Official Result (Hebahan) Only */}
-                      {selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)') && (
-                        <div className="space-y-8">
-                          {/* Export Options for Decision */}
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-blue-500/5 p-5 md:p-6 rounded-3xl border border-blue-500/10">
-                            <div className="flex items-center gap-4 w-full">
-                              <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
-                                <Download size={22} />
+                      {/* Display Contents depending on status & active toggles */}
+                      {selectedAd.status !== 'SELESAI (KEPUTUSAN)' ? (
+                        /* Active Ad Display */
+                        adViewFormat === 'preview' ? (
+                          /* High Fidelity KENYATAAN SEBUT HARGA A4 PDF View */
+                          <div className="relative mx-auto w-full max-w-2xl px-1 sm:px-0 bg-[#0d121c]">
+                            <div className="bg-white p-4 sm:p-8 md:p-12 border-[6px] border-double border-[#003399] tracking-tight relative text-black font-sans w-full max-w-full overflow-hidden shadow-2xl">
+                              {/* Watermark Logo */}
+                              <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                                <img src="/PUBLIC/intrologo_RISDA.png" alt="watermark" className="w-[85%] max-w-[360px] object-contain select-none" />
                               </div>
-                              <div className="flex-1">
-                                <p className="text-[11px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">Muat Turun Keputusan</p>
-                                <p className="text-[9px] text-risda-muted font-medium">Pilih format untuk simpanan rasmi atau perkongsian.</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2 w-full sm:w-auto">
-                              <button 
-                                onClick={async () => {
-                                  const t = toast.loading('Menjana PDF...');
-                                  try {
-                                    await exportResultToPDF({
-                                      tenderNo: selectedAd.tenderNo,
-                                      title: selectedAd.title,
-                                      office: selectedAd.office,
-                                      winnerName: selectedAd.winner?.companyName || '-',
-                                      startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
-                                      endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
-                                      location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
-                                    });
-                                    toast.success('PDF berjaya dijana', { id: t });
-                                  } catch (err) {
-                                    toast.error('Gagal menjana PDF', { id: t });
-                                  }
-                                }}
-                                className="flex-1 sm:flex-none px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
-                               >
-                                <Download size={14} /> PDF
-                              </button>
-                              <button 
-                                onClick={() => exportResultToWord({
-                                  tenderNo: selectedAd.tenderNo,
-                                  title: selectedAd.title,
-                                  office: selectedAd.office,
-                                  winnerName: selectedAd.winner?.companyName || '-',
-                                  startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
-                                  endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
-                                  location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
-                                })}
-                                className="flex-1 sm:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
-                              >
-                                <FileText size={14} /> WORD
-                              </button>
-                            </div>
 
+                              {/* Header Info */}
+                              <div className="flex justify-between items-start mb-6 border-b-2 border-[#003399]/10 pb-4">
+                                <div className="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0">
+                                  <img 
+                                    src="/PUBLIC/intrologo_RISDA.png" 
+                                    alt="RISDA" 
+                                    className="h-full object-contain"
+                                    onError={(e) => { 
+                                      const img = e.currentTarget;
+                                      if (!img.src.includes("/api/logo") && !img.src.endsWith("/api/logo")) {
+                                        img.src = "/api/logo";
+                                      } else if (!img.src.includes("Logo_RISDA.png") && !img.src.includes("logo_risda.png")) {
+                                        img.src = "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png";
+                                      }
+                                    }} 
+                                  />
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-[9px] font-black uppercase text-slate-800 tracking-wider">URUSETIA PEROLEHAN PRD</div>
+                                  <div className="text-[8px] font-black uppercase text-slate-500">{selectedAd.office || '-'}</div>
+                                </div>
+                              </div>
+
+                              {/* Document Title */}
+                              <div className="text-center space-y-2 mb-6 relative z-10">
+                                <h2 className="text-base sm:text-xl font-black text-[#003060] tracking-tight">KENYATAAN SEBUT HARGA</h2>
+                                <div className="text-lg sm:text-2xl font-black text-black tracking-tight">{selectedAd.tenderNo}</div>
+                              </div>
+
+                              {/* Project Title Yellow Box */}
+                              <div className="bg-yellow-300 border-2 border-slate-950 p-4 text-center font-black uppercase text-[10px] sm:text-xs tracking-tight mb-5 leading-tight select-none shadow-sm text-black">
+                                {selectedAd.title}
+                              </div>
+
+                              {/* Introduction */}
+                              <div className="text-[9px] sm:text-[11px] text-slate-800 mb-5 font-semibold leading-relaxed text-left">
+                                <p>1. Sebutharga adalah dipelawa daripada kontraktor tempatan bagi menawarkan kerja seperti tajuk di atas dan syarat-syarat berikut:</p>
+                              </div>
+
+                              {/* High Fidelity Table Grid to match PDF's autotable exactly */}
+                              <div className="border border-slate-300 overflow-hidden rounded-md mb-5 text-[9px] sm:text-[10px] leading-snug text-left">
+                                <div className="grid grid-cols-1 md:grid-cols-3 bg-slate-100 font-bold border-b border-slate-300 text-center divide-y md:divide-y-0 md:divide-x divide-slate-300">
+                                  <div className="p-2.5 text-slate-900 uppercase font-black text-[8px] sm:text-[9px] tracking-wider">Kelayakan Kompetensi Mandatori</div>
+                                  <div className="p-2.5 text-slate-900 uppercase font-black text-[8px] sm:text-[9px] tracking-wider">Taklimat & Lawatan Tapak</div>
+                                  <div className="p-2.5 text-slate-900 uppercase font-black text-[8px] sm:text-[9px] tracking-wider">Tempoh & Tempat Dokumen</div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-300 bg-white">
+                                  {/* Licenses Col */}
+                                  <div className="p-3.5 space-y-2 font-bold text-slate-800">
+                                    <div className="text-[10px] text-risda-orange font-black">RISDA</div>
+                                    {selectedAd.licenses?.cidbSpkk && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.cidbSpkk || 'CIDB (SPKK) G1 CE01'}</div>}
+                                    {selectedAd.licenses?.cidbPkk && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.cidbPkk || 'CIDB (PKK) G1'}</div>}
+                                    {selectedAd.licenses?.stb && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.stb || 'Sijil Taraf Bumiputera'}</div>}
+                                    {selectedAd.licenses?.mof && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.mof || 'MOF'}</div>}
+                                    {selectedAd.licenses?.pukonsa && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.pukonsa || 'PUKONSA'}</div>}
+                                    {selectedAd.licenses?.kuhean && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.kuhean || 'KUHEAN'}</div>}
+                                    {selectedAd.licenses?.others && <div className="text-[9px]">• {selectedAd.licenses.others}</div>}
+                                    {selectedAd.licenses?.tcc && <div className="text-slate-800 font-black text-[8px] text-green-700 mt-1">• STATUS TCC: PATUH</div>}
+                                  </div>
+                                  {/* Briefing/Site Visit Col */}
+                                  <div className="p-3.5 space-y-2 bg-slate-50/50">
+                                    <div className="space-y-0.5">
+                                      <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block">WAKTU</span>
+                                      <span className="text-slate-950 font-black text-[10px]">{selectedAd.briefingTime || '10.00 Pagi'}</span>
+                                    </div>
+                                    <div className="border-t border-slate-200/80 pt-1.5 space-y-0.5">
+                                      <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block">TARIKH</span>
+                                      <span className="text-slate-950 font-black text-[10px]">{formatDate(selectedAd.briefingDate)}</span>
+                                    </div>
+                                    <div className="border-t border-slate-200/80 pt-1.5 space-y-0.5">
+                                      <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block">TEMPAT</span>
+                                      <span className="text-slate-950 font-black text-[9px] leading-tight block uppercase">{selectedAd.briefingVenue || selectedAd.office}</span>
+                                    </div>
+                                  </div>
+                                  {/* Procuring/Doc Selling Col */}
+                                  <div className="p-3.5 space-y-2">
+                                    <div className="space-y-0.5">
+                                      <span className="text-[8px] text-slate-400 font-bold tracking-wider block">TEMPOH PEMBELIAN</span>
+                                      <span className="text-slate-950 font-black text-[10px]">{formatDate(selectedAd.docStartDate)} SEHINGGA {formatDate(selectedAd.docEndDate)}</span>
+                                    </div>
+                                    <div className="border-t border-slate-200/80 pt-1.5 space-y-0.5">
+                                      <span className="text-[8px] text-slate-400 font-bold tracking-wider block">KAUNTER / TEMPAT</span>
+                                      <span className="text-slate-950 font-black text-[9px] leading-relaxed block uppercase">{selectedAd.docVenue || selectedAd.office}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Section 2 Terms */}
+                              <div className="text-[8px] sm:text-[10px] space-y-2 text-slate-800 leading-normal relative z-10 font-bold text-left">
+                                <p>2. Dokumen Sebut Harga hanya diberikan kepada kontraktor yang memenuhi syarat-syarat berikut:</p>
+                                <div className="pl-3.5 space-y-1">
+                                  <p className="flex gap-1.5">
+                                    <span className="text-slate-950">a.</span> 
+                                    <span>Hanya Penama di dalam Sijil Asal CIDB, PUKONSA & STB yang masih SAH tempoh pendaftaran sahaja yang boleh hadir mendengar taklimat tapak dan tidak boleh mewakilkan pegawai selain penama;</span>
+                                  </p>
+                                  <p className="flex gap-1.5">
+                                    <span className="text-slate-950">b.</span> 
+                                    <span>Hadir taklimat tapak dan membawa SLIP KEHADIRAN ASAL taklimat tapak.</span>
+                                  </p>
+                                  <p className="flex gap-1.5">
+                                    <span className="text-slate-950">c.</span> 
+                                    <span>Membawa Sijil Asal CIDB, PUKONSA & STB yang sah tempoh lakunya berserta SATU salinan fotostat.</span>
+                                  </p>
+                                  <p className="flex gap-1.5">
+                                    <span className="text-slate-950">d.</span> 
+                                    <span>Mengimbas QR Code untuk pengesahan pendaftaran kehadiran selewatnya satu hari sebelum taklimat tapak dijalankan.</span>
+                                  </p>
+                                  <p className="flex gap-1.5">
+                                    <span className="text-slate-950">e.</span> 
+                                    <span>Sijil Kelayakan Cukai (TCC) mestilah berstatus "PATUH" untuk urusan perolehan.</span>
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
                           </div>
+                        ) : (
+                          /* Structured Data View (Classic Layout) */
+                          <div className="space-y-8">
+                            {selectedAd.licenseRequirements && (
+                              <div className="bg-risda-orange/5 border border-risda-orange/20 p-6 rounded-3xl space-y-2 text-left">
+                                 <h4 className="text-[10px] font-black text-risda-orange uppercase tracking-[4px]">Keperluan Lesen Pelantikan</h4>
+                                 <p className="text-xs text-white leading-relaxed uppercase">{selectedAd.licenseRequirements}</p>
+                              </div>
+                            )}
 
-                          {/* Visual Representation of Hebahan */}
-                          <div className="relative mx-auto w-full max-w-2xl px-4 sm:px-0">
-                            <div className="bg-white p-4 sm:p-6 md:p-14 border-[3px] border-slate-900 rounded-none shadow-2xl text-black font-sans w-full overflow-hidden">
+                            {selectedAd.licenses && (
+                              <div className="space-y-4 text-left">
+                                <h4 className="text-[10px] font-black text-risda-gold uppercase tracking-[4px]">Sijil & Lesen Berdaftar</h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedAd.licenses.cidbSpkk && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">CIDB (SPKK)</span>}
+                                  {selectedAd.licenses.cidbPkk && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">CIDB (PKK)</span>}
+                                  {selectedAd.licenses.stb && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">STB</span>}
+                                  {selectedAd.licenses.mof && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">MOF</span>}
+                                  {selectedAd.licenses.tcc && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">TCC</span>}
+                                  {selectedAd.licenses.pukonsa && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">PUKONSA</span>}
+                                  {selectedAd.licenses.kuhean && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">KUHEAN</span>}
+                                  {selectedAd.licenses.others && (
+                                    <span className="px-3 py-1.5 bg-white/10 border border-white/10 text-white rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                      {selectedAd.licenses.others}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+                              <div className="space-y-2 bg-white/5 p-6 rounded-3xl border border-white/5">
+                                <p className="text-[9px] font-black text-risda-muted uppercase tracking-[3px]">Status Perolehan</p>
+                                <span className={`px-3 py-1 rounded text-[10px] font-black uppercase ${
+                                  selectedAd.status === 'AKTIF' ? 'text-green-400' : 
+                                  selectedAd.status === 'BATAL' ? 'text-red-400' : 
+                                  'text-blue-400'
+                                }`}>
+                                  {selectedAd.status}
+                                </span>
+                              </div>
+                              <div className="space-y-2 bg-white/5 p-6 rounded-3xl border border-white/5">
+                                <p className="text-[9px] font-black text-risda-muted uppercase tracking-[3px]">Tarikh Tutup Penyerahan</p>
+                                <p className="text-lg font-black text-red-500 tracking-tight">{formatDate(selectedAd.closingDate)}</p>
+                                <p className="text-[10px] font-bold text-risda-muted uppercase tracking-widest">{selectedAd.closingTime || '12:00 PM'}</p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+                              <div className="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/5">
+                                <h4 className="text-[10px] font-black text-risda-orange uppercase tracking-[4px]">Lawatan Tapak</h4>
+                                <div className="space-y-1">
+                                  <p className="text-white font-bold text-sm">{formatDate(selectedAd.visitDate)}</p>
+                                  <p className="text-risda-muted text-[10px] uppercase font-bold">{selectedAd.visitVenue || '-'}</p>
+                                </div>
+                              </div>
+                              <div className="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/5">
+                                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[4px]">Taklimat Tapak</h4>
+                                <div className="space-y-1">
+                                  <p className="text-white font-bold text-sm">{formatDate(selectedAd.briefingDate)}</p>
+                                  <p className="text-risda-muted text-[10px] uppercase font-bold">{selectedAd.briefingVenue || '-'}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-6 text-left">
+                              <h4 className="text-[10px] font-black text-risda-gold uppercase tracking-[4px]">Pemerolehan Dokumen</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/5 p-8 rounded-3xl border border-white/5">
+                                <div>
+                                  <p className="text-risda-muted text-[9px] uppercase font-bold mb-1">Tarikh Mula</p>
+                                  <p className="text-white font-bold text-base">{formatDate(selectedAd.docStartDate)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-risda-muted text-[9px] uppercase font-bold mb-1">Tarikh Akhir</p>
+                                  <p className="text-white font-bold text-base">{formatDate(selectedAd.docEndDate)}</p>
+                                </div>
+                                <div className="md:col-span-2 pt-4 border-t border-white/5 text-left">
+                                  <p className="text-risda-muted text-[9px] uppercase font-bold mb-2">Tempat / Kaunter</p>
+                                  <p className="text-white font-black text-sm uppercase leading-relaxed">{selectedAd.docVenue || '-'}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      ) : (
+                        /* Completed Ad (Keputusan/Hebahan) Display - Always Portrait White Sheet style! */
+                        <div className="space-y-8">
+                          <div className="relative mx-auto w-full max-w-2xl px-1 sm:px-0 bg-[#0d121c]">
+                            <div className="bg-white p-4 sm:p-6 md:p-14 border-[6px] border-double border-slate-900 rounded-none shadow-2xl text-black font-sans w-full overflow-hidden">
                                 <div className="text-[7px] md:text-[10px] font-black text-right mb-4 md:mb-12 uppercase tracking-tighter opacity-80">URUSETIA PEROLEHAN PRD {selectedAd.office?.toUpperCase()}</div>
                                 
                                 <div className="flex flex-col items-center mb-6 md:mb-12">
@@ -1024,12 +1173,12 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                                   </div>
                                   <h1 className="text-xl sm:text-2xl md:text-5xl font-black border-b-4 border-black pb-1 mb-4 md:mb-8 tracking-tight text-center">HEBAHAN</h1>
                                   <div className="text-center font-black text-[10px] sm:text-sm md:text-lg tracking-tight mb-4 md:mb-8 px-2">
-                                    <span className="border-b-[1px] md:border-b-2 border-black pb-0.5 inline-block uppercase">PEMBIDA YANG BERJAYA BAGI SEBUTHARGA</span><br />
-                                    <span className="border-b-[1px] md:border-b-2 border-black pb-0.5 inline-block uppercase mt-1 text-center">PEJABAT RISDA DAERAH {selectedAd.office?.toUpperCase()}</span>
+                                    <span className="border-b-[1px] md:border-b-2 border-black pb-0.5 inline-block uppercase font-black">PEMBIDA YANG BERJAYA BAGI SEBUTHARGA</span><br />
+                                    <span className="border-b-[1px] md:border-b-2 border-black pb-0.5 inline-block uppercase font-black mt-1 text-center">PEJABAT RISDA DAERAH {selectedAd.office?.toUpperCase()}</span>
                                   </div>
                                 </div>
 
-                                <div className="border-[2px] md:border-[3px] border-black p-4 md:p-12 space-y-4 md:space-y-8 bg-white overflow-hidden">
+                                <div className="border-[2px] md:border-[3px] border-black p-4 md:p-12 space-y-4 md:space-y-8 bg-white overflow-hidden text-left">
                                   <div className="grid grid-cols-[80px_10px_1fr] sm:grid-cols-[160px_20px_1fr] gap-y-3 md:gap-y-6 text-[9px] sm:text-base md:text-lg">
                                     <div className="font-black uppercase">NO SEBUTHARGA</div>
                                     <div className="font-black text-center">:</div>
@@ -1053,28 +1202,49 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                                   </div>
                                 </div>
                               </div>
-                          </div>
+                            </div>
                         </div>
                       )}
 
-
-                      {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) && (
-                        <div className="pt-10 border-t border-risda-border flex flex-wrap gap-4">
+                      {/* Decorum Logs system footer in active layout */}
+                      {selectedAd.status !== 'SELESAI (KEPUTUSAN)' && (
+                        <div className="pt-10 border-t border-risda-border flex flex-wrap gap-4 text-left">
                            <div className="bg-white/5 px-6 py-4 rounded-xl border border-white/5 flex items-center gap-4 flex-1 min-w-[200px]">
-                              <Shield size={20} className="text-risda-orange" />
+                              <Shield size={20} className="text-[#ff9c3a]" />
                               <div>
-                               <p className="text-[10px] font-black text-white uppercase tracking-widest font-poppins">SMART LOG PEROLEHAN</p>
-                                 <p className="text-[9px] text-risda-muted leading-relaxed">Pendaftaran digital yang selamat dan telus.</p>
+                                 <p className="text-[10px] font-black text-white uppercase tracking-widest font-poppins">SMART LOG PEROLEHAN</p>
+                                 <p className="text-[9px] text-risda-muted leading-relaxed">Pendaftaran digital yang selamat, telus dan sah di bawah urusetia RISDA.</p>
                               </div>
                            </div>
                         </div>
                       )}
                     </div>
 
-                    {/* Column 3 - QR Code (Only for active or cancelled/briefing ads) */}
+                    {/* Column 3 - QR Code & Dismissible Banner (Only for active or cancelled/briefing ads) */}
                     {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) ? (
                       <div className="p-8 md:p-14 bg-black/15 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-white/10 lg:col-span-1">
                         <div className="w-full space-y-6">
+                          
+                          {/* Floating Helpful Banner exactly matching the user's uploaded image style */}
+                          {showHelpTip && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="relative bg-slate-900 border border-white/10 p-5 rounded-2xl flex items-start gap-3 shadow-2xl text-left"
+                            >
+                              <div className="flex-1 text-[9px] font-black text-slate-300 leading-relaxed uppercase tracking-wider">
+                                SILA RUJUK LAMPIRAN SIJIL TAWARAN ATAU HUBUNGI PEJABAT RISDA NEGERI/DAERAH YANG BERKAITAN UNTUK MAKLUMAT LANJUT.
+                              </div>
+                              <button 
+                                onClick={() => setShowHelpTip(false)}
+                                className="text-slate-500 hover:text-white p-1 rounded bg-[#0d121c] transition-all hover:scale-105 shrink-0"
+                                title="Tutup Makluman"
+                              >
+                                <X size={12} className="stroke-[2.5]" />
+                              </button>
+                            </motion.div>
+                          )}
+
                           <div className="border-b border-white/5 pb-4 text-center">
                             <h4 className="text-sm font-black text-white uppercase tracking-widest leading-none">PENDAFTARAN SEGERA</h4>
                             <p className="text-[10px] text-risda-orange uppercase tracking-[3px] mt-1.5 font-bold">Imbas QR Kod</p>
@@ -1096,7 +1266,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                             </p>
                             <div className="h-px bg-white/5" />
                             <p className="text-[10px] text-risda-muted leading-relaxed uppercase">
-                              Pastikan anda berada di lokasi taklimat pada tarikh dan masa yang ditetapkan untuk mengimbas.
+                              Pastikan anda berada di lokasi taklimat pada tarikh dan masa yang ditetapkan bersendirian untuk mengimbas pendaftaran.
                             </p>
                           </div>
                         </div>
@@ -1108,6 +1278,27 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                     ) : (
                       <div className="p-8 md:p-14 bg-black/15 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-white/10 lg:col-span-1">
                         <div className="w-full space-y-6">
+                          
+                          {/* Floating Helpful Banner exactly matching the user's uploaded image style */}
+                          {showHelpTip && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="relative bg-slate-900 border border-white/10 p-5 rounded-2xl flex items-start gap-3 shadow-2xl text-left"
+                            >
+                              <div className="flex-1 text-[9px] font-black text-slate-300 leading-relaxed uppercase tracking-wider">
+                                SILA RUJUK LAMPIRAN SIJIL TAWARAN ATAU HUBUNGI PEJABAT RISDA NEGERI/DAERAH YANG BERKAITAN UNTUK MAKLUMAT LANJUT.
+                              </div>
+                              <button 
+                                onClick={() => setShowHelpTip(false)}
+                                className="text-slate-500 hover:text-white p-1 rounded bg-[#0d121c] transition-all hover:scale-105 shrink-0"
+                                title="Tutup Makluman"
+                              >
+                                <X size={12} className="stroke-[2.5]" />
+                              </button>
+                            </motion.div>
+                          )}
+
                           <div className="border-b border-white/5 pb-4 text-center">
                             <h4 className="text-sm font-black text-white uppercase tracking-widest leading-none">MAKLUMAT KEPUTUSAN</h4>
                             <p className="text-[10px] text-blue-400 uppercase tracking-[3px] mt-1.5 font-bold">RASMI PEROLEHAN</p>

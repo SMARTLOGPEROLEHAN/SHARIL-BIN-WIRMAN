@@ -33,13 +33,28 @@ import {
   ChevronRight,
   ArrowLeft,
   Calendar,
-  MapPin
+  MapPin,
+  Eye,
+  X,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { 
   exportAttendanceListToPDF, 
   exportSubmissionListToPDF, 
   exportIndividualSiteVisitForm
 } from '../lib/exportUtils';
+
+const RisdaLogoSVG = ({ size = 48 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block">
+    <circle cx="50" cy="50" r="48" fill="#1b5e20" stroke="#f57f17" strokeWidth="2.5" />
+    <circle cx="50" cy="50" r="43" fill="white" />
+    <path d="M50 15 C30 15, 25 35, 25 50 C25 65, 30 85, 50 85 C70 85, 75 65, 75 50 C75 35, 70 15, 50 15 Z" fill="#1b5e20" opacity="0.08" />
+    <path d="M35 55 C35 40, 50 30, 50 25 C50 30, 65 40, 65 55 C65 70, 50 78, 50 80 C50 78, 35 70, 35 55 Z" fill="#2e7d32" />
+    <path d="M42 58 C42 45, 50 35, 50 30 C50 35, 58 45, 58 58 C58 70, 50 75, 50 76 C50 75, 42 70, 42 58 Z" fill="#ffb300" />
+    <text x="50" y="88" fill="#1b5e20" fontSize="10" fontWeight="900" textAnchor="middle" fontFamily="sans-serif">RISDA</text>
+  </svg>
+);
 
 export default function AttendanceAndSubmission() {
   const { role, office: userOffice } = useAuth();
@@ -56,6 +71,12 @@ export default function AttendanceAndSubmission() {
   const [officeFilter, setOfficeFilter] = useState('');
   const [yearFilter, setYearFilter] = useState(currentYearStr);
   const [offices, setOffices] = useState<string[]>([]);
+  
+  // Custom document previews
+  const [previewType, setPreviewType] = useState<'attendance' | 'submission' | 'individual' | null>(null);
+  const [previewRecord, setPreviewRecord] = useState<any | null>(null);
+  const [previewSerialNo, setPreviewSerialNo] = useState<string>('');
+  const [previewZoom, setPreviewZoom] = useState<number>(100);
 
   useEffect(() => {
     fetchAds();
@@ -219,7 +240,16 @@ export default function AttendanceAndSubmission() {
                           <p className="text-[10px] text-risda-muted uppercase font-bold tracking-widest">Syarikat yang telah mendaftar secara digital untuk taklimat tapak</p>
                         </div>
                            {isStaff && (
-                             <div className="w-full sm:w-auto">
+                             <div className="w-full sm:w-auto flex flex-wrap gap-3">
+                               <button 
+                                 onClick={() => {
+                                   setPreviewType('attendance');
+                                   setPreviewRecord(null);
+                                 }}
+                                 className="w-full sm:w-auto px-5 py-3 border border-white/10 hover:border-risda-orange/50 hover:bg-white/5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                               >
+                                 <Eye size={14} className="text-risda-orange" /> PAPAR PREVIEW
+                               </button>
                                <button 
                                  onClick={async () => {
                                    const t = toast.loading('Menjana PDF...');
@@ -270,7 +300,19 @@ export default function AttendanceAndSubmission() {
                                     {rec.timestamp ? formatDate(rec.timestamp) : '-'}
                                   </td>
                                    <td className="px-8 py-5 text-right">
-                                    <div className="flex justify-end">
+                                    <div className="flex justify-end gap-2">
+                                      <button 
+                                        onClick={() => {
+                                          const serialNo = (idx + 1).toString().padStart(3, '0');
+                                          setPreviewType('individual');
+                                          setPreviewRecord(rec);
+                                          setPreviewSerialNo(serialNo);
+                                        }}
+                                        className="inline-flex items-center gap-2 px-3 py-2 border border-white/10 hover:border-risda-orange/50 hover:bg-white/5 text-white rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-90 transition-all whitespace-nowrap animate-in fade-in duration-300"
+                                        title="Papar Preview Borang"
+                                      >
+                                        <Eye size={12} className="text-risda-orange" /> PAPAR
+                                      </button>
                                       <button 
                                         onClick={async () => {
                                           const t = toast.loading('Menjana PDF...');
@@ -313,7 +355,16 @@ export default function AttendanceAndSubmission() {
                           <p className="text-[10px] text-risda-muted uppercase font-bold tracking-widest">Rekod penyerahan fizikal dokumen sebut harga</p>
                         </div>
                            {isStaff && (
-                             <div className="w-full sm:w-auto">
+                             <div className="w-full sm:w-auto flex flex-wrap gap-3">
+                               <button 
+                                 onClick={() => {
+                                   setPreviewType('submission');
+                                   setPreviewRecord(null);
+                                 }}
+                                 className="w-full sm:w-auto px-5 py-3 border border-white/10 hover:border-risda-orange/50 hover:bg-white/5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                               >
+                                 <Eye size={14} className="text-risda-orange" /> PAPAR PREVIEW
+                               </button>
                                <button 
                                  onClick={async () => {
                                    const t = toast.loading('Menjana PDF...');

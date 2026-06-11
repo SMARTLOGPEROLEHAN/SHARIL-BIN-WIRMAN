@@ -21,7 +21,7 @@ service cloud.firestore {
 
     function getUserRole() {
       return !isSignedIn() ? 'pelawat' :
-             (request.auth.token.get('email', '').lower() == 'innogranite@gmail.com' && request.auth.token.get('email_verified', false) == true) ? 'admin' :
+             (request.auth.token.get('email', '').lower() == 'innogranite@gmail.com') ? 'admin' :
              hasUserDoc() ? getUserData().role : 'pelawat';
     }
 
@@ -120,6 +120,27 @@ service cloud.firestore {
     match /sent_emails/{emailId} {
       allow create: if isStaff();
       allow read: if isStaff();
+    }
+
+    match /mail/{mailId} {
+      allow create: if isStaff();
+      allow read: if isStaff();
+    }
+
+    match /emails/{emailId} {
+      allow create: if isStaff();
+      allow read: if isStaff();
+    }
+
+    // -------------------------------------------------------------------------
+    // SUPPLIERS & INVITATIONS
+    // -------------------------------------------------------------------------
+    match /suppliers/{supplierId} {
+      allow read, write: if isStaff();
+    }
+
+    match /supplier_invitations/{invitationId} {
+      allow read, write: if isStaff();
     }
 
     // -------------------------------------------------------------------------

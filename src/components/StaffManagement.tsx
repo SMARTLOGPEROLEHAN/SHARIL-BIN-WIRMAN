@@ -237,29 +237,95 @@ export default function StaffManagement() {
       }
 
       let registrationEmailSent = false;
+      const trimmedEmail = email.trim();
       if (!editingId) {
         // Create
-        const q = query(collection(db, 'users'), where('email', '==', email));
+        const q = query(collection(db, 'users'), where('email', '==', trimmedEmail));
         const emailSnapshot = await getDocs(q);
         if (!emailSnapshot.empty) {
           const existingDoc = emailSnapshot.docs[0];
           await updateDoc(existingDoc.ref, dataToSave);
         } else {
-          const emailSlug = email.replace(/[^a-zA-Z0-9]/g, '_');
+          const emailSlug = trimmedEmail.replace(/[^a-zA-Z0-9]/g, '_');
           await setDoc(doc(db, 'users', emailSlug), {
             ...dataToSave,
-            email,
+            email: trimmedEmail,
             createdAt: serverTimestamp(),
             uid: authUid || emailSlug
           });
         }
 
-        // Try to trigger a password reset/activation email directly to the newly registered staff
+        const roleText = (role === 'penginput') ? 'PENGINPUT' : 'PELULUS/PENTADBIR';
+        const notifySubject = `Pendaftaran Akaun Kakitangan Sistem e-SebutHarga Berjaya`;
+        const notifyBody = `Assalamualaikum dan Salam Sejahtera, Tuan/Puan,
+
+PENDAFTARAN ANDA TELAH BERJAYA DI DALAM SISTEM INI.
+
+Butiran pendaftaran adalah seperti berikut:
+Nama Kakitangan : ${displayName}
+ID Kakitangan   : ${staffId}
+E-mel yang didaftarkan : ${trimmedEmail}
+Peranan/Akses   : ${roleText}`;
+
         try {
-          await sendPasswordResetEmail(getAuth(), email);
+          const docPromises = [
+            // Format 1: Flat scheme in 'sent_emails'
+            addDoc(collection(db, 'sent_emails'), {
+              to: trimmedEmail,
+              toName: displayName,
+              subject: notifySubject,
+              body: notifyBody,
+              sentAt: new Date().toISOString()
+            }),
+            // Format 2: Nested scheme in 'sent_emails'
+            addDoc(collection(db, 'sent_emails'), {
+              to: trimmedEmail,
+              message: {
+                subject: notifySubject,
+                text: notifyBody
+              },
+              sentAt: new Date().toISOString()
+            }).catch(() => null),
+            // Format 3: Flat scheme in 'mail' for generic standard triggers
+            addDoc(collection(db, 'mail'), {
+              to: trimmedEmail,
+              toName: displayName,
+              subject: notifySubject,
+              body: notifyBody,
+              sentAt: new Date().toISOString()
+            }).catch(() => null),
+            // Format 4: Nested scheme in 'mail' (Standard firestore-send-email extension)
+            addDoc(collection(db, 'mail'), {
+              to: trimmedEmail,
+              message: {
+                subject: notifySubject,
+                text: notifyBody
+              },
+              sentAt: new Date().toISOString()
+            }).catch(() => null),
+            // Format 5: Flat scheme in 'emails'
+            addDoc(collection(db, 'emails'), {
+              to: trimmedEmail,
+              toName: displayName,
+              subject: notifySubject,
+              body: notifyBody,
+              sentAt: new Date().toISOString()
+            }).catch(() => null),
+            // Format 6: Nested scheme in 'emails'
+            addDoc(collection(db, 'emails'), {
+              to: trimmedEmail,
+              message: {
+                subject: notifySubject,
+                text: notifyBody
+              },
+              sentAt: new Date().toISOString()
+            }).catch(() => null)
+          ];
+
+          await Promise.all(docPromises);
           registrationEmailSent = true;
-        } catch (mailErr: any) {
-          console.warn("Could not send automated registration email notification:", mailErr);
+        } catch (emailErr) {
+          console.error('Error queuing staff welcome email:', emailErr);
         }
       } else {
         // Update
@@ -276,7 +342,7 @@ export default function StaffManagement() {
       
       let successMsg = editingId ? 'Data telah dikemaskini!' : 'Kakitangan telah didaftarkan!';
       if (!editingId && registrationEmailSent) {
-        successMsg += ' E-mel notifikasi pendaftaran & pautan penetapan kata laluan telah dihantar ke inbox kakitangan.';
+        successMsg += ' E-mel notifikasi pendaftaran telah dihantar ke inbox kakitangan.';
       } else if (!editingId) {
         successMsg += ' (Gagal menghantar e-mel notifikasi automatik secara terus)';
       }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Shield, Upload, UserCheck, CheckCircle, AlertCircle, ArrowLeft, FileText, Landmark } from 'lucide-react';
@@ -25,12 +25,28 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
     phoneNumber: '',
     email: '',
   });
-  const [certificateFile, setCertificateFile] = useState<File | null>(null);
-  const [isDragActive, setIsDragActive] = useState(false);
+  const [certificateFiles, setCertificateFiles] = useState<Record<string, File>>({});
+  const [dragActiveStates, setDragActiveStates] = useState<Record<string, boolean>>({});
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submittingSucceeded, setSubmittingSucceeded] = useState(false);
   const [registeredSeriesNo, setRegisteredSeriesNo] = useState<string>('');
+
+  // Sijil Kelayakan Wajib list computed based on ad configuration
+  const requiredLicenses = [];
+  if (ad?.licenses?.cidbSpkk || ad?.licenses?.cidbPkk) {
+    requiredLicenses.push({ key: 'cidb', label: 'Sijil CIDB' });
+  }
+  if (ad?.licenses?.stb) requiredLicenses.push({ key: 'stb', label: 'Sijil Taraf Bumiputera (STB)' });
+  if (ad?.licenses?.mof) requiredLicenses.push({ key: 'mof', label: 'Kementerian Kewangan (MOF)' });
+  if (ad?.licenses?.tcc) requiredLicenses.push({ key: 'tcc', label: 'Sijil Pelepasan Cukai (TCC)' });
+  if (ad?.licenses?.pukonsa) requiredLicenses.push({ key: 'pukonsa', label: 'PUKONSA' });
+  if (ad?.licenses?.kuhean) requiredLicenses.push({ key: 'kuhean', label: 'KUHEAN' });
+
+  const hasSpecificLicenses = requiredLicenses.length > 0;
+  const effectiveLicenses = hasSpecificLicenses 
+    ? requiredLicenses 
+    : [{ key: 'umum', label: 'Sijil Pendaftaran Syarikat / CIDB / Lain-Lain Sijil Kelayakan' }];
 
   useEffect(() => {
     const fetchAdDetails = async () => {
@@ -58,63 +74,89 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
     }
   }, [adId]);
 
-  // Form drag and drop handlers
-  const handleDrag = (e: React.DragEvent) => {
+  // Form drag and drop handlers per key
+  const handleDrag = (key: string, e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
-      setIsDragActive(true);
+      setDragActiveStates(prev => ({ ...prev, [key]: true }));
     } else if (e.type === "dragleave") {
-      setIsDragActive(false);
+      setDragActiveStates(prev => ({ ...prev, [key]: false }));
     }
   };
 
-  const processAndSetFile = async (file: File) => {
+  const processAndSetFile = async (key: string, file: File) => {
     if (file.type.startsWith('image/')) {
       const compressToastId = toast.loading('Mengoptimumkan saiz imej...');
       try {
         const optimized = await optimizeImage(file);
         toast.dismiss(compressToastId);
         
-        if (optimized.size > 2 * 1024 * 1024) {
-          toast.error('Gagal mengoptimumkan: Imej melebihi had saiz 2MB.');
+        if (optimized.size > 5 * 1024 * 1024) {
+          toast.error('Gagal mengoptimumkan: Imej melebihi had saiz 5MB.');
           return;
         }
         
-        setCertificateFile(optimized);
+        setCertificateFiles(prev => ({ ...prev, [key]: optimized }));
         toast.success(`Imej berjaya dioptimumkan! Saiz sekarang: ${(optimized.size / 1024 / 1024).toFixed(2)} MB`);
       } catch (optimizeErr) {
         toast.dismiss(compressToastId);
         console.error('Resize error:', optimizeErr);
-        if (file.size > 2 * 1024 * 1024) {
-          toast.error('Gagal: Fail imej melebihi had saiz 2MB.');
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error('Gagal: Fail imej melebihi had saiz 5MB.');
           return;
         }
-        setCertificateFile(file);
+        setCertificateFiles(prev => ({ ...prev, [key]: file }));
       }
     } else {
       // PDF or other non-image format
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error('Gagal: Fail melebihi had saiz 2MB.');
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Gagal: Fail melebihi had saiz 5MB.');
         return;
       }
-      setCertificateFile(file);
+      setCertificateFiles(prev => ({ ...prev, [key]: file }));
     }
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = async (key: string, e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragActive(false);
+    setDragActiveStates(prev => ({ ...prev, [key]: false }));
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      await processAndSetFile(e.dataTransfer.files[0]);
+      await processAndSetFile(key, e.dataTransfer.files[0]);
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      await processAndSetFile(e.target.files[0]);
+      await processAndSetFile(key, e.target.files[0]);
+    }
+  };
+
+  const formatBeautifulDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const months = [
+        'JANUARI', 'FEBRUARI', 'MAC', 'APRIL', 'MEI', 'JUN',
+        'JULAI', 'OGOS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DISEMBER'
+      ];
+      return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const indonesianDayName = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      const days = ['AHAD', 'ISNIN', 'SELASA', 'RABU', 'KHAMIS', 'JUMAAT', 'SABTU'];
+      return days[d.getDay()];
+    } catch (e) {
+      return '';
     }
   };
 
@@ -147,6 +189,18 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
       const snap = await getDocs(countQuery);
       const nextNo = (snap.size + 1).toString().padStart(3, '0');
 
+      // Format nama fail untuk disimpan
+      const uploadedCertificateMap = effectiveLicenses.reduce((acc, lic) => {
+        acc[lic.key] = certificateFiles[lic.key]?.name || '';
+        return acc;
+      }, {} as Record<string, string>);
+
+      const hasUploadedAny = Object.keys(certificateFiles).length > 0;
+      const certificateNamesList = effectiveLicenses
+        .filter(lic => !!certificateFiles[lic.key])
+        .map(lic => `${lic.label}: ${certificateFiles[lic.key].name}`)
+        .join(', ');
+
       const submissionData = {
         companyName: normalizedCompanyName,
         ownerName: formData.ownerName.trim(),
@@ -157,13 +211,69 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
         adId: ad.id,
         adTitle: ad.title,
         office: ad.office || '',
-        hasCertificate: !!certificateFile,
-        certificateName: certificateFile?.name || null,
+        hasCertificate: hasUploadedAny,
+        certificateName: hasUploadedAny ? certificateNamesList : 'Tiada Sijil Dikepilkan (Mendaftar Tanpa Sijil)',
+        certificates: uploadedCertificateMap,
         timestamp: new Date().toISOString(),
         docSeriesNo: nextNo,
       };
 
       await addDoc(collection(db, path), submissionData);
+
+      // Save/Merge to 'suppliers' collection so they can receive future invitations directly
+      const supplierDocId = `supplier_${normalizedCompanyName.replace(/[^A-Z0-9]/g, '_')}`;
+      await setDoc(doc(db, 'suppliers', supplierDocId), {
+        companyName: normalizedCompanyName,
+        phoneNumber: formData.phoneNumber.trim(),
+        email: formData.email.trim(),
+        address: formData.companyAddress.trim(),
+        cidbSpkk: '',
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      // Queue Registration Confirmation Email in 'sent_emails'
+      if (formData.email.trim()) {
+        const emailSubject = `Pengesahan Pendaftaran Sebut Harga Berjaya - No. Siri: ${nextNo}`;
+        const emailBody = `Assalamualaikum dan Salam Sejahtera,
+
+Tuan/Puan,
+
+PENGESAHAN PENDAFTARAN KEHADIRAN TAKLIMAT / LAWATAN TAPAK SECARA ONLINE
+
+Syarikat: ${normalizedCompanyName}
+Pemilik/Penama: ${formData.ownerName.trim()}
+Emel: ${formData.email.trim()}
+Telefon: ${formData.phoneNumber.trim()}
+
+Dengan hormatnya dimaklumkan bahawa syarikat pihak tuan/puan telah BERJAYA mendaftar kehadiran secara online bagi sebut harga berikut:
+
+Tajuk Sebut Harga: ${ad.title.toUpperCase()}
+No. Sebut Harga: ${ad.tenderNo.toUpperCase()}
+
+Sila ambil maklum maklumat penting bagi lawatan tapak yang bakal dijalankan seperti berikut:
+
+1. NO. SIRI PENDAFTARAN  : ${nextNo}
+2. TEMPAT LAWATAN TAPAK : ${ad.visitVenue || ad.briefingVenue || 'Pejabat RISDA Beaufort'}
+3. HARI & TARIKH LAWATAN: ${indonesianDayName(ad.briefingDate || '')} / ${formatBeautifulDate(ad.briefingDate || '')}
+4. MASA LAWATAN TAPAK   : ${ad.briefingTime || 'Seperti diiklankan'}
+
+Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang berkaitan) beserta satu salinan dan dokumen-dokumen yang diperlukan semasa mengemukakan tawaran.
+
+Sekian, terima kasih.
+
+"MALAYSIA MADANI"
+"BERKHIDMAT UNTUK NEGARA"
+
+Pejabat RISDA Daerah Beaufort, Sabah.`;
+
+        await addDoc(collection(db, 'sent_emails'), {
+          to: formData.email.trim(),
+          toName: formData.ownerName.trim(),
+          subject: emailSubject,
+          body: emailBody,
+          sentAt: new Date().toISOString()
+        });
+      }
       
       setRegisteredSeriesNo(nextNo);
       setSubmittingSucceeded(true);
@@ -493,64 +603,95 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
 
                   {/* Right Column - Upload & Safety Warnings */}
                   <div className="flex flex-col h-full justify-between space-y-6">
-                    <div className="flex-1 space-y-5">
-                      <h3 className="text-xs md:text-sm font-extrabold text-sky-400 tracking-[3px] uppercase border-b border-sky-500/20 pb-2 mb-4">
-                        SIJIL KELAYAKAN (PDF/IMEJ)
-                      </h3>
+                    <div className="flex-1 space-y-6">
+                      <div>
+                        <h3 className="text-xs md:text-sm font-extrabold text-sky-400 tracking-[3px] uppercase border-b border-sky-500/20 pb-2 mb-2">
+                          SENARAI MUAT NAIK SIJIL KELAYAKAN
+                        </h3>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                          Sila muat naik sijil kelayakan yang berkenaan dengan syarikat anda (Format Gambar/PDF). Sijil yang tiada boleh dilepaskan (tidak wajib sekiranya anda tidak memilikinya).
+                        </p>
+                      </div>
 
-                      {/* Premium Drag and Drop Upload Area */}
-                      <div 
-                        onDragEnter={handleDrag}
-                        onDragOver={handleDrag}
-                        onDragLeave={handleDrag}
-                        onDrop={handleDrop}
-                        className={`relative w-full border-2 border-dashed rounded-2xl p-8 md:p-12 min-h-[300px] flex flex-col items-center justify-center transition-all cursor-pointer select-none ${
-                          isDragActive ? 'border-sky-500 bg-sky-500/5 scale-[0.99]' : 
-                          certificateFile ? 'border-sky-500/60 bg-sky-500/5' : 'border-slate-800 bg-[#060b13] hover:border-slate-700'
-                        }`}
-                      >
-                        <input 
-                          type="file"
-                          accept="image/*,application/pdf"
-                          onChange={handleFileChange}
-                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                        />
+                      <div className="space-y-6">
+                        {effectiveLicenses.map((lic) => {
+                          const file = certificateFiles[lic.key];
+                          const isDragLocal = !!dragActiveStates[lic.key];
+                          return (
+                            <div key={lic.key} className="space-y-2">
+                              <div className="flex items-center justify-between px-1">
+                                <label className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full bg-sky-500" />
+                                  {lic.label} <span className="text-sky-400 font-bold uppercase tracking-wider">(Jika Ada)</span>
+                                </label>
+                                {file && (
+                                  <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                                    <CheckCircle size={12} /> BERJAYA DIKEPILKAN
+                                  </span>
+                                )}
+                              </div>
 
-                        {certificateFile ? (
-                          <div className="flex flex-col items-center text-center gap-4">
-                            <div className="w-16 h-16 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center">
-                              <FileText size={26} />
+                              {/* Premium Drag and Drop Upload Area for this specific certificate */}
+                              <div 
+                                onDragEnter={(e) => handleDrag(lic.key, e)}
+                                onDragOver={(e) => handleDrag(lic.key, e)}
+                                onDragLeave={(e) => handleDrag(lic.key, e)}
+                                onDrop={(e) => handleDrop(lic.key, e)}
+                                className={`relative w-full border-2 border-dashed rounded-xl p-6 min-h-[140px] flex flex-col items-center justify-center transition-all cursor-pointer select-none ${
+                                  isDragLocal ? 'border-sky-500 bg-sky-500/5 scale-[0.99]' : 
+                                  file ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-slate-800 bg-[#060b13] hover:border-slate-700'
+                                }`}
+                              >
+                                <input 
+                                  type="file"
+                                  accept="image/*,application/pdf"
+                                  onChange={(e) => handleFileChange(lic.key, e)}
+                                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                />
+
+                                {file ? (
+                                  <div className="flex flex-col items-center text-center gap-3 relative z-20">
+                                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                                      <FileText size={18} />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <p className="text-white text-[11px] font-bold font-mono max-w-[280px] truncate">
+                                        {file.name}
+                                      </p>
+                                      <p className="text-[9px] text-slate-500 uppercase tracking-widest font-mono">
+                                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                                      </p>
+                                    </div>
+                                    <button 
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCertificateFiles(prev => {
+                                          const next = { ...prev };
+                                          delete next[lic.key];
+                                          return next;
+                                        });
+                                      }}
+                                      className="text-[9px] font-black text-sky-400 hover:text-sky-300 uppercase tracking-wider relative z-20"
+                                    >
+                                      TUKAR FAIL
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center text-center gap-2.5">
+                                    <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800/80 flex items-center justify-center text-sky-400 transition-transform group-hover:scale-105">
+                                      <Upload size={16} />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <p className="text-white text-[10px] font-black uppercase tracking-wider font-sans">KLIK ATAU TARIK SIJIL</p>
+                                      <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Format JPG/PNG/PDF (Maks 5MB)</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="space-y-1">
-                              <p className="text-white text-xs font-bold font-mono max-w-[250px] truncate">
-                                {certificateFile.name}
-                              </p>
-                              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">
-                                {(certificateFile.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                            </div>
-                            <button 
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCertificateFile(null);
-                              }}
-                              className="text-[10px] font-black text-sky-400 hover:text-sky-300 uppercase tracking-wider relative z-20"
-                            >
-                              TUKAR FAIL
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center text-center gap-4">
-                            <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800/80 flex items-center justify-center text-sky-400 transition-transform group-hover:scale-105">
-                              <Upload size={24} />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-white text-xs font-black uppercase tracking-wider">KLIK ATAU TARIK FAIL</p>
-                              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Sijil CIDB (Maks 5MB)</p>
-                            </div>
-                          </div>
-                        )}
+                          );
+                        })}
                       </div>
 
                       {/* Small informative block with Shield icon */}

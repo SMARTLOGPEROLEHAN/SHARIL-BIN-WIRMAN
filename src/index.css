@@ -189,3 +189,37 @@ body {
     background: transparent; /* Hide on mobile for cleaner look */
   }
 }
+
+/* Print Overrides for A4 Letter Printing */
+@media print {
+  body, html {
+    background-color: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .no-print, #no-print-actionbar {
+    display: none !important;
+  }
+  .print\:bg-white {
+    background-color: #ffffff !important;
+  }
+  .print\:p-0 {
+    padding: 0 !important;
+  }
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+  .print\:border-none {
+    border: none !important;
+  }
+  /* Prevent background color from printing on page border elements */
+  div, table, td, span, p {
+    color: #000000 !important;
+  }
+}
+

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { addDoc, collection, doc, updateDoc, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, doc, updateDoc, getDocs, query, where, setDoc, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { motion } from 'motion/react';
 import { UserCheck, CheckCircle, Shield, X, Upload, FileText as FileIcon } from 'lucide-react';
@@ -44,45 +44,83 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
     phoneNumber: editingRecord?.phoneNumber || '',
     email: editingRecord?.email || '',
   });
-  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [certificateFiles, setCertificateFiles] = useState<Record<string, File>>({});
+  const [dragActiveStates, setDragActiveStates] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      const file = e.target.files[0];
-      
-      if (file.type.startsWith('image/')) {
-        const compressToastId = toast.loading('Mengoptimumkan saiz imej...');
-        try {
-          const optimized = await optimizeImage(file);
-          toast.dismiss(compressToastId);
-          
-          if (optimized.size > 2 * 1024 * 1024) {
-            toast.error('Gagal mengoptimumkan: Imej melebihi had saiz 2MB.');
-            return;
-          }
-          
-          setCertificateFile(optimized);
-          toast.success(`Imej berjaya dioptimumkan! Saiz sekarang: ${(optimized.size / 1024 / 1024).toFixed(2)} MB`);
-        } catch (optimizeErr) {
-          toast.dismiss(compressToastId);
-          console.error('Resize error:', optimizeErr);
-          if (file.size > 2 * 1024 * 1024) {
-            toast.error('Had saiz fail imej adalah 2MB.');
-            return;
-          }
-          setCertificateFile(file);
-        }
-      } else {
-        // PDF or other non-image format
-        if (file.size > 2 * 1024 * 1024) {
-          toast.error('Had saiz fail adalah maksimum 2MB.');
+  // Sijil Kelayakan Wajib list computed based on ad configuration
+  const requiredLicenses = [];
+  if (licenses?.cidbSpkk || licenses?.cidbPkk) {
+    requiredLicenses.push({ key: 'cidb', label: 'Sijil CIDB' });
+  }
+  if (licenses?.stb) requiredLicenses.push({ key: 'stb', label: 'Sijil Taraf Bumiputera (STB)' });
+  if (licenses?.mof) requiredLicenses.push({ key: 'mof', label: 'Kementerian Kewangan (MOF)' });
+  if (licenses?.tcc) requiredLicenses.push({ key: 'tcc', label: 'Sijil Pelepasan Cukai (TCC)' });
+  if (licenses?.pukonsa) requiredLicenses.push({ key: 'pukonsa', label: 'PUKONSA' });
+  if (licenses?.kuhean) requiredLicenses.push({ key: 'kuhean', label: 'KUHEAN' });
+
+  const hasSpecificLicenses = requiredLicenses.length > 0;
+  const effectiveLicenses = hasSpecificLicenses 
+    ? requiredLicenses 
+    : [{ key: 'umum', label: 'Sijil Pendaftaran Syarikat / CIDB / Lain-Lain Sijil Kelayakan' }];
+
+  const processAndSetFile = async (key: string, file: File) => {
+    if (file.type.startsWith('image/')) {
+      const compressToastId = toast.loading('Mengoptimumkan saiz imej...');
+      try {
+        const optimized = await optimizeImage(file);
+        toast.dismiss(compressToastId);
+        
+        if (optimized.size > 5 * 1024 * 1024) {
+          toast.error('Gagal mengoptimumkan: Imej melebihi had saiz 5MB.');
           return;
         }
-        setCertificateFile(file);
+        
+        setCertificateFiles(prev => ({ ...prev, [key]: optimized }));
+        toast.success(`Imej berjaya dioptimumkan! Saiz sekarang: ${(optimized.size / 1024 / 1024).toFixed(2)} MB`);
+      } catch (optimizeErr) {
+        toast.dismiss(compressToastId);
+        console.error('Resize error:', optimizeErr);
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error('Gagal: Fail imej melebihi had saiz 5MB.');
+          return;
+        }
+        setCertificateFiles(prev => ({ ...prev, [key]: file }));
       }
+    } else {
+      // PDF or other non-image format
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Gagal: Fail melebihi had saiz 5MB.');
+        return;
+      }
+      setCertificateFiles(prev => ({ ...prev, [key]: file }));
+    }
+  };
+
+  const handleDrag = (key: string, e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActiveStates(prev => ({ ...prev, [key]: true }));
+    } else if (e.type === "dragleave") {
+      setDragActiveStates(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleDrop = async (key: string, e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActiveStates(prev => ({ ...prev, [key]: false }));
+    if (e.dataTransfer.files?.[0]) {
+      await processAndSetFile(key, e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = async (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      await processAndSetFile(key, e.target.files[0]);
     }
   };
 
@@ -107,9 +145,17 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
         }
       }
 
-      // Note: In a production environment with Firebase Storage, 
-      // we would upload 'certificateFile' here and get a URL.
-      // For this implementation, we record the intent and file metadata.
+      // Note: We record the intent and files metadata.
+      const uploadedCertificateMap = effectiveLicenses.reduce((acc, lic) => {
+        acc[lic.key] = certificateFiles[lic.key]?.name || '';
+        return acc;
+      }, {} as Record<string, string>);
+
+      const hasUploadedAny = Object.keys(certificateFiles).length > 0;
+      const certificateNamesList = effectiveLicenses
+        .filter(lic => !!certificateFiles[lic.key])
+        .map(lic => `${lic.label}: ${certificateFiles[lic.key].name}`)
+        .join(', ');
       
       const submissionData: any = {
         ...formData,
@@ -117,8 +163,11 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
         adId,
         adTitle,
         office,
-        hasCertificate: !!certificateFile || !!editingRecord?.certificateUrl,
-        certificateName: certificateFile?.name || null,
+        hasCertificate: editingRecord ? (!!editingRecord.certificateUrl || hasUploadedAny) : hasUploadedAny,
+        certificateName: editingRecord 
+          ? (editingRecord.certificateUrl ? 'Sijil sedia ada' : (hasUploadedAny ? certificateNamesList : 'Tiada Sijil Dikepilkan (Mendaftar Tanpa Sijil)'))
+          : (hasUploadedAny ? certificateNamesList : 'Tiada Sijil Dikepilkan (Mendaftar Tanpa Sijil)'),
+        certificates: uploadedCertificateMap,
       };
 
       if (editingRecord) {
@@ -135,6 +184,110 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
         submissionData.docSeriesNo = nextNo;
         
         await addDoc(collection(db, path), submissionData);
+
+        // Save/Merge to 'suppliers' collection so they can receive future invitations directly
+        const normalizedCompanyName = formData.companyName.toUpperCase().trim();
+        const supplierDocId = `supplier_${normalizedCompanyName.replace(/[^A-Z0-9]/g, '_')}`;
+        await setDoc(doc(db, 'suppliers', supplierDocId), {
+          companyName: normalizedCompanyName,
+          phoneNumber: formData.phoneNumber.trim(),
+          email: (formData.email || '').trim(),
+          address: (formData.companyAddress || '').trim(),
+          cidbSpkk: '',
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        // Queue Registration Confirmation Email in 'sent_emails'
+        if (formData.email && formData.email.trim()) {
+          // Fetch full ad details from firebase
+          let visitVenue = 'Pejabat RISDA Beaufort';
+          let briefingDate = '';
+          let briefingTime = 'Seperti diiklankan';
+          let briefingVenue = 'Pejabat RISDA Beaufort';
+
+          try {
+            const adDocRef = doc(db, 'ads', adId);
+            const adDocSnap = await getDoc(adDocRef);
+            if (adDocSnap.exists()) {
+              const adData = adDocSnap.data();
+              visitVenue = adData.visitVenue || adData.briefingVenue || visitVenue;
+              briefingDate = adData.briefingDate || '';
+              briefingTime = adData.briefingTime || briefingTime;
+              briefingVenue = adData.briefingVenue || briefingVenue;
+            }
+          } catch (adErr) {
+            console.error('Error fetching ad detail for email:', adErr);
+          }
+
+          const formatBeautifulDate = (dateStr: string) => {
+            if (!dateStr) return '';
+            try {
+              const d = new Date(dateStr);
+              if (isNaN(d.getTime())) return dateStr;
+              const months = [
+                'JANUARI', 'FEBRUARI', 'MAC', 'APRIL', 'MEI', 'JUN',
+                'JULAI', 'OGOS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DISEMBER'
+              ];
+              return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+            } catch (e) {
+              return dateStr;
+            }
+          };
+
+          const indonesianDayName = (dateStr: string) => {
+            try {
+              const d = new Date(dateStr);
+              if (isNaN(d.getTime())) return '';
+              const days = ['AHAD', 'ISNIN', 'SELASA', 'RABU', 'KHAMIS', 'JUMAAT', 'SABTU'];
+              return days[d.getDay()];
+            } catch (e) {
+              return '';
+            }
+          };
+
+          const formattedBriefingDate = briefingDate ? `${formatBeautifulDate(briefingDate)} (${indonesianDayName(briefingDate)})` : '—';
+
+          const emailSubject = `Pengesahan Pendaftaran Sebut Harga Berjaya - No. Siri: ${nextNo}`;
+          const emailBody = `Assalamualaikum dan Salam Sejahtera,
+
+Tuan/Puan,
+
+PENGESAHAN PENDAFTARAN KEHADIRAN TAKLIMAT / LAWATAN TAPAK SECARA ONLINE
+
+Syarikat: ${normalizedCompanyName}
+Pemilik/Penama: ${formData.ownerName.trim()}
+Emel: ${formData.email.trim()}
+Telefon: ${formData.phoneNumber.trim()}
+
+Dengan hormatnya dimaklumkan bahawa syarikat pihak tuan/puan telah BERJAYA mendaftar kehadiran secara online bagi sebut harga berikut:
+
+Tajuk Sebut Harga: ${adTitle.toUpperCase()}
+No. Sebut Harga: ${(tenderNo || '').toUpperCase()}
+
+Sila ambil maklum maklumat penting bagi lawatan tapak yang bakal dijalankan seperti berikut:
+
+1. NO. SIRI PENDAFTARAN  : ${nextNo}
+2. TEMPAT LAWATAN TAPAK : ${visitVenue}
+3. HARI & TARIKH LAWATAN: ${formattedBriefingDate}
+4. MASA LAWATAN TAPAK   : ${briefingTime}
+
+Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang berkaitan) beserta satu salinan dan dokumen-dokumen yang diperlukan semasa mengemukakan tawaran.
+
+Sekian, terima kasih.
+
+"MALAYSIA MADANI"
+"BERKHIDMAT UNTUK NEGARA"
+
+Pejabat RISDA Daerah Beaufort, Sabah.`;
+
+          await addDoc(collection(db, 'sent_emails'), {
+            to: formData.email.trim(),
+            toName: formData.ownerName.trim(),
+            subject: emailSubject,
+            body: emailBody,
+            sentAt: new Date().toISOString()
+          });
+        }
       }
       setSubmitted(true);
       toast.success(editingRecord ? 'Kehadiran dikemaskini!' : 'Kehadiran didaftarkan!');
@@ -311,48 +464,83 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
         </div>
 
         <div className="space-y-6 flex flex-col">
-          <div className="space-y-2 flex-1">
-            <label className="text-[9px] md:text-[10px] font-black text-risda-muted uppercase tracking-[3px] px-1">Sijil Kelayakan (PDF/Imej)</label>
-            <div className={`relative h-full min-h-[140px] md:min-h-[160px] border-2 border-dashed rounded-xl md:rounded-2xl flex flex-col items-center justify-center p-4 md:p-6 transition-all cursor-pointer overflow-hidden ${
-              certificateFile ? 'border-risda-orange bg-risda-orange/5' : 'border-white/10 hover:border-risda-orange/30 bg-black/40'
-            }`}>
-              <input 
-                type="file"
-                accept="image/*,.pdf"
-                onChange={handleFileChange}
-                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-              />
-              {certificateFile ? (
-                <div className="flex flex-col items-center text-center gap-2 md:gap-3">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-risda-orange text-black rounded-full flex items-center justify-center">
-                    <FileIcon size={20} md:size={24} />
+          <div className="space-y-4 flex-1">
+            <label className="text-[9px] md:text-[11px] font-black text-risda-orange uppercase tracking-[3px] px-1 block">
+              SENARAI MUAT NAIK SIJIL KELAYAKAN
+            </label>
+            
+            <div className="space-y-4">
+              {effectiveLicenses.map((lic) => {
+                const file = certificateFiles[lic.key];
+                const isDragLocal = !!dragActiveStates[lic.key];
+                return (
+                  <div key={lic.key} className="space-y-1.5 p-3.5 bg-white/5 rounded-xl border border-white/5">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[9px] font-black text-white uppercase tracking-wider">
+                        {lic.label} <span className="text-white/40 italic font-normal text-[8px] uppercase tracking-normal"> (Jika Ada)</span>
+                      </span>
+                      {file && (
+                        <span className="text-[8px] text-green-400 font-black uppercase tracking-widest flex items-center gap-1">
+                          <CheckCircle size={10} /> BERJAYA DIKEPILKAN
+                        </span>
+                      )}
+                    </div>
+
+                    <div 
+                      onDragEnter={(e) => handleDrag(lic.key, e)}
+                      onDragOver={(e) => handleDrag(lic.key, e)}
+                      onDragLeave={(e) => handleDrag(lic.key, e)}
+                      onDrop={(e) => handleDrop(lic.key, e)}
+                      className={`relative w-full border border-dashed rounded-xl p-4 min-h-[100px] flex flex-col items-center justify-center transition-all cursor-pointer overflow-hidden ${
+                        isDragLocal ? 'border-risda-orange bg-risda-orange/5' :
+                        file ? 'border-green-500/30 bg-green-500/5' : 'border-white/10 hover:border-risda-orange/30 bg-black/30'
+                      }`}
+                    >
+                      <input 
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={(e) => handleFileChange(lic.key, e)}
+                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                      />
+                      {file ? (
+                        <div className="flex flex-col items-center text-center gap-1.5 relative z-20">
+                          <div className="w-8 h-8 bg-green-500 text-black rounded-full flex items-center justify-center">
+                            <FileIcon size={14} />
+                          </div>
+                          <div>
+                            <p className="text-white text-[10px] font-bold truncate max-w-[200px]">{file.name}</p>
+                            <p className="text-[8px] text-risda-muted font-mono uppercase">
+                              {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCertificateFiles(prev => {
+                                const next = { ...prev };
+                                delete next[lic.key];
+                                return next;
+                              });
+                            }}
+                            className="text-[9px] font-black text-risda-orange uppercase tracking-wider"
+                          >
+                            Tukar Fail
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center text-center gap-2">
+                          <Upload size={16} className="text-risda-muted animate-pulse" />
+                          <div className="space-y-0.5">
+                            <p className="text-white text-[9px] font-black uppercase tracking-wider">Klik / Tarik Sijil </p>
+                            <p className="text-[8px] text-risda-muted">Format Gambar/PDF (Maks 5MB)</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-0.5 md:space-y-1">
-                    <p className="text-white text-[10px] md:text-xs font-bold truncate max-w-[150px] md:max-w-[200px]">{certificateFile.name}</p>
-                    <p className="text-[8px] md:text-[10px] text-risda-muted uppercase tracking-widest">{(certificateFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCertificateFile(null);
-                    }}
-                    className="text-[9px] md:text-[10px] font-black text-risda-orange uppercase tracking-[2px] mt-1 relative z-20"
-                  >
-                    Tukar Fail
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center text-center gap-3 md:gap-4">
-                  <div className="w-10 h-10 md:w-14 md:h-14 bg-white/5 rounded-full flex items-center justify-center text-risda-muted transition-transform group-hover:scale-110">
-                    <Upload size={20} md:size={24} />
-                  </div>
-                  <div className="space-y-0.5 md:space-y-1">
-                    <p className="text-white text-[10px] md:text-xs font-black uppercase tracking-[2px]">Klik atau Tarik Fail</p>
-                    <p className="text-[8px] md:text-[10px] text-risda-muted font-medium">Sijil CIDB (Maks 5MB)</p>
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
           </div>
 

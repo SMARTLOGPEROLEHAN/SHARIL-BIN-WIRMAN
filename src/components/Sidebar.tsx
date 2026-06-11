@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   Menu as MenuIcon,
   BookOpen,
-  MapPin
+  MapPin,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -289,6 +290,7 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
               <div className="text-[10px] text-white/50 font-black uppercase tracking-[4px] mb-5 px-2">Kawalan Operasi</div>
             )}
             <SidebarItem icon={Edit3} label="URUS SEBUT HARGA" active={currentPath === '/urus-sebut-harga'} collapsed={collapsed} onClick={() => navigateTo('/urus-sebut-harga')} />
+            <SidebarItem icon={Mail} label="PELAWAAN SEBUTHARGA" active={currentPath === '/pelawaan-sebutharga'} collapsed={collapsed} onClick={() => navigateTo('/pelawaan-sebutharga')} />
           </div>
         )}
 
