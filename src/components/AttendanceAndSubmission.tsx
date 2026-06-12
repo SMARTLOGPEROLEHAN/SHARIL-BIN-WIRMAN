@@ -152,6 +152,154 @@ export default function AttendanceAndSubmission() {
   ])).sort((a, b) => b.localeCompare(a));
 
   if (selectedAd) {
+    const renderSiteVisitCopy = (copyTitle: string) => {
+      if (!previewRecord) return null;
+      
+      const getKelasText = () => {
+        const lic = selectedAd.licenses;
+        const desc = selectedAd.licenseDescriptions;
+        if (!lic || !desc) return '';
+
+        const group1 = [];
+        if (lic.cidbSpkk) group1.push(desc.cidbSpkk);
+        if (lic.stb) group1.push(desc.stb);
+        
+        const group2 = [];
+        if (lic.pukonsa) group2.push(desc.pukonsa);
+        if (lic.kuhean) group2.push(desc.kuhean);
+        if (lic.cidbPkk) group2.push(desc.cidbPkk);
+
+        let text = '';
+        if (group1.length > 0) text += group1.join(' & ');
+        if (group1.length > 0 && group2.length > 0) text += ' ATAU ';
+        if (group2.length > 0) text += group2.join(' & ');
+        if (lic.tcc) {
+          text += (text ? '\n' : '') + desc.tcc;
+        }
+        if (lic.others) {
+          text += (text ? '\n' : '') + lic.others;
+        }
+        return text;
+      };
+
+      return (
+        <div className="relative font-serif text-black leading-tight space-y-4 select-none" style={{ fontSize: '11px' }}>
+          <div className="flex items-start justify-between">
+            <div className="flex gap-4 items-center">
+              <img 
+                src="/PUBLIC/intrologo_RISDA.png" 
+                alt="RISDA Logo" 
+                style={{ width: '44px', height: '44px' }} 
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = 'https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png';
+                }}
+                className="inline-block object-contain"
+              />
+              <div>
+                <strong className="text-[10px] block font-bold leading-tight uppercase">PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH</strong>
+                <strong className="text-[10px] block font-bold leading-tight uppercase">(RISDA)</strong>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[9px] font-black tracking-widest text-blue-800 border-b border-blue-200 uppercase">{copyTitle}</span>
+            </div>
+          </div>
+
+          <div>
+            <strong className="text-[10.5px] block underline">BORANG LAWATAN TAPAK UNTUK:-</strong>
+            <p className="text-[11.5px] font-bold uppercase tracking-tight leading-tight mt-1 max-h-16 overflow-hidden text-left">{selectedAd.title}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 border-b border-gray-200 pb-2">
+            <div className="text-left">
+              <span className="text-gray-500">No. Tawaran:</span>{' '}
+              <strong className="text-[13px] font-black text-rose-700 font-mono">{selectedAd.tenderNo}</strong>
+            </div>
+            <div className="text-left">
+              <span className="text-gray-500">Tarikh/Masa Lawatan:</span>{' '}
+              <strong className="text-[11px] font-bold">{selectedAd.visitDate ? new Date(selectedAd.visitDate).toLocaleDateString('ms-MY') : ''} / {selectedAd.briefingTime || '10.00 Pagi'}</strong>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-end gap-2">
+              <span className="w-40 shrink-0 text-gray-600 text-left">Nama Syarikat</span>
+              <span className="shrink-0 font-bold">:</span>
+              <div className="flex-1 border-b border-gray-400 pb-0.5 font-bold uppercase text-[11px] truncate text-left">{previewRecord.companyName}</div>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <span className="w-40 shrink-0 text-gray-600 mt-0.5 text-left">Alamat Syarikat</span>
+              <span className="shrink-0 font-bold">:</span>
+              <div className="flex-1 border-b border-gray-400 min-h-[36px] leading-[18px] text-[10px] uppercase text-left">{previewRecord.companyAddress || '—'}</div>
+            </div>
+
+            <div className="flex items-end gap-4">
+              <div className="flex flex-1 items-end gap-2">
+                <span className="w-40 shrink-0 text-gray-600 text-left">No. Telefon Syarikat</span>
+                <span className="shrink-0 font-bold">:</span>
+                <div className="flex-1 border-b border-gray-400 pb-0.5 font-mono font-bold text-[11px] text-left">{previewRecord.phoneNumber}</div>
+              </div>
+              <div className="flex w-64 items-end gap-2">
+                <span className="shrink-0 text-gray-600 text-left">No. Fax</span>
+                <span className="shrink-0 font-bold">:</span>
+                <div className="flex-1 border-b border-gray-400 pb-0.5 font-mono text-left">—</div>
+              </div>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <span className="w-40 shrink-0 text-gray-600 text-left">Nama Pemilik</span>
+              <span className="shrink-0 font-bold">:</span>
+              <div className="flex-1 border-b border-gray-400 pb-0.5 font-bold uppercase text-left">{previewRecord.ownerName || '—'}</div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="flex flex-1 items-end gap-2">
+                <span className="w-40 shrink-0 text-gray-600 text-left">No. Kad Pengenalan</span>
+                <span className="shrink-0 font-bold">:</span>
+                <div className="flex-1 border-b border-gray-400 pb-0.5 font-mono font-bold text-[11px] text-left">{previewRecord.icNumber || '—'}</div>
+              </div>
+              <div className="flex w-64 items-start gap-2 flex-col justify-start">
+                <div className="flex gap-1 items-start w-full">
+                  <span className="shrink-0 text-gray-600 text-left">KELAS</span>
+                  <span className="shrink-0 font-bold">:</span>
+                  <div className="flex-1 border-b border-gray-400 text-[8px] font-bold uppercase leading-tight line-clamp-2 min-h-[22px] text-left">{getKelasText()}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <span className="w-40 shrink-0 text-gray-600 text-left">Tandatangan Pemilik</span>
+              <span className="shrink-0 font-bold">:</span>
+              <div className="flex-1 border-b border-gray-400 pb-0.5 font-mono text-gray-300 italic text-[10px] text-left">Tandatangan Fizikal Kontraktor</div>
+            </div>
+          </div>
+
+          <div className="flex items-start justify-between pt-2 border-t border-gray-100">
+            <div className="space-y-3 flex-1 max-w-sm">
+              <strong className="text-[10px] block font-bold underline text-left">Untuk Kegunaan RISDA :-</strong>
+              <div className="flex items-end gap-2">
+                <span className="w-40 shrink-0 text-gray-500 text-left">Nama Pegawai</span>
+                <span className="shrink-0 font-bold">:</span>
+                <div className="flex-1 border-b border-gray-400 pb-0.5 text-left">—</div>
+              </div>
+              <div className="flex items-end gap-2">
+                <span className="w-40 shrink-0 text-gray-500 text-left">Tandatangan & Cop</span>
+                <span className="shrink-0 font-bold">:</span>
+                <div className="flex-1 border-b border-gray-400 pb-0.5 text-left">—</div>
+              </div>
+            </div>
+
+            <div className="border-[2px] border-black p-4 flex items-center justify-between gap-6 w-56 bg-slate-50 rounded mt-2">
+              <strong className="text-md font-bold font-serif leading-none shrink-0 border-r border-black/20 pr-4 text-left">NO.</strong>
+              <span className="text-3xl font-black font-mono leading-none tracking-wider text-rose-600 shrink-0 text-left">{previewSerialNo || '000'}</span>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <button 
@@ -416,6 +564,247 @@ export default function AttendanceAndSubmission() {
             )}
           </div>
         </div>
+
+        {previewType && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4 md:p-8 overflow-hidden animate-in fade-in duration-300">
+            {/* Modal Controls Bar */}
+            <div className="w-full max-w-5xl bg-risda-dark border border-white/10 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4 shadow-2xl relative z-20">
+              <div className="flex items-center gap-3">
+                <Eye size={18} className="text-risda-orange" />
+                <div className="text-left">
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                    {previewType === 'attendance' && 'PREVIEW SENARAI KEHADIRAN'}
+                    {previewType === 'submission' && 'PREVIEW BORANG SERAHAN DOKUMEN'}
+                    {previewType === 'individual' && 'PREVIEW BORANG LAWATAN TAPAK'}
+                  </h3>
+                  <p className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{selectedAd.tenderNo}</p>
+                </div>
+              </div>
+
+              {/* Zoom & Action Controls */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-white/5 rounded-xl border border-white/5 px-3 py-1.5">
+                  <button 
+                    onClick={() => setPreviewZoom(z => Math.max(50, z - 10))}
+                    className="p-1 text-risda-muted hover:text-white transition-colors active:scale-95"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut size={14} />
+                  </button>
+                  <span className="font-mono text-[10px] font-bold text-white min-w-[36px] text-center">{previewZoom}%</span>
+                  <button 
+                    onClick={() => setPreviewZoom(z => Math.min(150, z + 10))}
+                    className="p-1 text-risda-muted hover:text-white transition-colors active:scale-95"
+                    title="Zoom In"
+                  >
+                    <ZoomIn size={14} />
+                  </button>
+                </div>
+
+                {/* Print/Download Trigger */}
+                <button 
+                  onClick={async () => {
+                    const t = toast.loading('Menjana PDF...');
+                    try {
+                      if (previewType === 'attendance') {
+                        await exportAttendanceListToPDF(selectedAd, attendanceRecords);
+                      } else if (previewType === 'submission') {
+                        await exportSubmissionListToPDF(selectedAd, attendanceRecords);
+                      } else if (previewType === 'individual' && previewRecord) {
+                        await exportIndividualSiteVisitForm(selectedAd, previewRecord, previewSerialNo);
+                      }
+                      toast.success('PDF berjaya dijana', { id: t });
+                    } catch (err) {
+                      toast.error('Gagal menjana PDF', { id: t });
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-r from-risda-orange to-risda-gold text-black rounded-xl text-[10px] font-black uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
+                >
+                  CETAK / PDF
+                </button>
+
+                {/* Close Button */}
+                <button 
+                  onClick={() => {
+                    setPreviewType(null);
+                    setPreviewRecord(null);
+                  }}
+                  className="w-10 h-10 bg-white/5 hover:bg-white/10 text-white rounded-xl flex items-center justify-center transition-colors active:scale-95 border border-white/5"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Canvas Area */}
+            <div className="w-full max-w-5xl flex-1 overflow-auto flex justify-center p-4 md:p-8 bg-black/40 border border-white/5 rounded-3xl relative">
+              {/* Paper representation */}
+              <div 
+                style={{ 
+                  width: `${794 * (previewZoom / 100)}px`, 
+                  height: `${1123 * (previewZoom / 100)}px`,
+                  minHeight: `${1123 * (previewZoom / 100)}px`,
+                  position: 'relative' 
+                }} 
+                className="shrink-0 transition-all duration-200"
+              >
+                <div 
+                  style={{
+                    width: '794px',
+                    height: '1123px',
+                    transform: `scale(${previewZoom / 100})`,
+                    transformOrigin: 'top left',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                  }} 
+                  className="bg-white text-black p-12 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] relative select-none rounded-[16px] border border-gray-300 overflow-hidden"
+                >
+                  {/* Inside Page Details */}
+                  {previewType === 'attendance' && (
+                    <div className="flex flex-col h-full justify-between pb-8">
+                      {/* Deep blue border */}
+                      <div className="absolute inset-4 border-[1.5mm] border-[#003399] pointer-events-none" />
+                      <div className="p-8 space-y-6">
+                        {/* Header */}
+                        <div className="flex flex-col items-center text-center">
+                          <img 
+                            src="/PUBLIC/intrologo_RISDA.png" 
+                            alt="RISDA Logo" 
+                            style={{ width: '72px', height: '72px' }} 
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = 'https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png';
+                            }}
+                            className="inline-block object-contain"
+                          />
+                          <h1 className="text-md font-bold font-serif tracking-widest mt-2 text-black">R I S D A</h1>
+                          <p className="text-[10px] font-bold font-serif uppercase text-black">(PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH)</p>
+                          <p className="text-[10px] font-bold font-serif uppercase text-black">(KEMENTERIAN KEMAJUAN DESA DAN WILAYAH)</p>
+                        </div>
+
+                        <div className="text-center space-y-4">
+                          <h2 className="text-sm font-bold underline uppercase tracking-wider text-black">SENARAI KEHADIRAN TAKLIMAT</h2>
+                        </div>
+
+                        <div className="text-[11px] space-y-1 font-serif text-left px-4 text-black">
+                          <p className="leading-tight text-left"><span className="font-bold">NO SEBUTHARGA :</span> {selectedAd.tenderNo}</p>
+                          <p className="leading-tight text-left"><span className="font-bold">TAJUK :</span> {selectedAd.title.toUpperCase()}</p>
+                        </div>
+
+                        {/* Table */}
+                        <div className="px-4">
+                          <table className="w-full border-collapse border border-black font-serif text-[10px]">
+                            <thead>
+                              <tr className="bg-gray-100">
+                                <th className="border border-black px-2 py-2 text-center w-16 text-black">NO. SIRI</th>
+                                <th className="border border-black px-3 py-2 text-left text-black">NAMA SYARIKAT</th>
+                                <th className="border border-black px-3 py-2 text-left w-44 text-black">NO. TEL SYARIKAT</th>
+                                <th className="border border-black px-3 py-2 text-left w-44 text-black">NAMA PEMILIK / TANDATANGAN</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {attendanceRecords.map((rec, idx) => (
+                                <tr key={idx} className="h-10 text-black">
+                                  <td className="border border-black px-2 py-1 text-center font-bold text-black">{idx + 1}</td>
+                                  <td className="border border-black px-3 py-1 font-bold text-[10px] uppercase text-black text-left">{rec.companyName}</td>
+                                  <td className="border border-black px-3 py-1 font-mono text-black text-left">{rec.phoneNumber}</td>
+                                  <td className="border border-black px-3 py-1 grayscale opacity-35 text-[8px] italic text-gray-500 text-left">Sila tandatangan fizikal</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {previewType === 'submission' && (
+                    <div className="flex flex-col h-full justify-between pb-8">
+                      {/* Deep blue border */}
+                      <div className="absolute inset-4 border-[1.5mm] border-[#003399] pointer-events-none" />
+                      <div className="p-8 space-y-6">
+                        {/* Header */}
+                        <div className="flex flex-col items-center text-center">
+                          <img 
+                            src="/PUBLIC/intrologo_RISDA.png" 
+                            alt="RISDA Logo" 
+                            style={{ width: '72px', height: '72px' }} 
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = 'https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png';
+                            }}
+                            className="inline-block object-contain"
+                          />
+                          <h1 className="text-md font-bold font-serif tracking-widest mt-2 text-black">R I S D A</h1>
+                          <p className="text-[10px] font-bold font-serif uppercase text-black">(PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH)</p>
+                          <p className="text-[10px] font-bold font-serif uppercase text-black">(KEMENTERIAN KEMAJUAN DESA DAN WILAYAH)</p>
+                        </div>
+
+                        <div className="text-center space-y-4">
+                          <h2 className="text-sm font-bold underline uppercase tracking-wider text-black">BORANG SERAHAN DOKUMEN SEBUTHARGA</h2>
+                        </div>
+
+                        <div className="text-[11px] space-y-1 font-serif text-left px-4 text-black">
+                          <p className="leading-tight text-left"><span className="font-bold">NO SEBUTHARGA :</span> {selectedAd.tenderNo}</p>
+                          <p className="leading-tight text-left"><span className="font-bold">TAJUK :</span> {selectedAd.title.toUpperCase()}</p>
+                        </div>
+
+                        {/* Table */}
+                        <div className="px-4">
+                          <table className="w-full border-collapse border border-black font-serif text-[10px]">
+                            <thead>
+                              <tr className="bg-gray-100">
+                                <th className="border border-black px-2 py-4 text-center w-16 text-black">NO. SIRI</th>
+                                <th className="border border-black px-3 py-4 text-left text-black">NAMA SYARIKAT</th>
+                                <th className="border border-black px-3 py-4 text-center w-36 text-black">NO. SIRI SEBUTHARGA</th>
+                                <th className="border border-black px-3 py-4 text-center w-52 text-black">T/TANGAN & COP SYARIKAT</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {attendanceRecords.map((rec, idx) => (
+                                <tr key={idx} className="h-12 text-black">
+                                  <td className="border border-black px-2 py-2 text-center font-bold text-black">{idx + 1}</td>
+                                  <td className="border border-black px-3 py-2 font-bold text-[10px] uppercase text-black text-left">{rec.companyName}</td>
+                                  <td className="border border-black px-3 py-2 text-center font-bold font-mono text-blue-800">{rec.docSeriesNo || '-'}</td>
+                                  <td className="border border-black px-3 py-2 text-center grayscale opacity-35 text-[8px] italic text-gray-500">Cop & t/tangan fizikal</td>
+                                </tr>
+                              ))}
+                              {/* Empty rows representation */}
+                              {Array.from({ length: 5 }).map((_, idx) => (
+                                <tr key={`empty-${idx}`} className="h-12 opacity-50 bg-gray-50/50">
+                                  <td className="border border-black px-2 py-2 text-center font-bold text-gray-400">{attendanceRecords.length + idx + 1}</td>
+                                  <td className="border border-black px-3 py-2 text-gray-400 font-mono italic text-[8px] text-left">Ruang Fizikal Syarikat Baru</td>
+                                  <td className="border border-black px-3 py-2 text-center text-gray-400 font-mono italic text-[8px]">— Blank —</td>
+                                  <td className="border border-black px-3 py-2 text-center text-gray-400 font-mono italic text-[8px]">— Blank —</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {previewType === 'individual' && previewRecord && (
+                    <div className="flex flex-col h-full justify-between py-6">
+                      {/* Salinan RISDA */}
+                      <div className="relative pb-6 border-b border-dashed border-gray-400">
+                        <span className="absolute -bottom-[9px] left-1/2 -translate-x-1/2 bg-white px-3 text-[9px] font-black text-gray-400 uppercase tracking-[4px]">Gunting Di Sini</span>
+                        {renderSiteVisitCopy('SALINAN RISDA')}
+                      </div>
+
+                      {/* Salinan Pembekal */}
+                      <div className="pt-6 relative">
+                        {renderSiteVisitCopy('SALINAN PEMBEKAL / KONTRAKTOR')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

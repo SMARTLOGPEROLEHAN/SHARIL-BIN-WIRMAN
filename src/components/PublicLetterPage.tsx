@@ -271,7 +271,7 @@ export default function PublicLetterPage({ invitationId, companyName, onBackToPo
                   <tr>
                     <td className="w-[18%] py-0.5 text-black">Rujukan Kami</td>
                     <td className="w-[2%] py-0.5 text-center text-black">:</td>
-                    <td className="w-[45%] py-0.5 font-bold text-black uppercase">{invitation.referenceNo}</td>
+                    <td className="w-[45%] py-0.5 font-normal text-black uppercase">{invitation.referenceNo}</td>
                     <td className="w-[35%] py-0.5 text-right text-black">
                       Tarikh: <span className="font-bold text-black uppercase">{formatBeautifulDate(invitation.invitationDate)}</span>
                     </td>

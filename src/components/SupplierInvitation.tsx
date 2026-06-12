@@ -674,15 +674,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
       ? inv.suppliers
       : inv.suppliers.filter((s: Supplier) => s.id === selectedPrintSupplierId || s.companyName === selectedPrintSupplierId);
 
-    const suppliersHtml = inv.suppliers.map((s: Supplier, idx: number) => `
-      <div class="supplier-card" style="margin-bottom: 20px; page-break-inside: avoid;">
-        <span style="font-weight: bold; text-decoration: underline;">BIL ${idx + 1}: KEPADA PEMBEKAL DIPELAWA</span><br/>
-        <strong>${s.companyName.toUpperCase()}</strong><br/>
-        ${s.address ? s.address.replace(/\n/g, '<br/>') : 'TIADA ALAMAT BERDAFTAR'}<br/>
-        No. Tel: ${s.phoneNumber}<br/>
-        E-mel: ${s.email}
-      </div>
-    `).join('<hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;"/>');
+
 
     let documentContentHtml = '';
     if (isTawaran) {
@@ -810,15 +802,32 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                 <strong style="font-size: 11pt; display: block; margin-bottom: 2px; text-transform: uppercase;">PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH<br/>(RISDA)</strong>
                 <strong style="font-size: 11pt; display: block; margin-bottom: 2px; text-transform: uppercase;">PEJABAT RISDA DAERAH BEAUFORT</strong>
                 <strong style="font-size: 9.5pt; font-style: italic; display: block; margin-bottom: 4px; text-transform: uppercase;">(KEMENTERIAN KEMAJUAN DESA DAN WILAYAH)</strong>
-                <span style="font-size: 8.5pt; display: block; color: #000; line-height: 1.2;">
-                  K77 & K78, Block K, Beaufort Square Avenue 1,<br/>
-                  Jalan Binunuk, 
-                  <span style="float: right;">Tel &nbsp; &nbsp; &nbsp;: 087-224335/336</span><br/>
-                  89800 Beaufort, 
-                  <span style="float: right;">Email &nbsp;: prdbeaufort@risda.gov.my</span><br/>
-                  Sabah 
-                  <span style="float: right;">Laman Web: http://www.risda.gov.my</span>
-                </span>
+                <div style="font-size: 8.5pt; display: flex; justify-content: space-between; align-items: flex-end; color: #000; line-height: 1.35; margin-top: 4px; width: 100%;">
+                  <div style="text-align: left;">
+                    K77 & K78, Block K, Beaufort Square Avenue 1,<br/>
+                    Jalan Binunuk,<br/>
+                    89800 Beaufort, Sabah
+                  </div>
+                  <div style="text-align: right;">
+                    <table style="border-collapse: collapse; font-size: 8.5pt; color: #000; font-family: 'Times New Roman', Times, serif; line-height: 1.3; margin-left: auto;">
+                      <tr>
+                        <td style="padding: 0; text-align: left; font-weight: bold; width: 85px;">TEL</td>
+                        <td style="padding: 0 4px; text-align: left;">:</td>
+                        <td style="padding: 0; text-align: left; white-space: nowrap;">087-224335/336</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 0; text-align: left; font-weight: bold; width: 85px;">EMAIL</td>
+                        <td style="padding: 0 4px; text-align: left;">:</td>
+                        <td style="padding: 0; text-align: left; white-space: nowrap;">prdbeaufort@risda.gov.my</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 0; text-align: left; font-weight: bold; width: 85px;">LAMAN WEB</td>
+                        <td style="padding: 0 4px; text-align: left;">:</td>
+                        <td style="padding: 0; text-align: left; white-space: nowrap;">http://www.risda.gov.my</td>
+                      </tr>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
             <div style="border-bottom: 4px double #000; margin-top: 10px; margin-bottom: 15px;"></div>
@@ -827,9 +836,9 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             <table style="margin-left: auto; margin-right: 0; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.3; margin-bottom: 20px;">
               <tbody>
                 <tr>
-                  <td style="padding: 2px 0; font-weight: bold; text-align: left; padding-right: 8px;">Ruj. Kami</td>
+                  <td style="padding: 2px 0; font-weight: normal; text-align: left; padding-right: 8px;">Ruj. Kami</td>
                   <td style="padding: 2px 0; text-align: center; padding-right: 8px;">:</td>
-                  <td style="padding: 2px 0; text-align: left; font-family: monospace; font-weight: bold;">${inv.referenceNo || 'RISDAS.B(S)400-10/2/6 (   )'}</td>
+                  <td style="padding: 2px 0; text-align: left; font-family: 'Times New Roman', Times, serif; font-weight: normal;">${inv.referenceNo || 'RISDAS.B(S)400-10/2/6 (   )'}</td>
                 </tr>
                 <tr>
                   <td style="padding: 2px 0; font-weight: bold; text-align: left; padding-right: 8px;">Tarikh</td>
@@ -846,7 +855,6 @@ Pejabat RISDA Daerah Beaufort, Sabah.
 
             <!-- RECIPIENT -->
             <div style="text-align: left; font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.4; margin-bottom: 20px; text-transform: uppercase;">
-              <strong style="text-decoration: underline; margin-bottom: 4px; display: inline-block;">Seperti Di Lampiran</strong><br/>
               <strong>${s.companyName.toUpperCase()}</strong><br/>
               ${s.address ? s.address.toUpperCase().replace(/\n/g, '<br/>') : 'TIADA ALAMAT BERDAFTAR'}<br/>
               NO. TEL: ${s.phoneNumber}
@@ -857,7 +865,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
 
             <div class="letter-content" style="font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.5; text-align: justify;">
               <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 15px; text-decoration: underline; line-height: 1.4;">
-                PELAWAAN SEBUT HARGA RISDA : S.H/S.6 – ${inv.tenderNo}<br/>
+                PELAWAAN SEBUT HARGA RISDA : ${inv.tenderNo}<br/>
                 ${inv.adTitle}
               </div>
 
@@ -911,65 +919,67 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
 
             <!-- Page 1 Footer -->
-            <div class="page-footer" style="position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 8pt; font-family: 'Times New Roman', Times, serif; color: #000; border-top: 1px solid #000; padding-top: 8px; line-height: 1.3;">
-              MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br/>
-              BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
-              <div style="text-align: right; font-weight: bold; margin-top: 2px;">1/3</div>
+            <div class="page-footer" style="position: absolute; bottom: 0.20cm; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
+              <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 8pt; line-height: 1.35; margin-bottom: 2px;">
+                MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br/>
+                BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+              </div>
+              <div style="font-weight: bold; font-family: 'Times New Roman', Times, serif; font-size: 10pt; line-height: 1;">1/3</div>
             </div>
           </div>
 
           <!-- PAGE 2: SIGN-OFF -->
           <div class="letter-page" style="page-break-after: always; position: relative; min-height: 10.2in; box-sizing: border-box; padding-bottom: 75px;">
-            <!-- Reference repeating like standard multiple-page letters -->
-            <table style="margin-left: auto; margin-right: 0; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.3; margin-bottom: 30px;">
-              <tbody>
-                <tr>
-                  <td style="padding: 2px 0; font-weight: bold; text-align: left; padding-right: 8px;">Ruj. Kami</td>
-                  <td style="padding: 2px 0; text-align: center; padding-right: 8px;">:</td>
-                  <td style="padding: 2px 0; text-align: left; font-family: monospace; font-weight: bold;">${inv.referenceNo || 'RISDAS.B(S)400-10/2/6 (   )'}</td>
-                </tr>
-              </tbody>
-            </table>
+            <!-- Reference repeating like standard multiple-page letters with centered page number -->
+            <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.3; margin-bottom: 30px; position: relative; width: 100%;">
+              <div style="text-align: left;">
+                Ruj. Kami &nbsp;: &nbsp;${inv.referenceNo || 'RISDAS.B(S)400-10/2/6 (   )'}
+              </div>
+              <div style="width: 50px;"></div>
+            </div>
 
             <div style="font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.5; text-align: justify; margin-top: 40px;">
               <p style="margin-bottom: 25px;">Sekian, terima kasih.</p>
 
               <div style="font-weight: bold; margin-bottom: 8px;">"MALAYSIA MADANI"</div>
-              <div style="font-weight: bold; margin-bottom: 30px;">"BERKHIDMAT UNTUK NEGARA"</div>
+              <div style="font-weight: bold; margin-bottom: 20px;">"BERKHIDMAT UNTUK NEGARA"</div>
 
-              <p style="margin-bottom: 50px;">Saya yang menjalankan amanah,</p>
-
+              <p style="margin-bottom: 0;">Saya yang menjalankan amanah,</p>
+              <br/><br/><br/>
               <div style="font-weight: bold; font-family: 'Times New Roman', Times, serif; font-size: 11pt;">
                 (${inv.officerName ? inv.officerName.toUpperCase() : 'MUHD ZUKRI BIN ISMAIL'})
               </div>
               <div style="text-transform: capitalize;">Pegawai RISDA Daerah</div>
               <div>Beaufort</div>
-              <div style="margin-bottom: 15px;">b.p : Pengarah RISDA Negeri Sabah</div>
+              <div style="margin-bottom: 10px;">b.p : Pengarah RISDA Negeri Sabah</div>
 
-              <div style="font-size: 9.5pt; font-family: monospace; color: #333; margin-top: 100px; font-style: italic;">
-                sw/sebutharga2025/desktop
+              <div style="font-size: 9.5pt; font-family: monospace; color: #333; margin-top: 50px; font-style: italic;">
+                sebutharga${(() => {
+                  const d = inv.invitationDate ? new Date(inv.invitationDate) : new Date();
+                  return isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+                })()}/desktop
               </div>
             </div>
 
             <!-- Page 2 Footer -->
-            <div class="page-footer" style="position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 8pt; font-family: 'Times New Roman', Times, serif; color: #000; border-top: 1px solid #000; padding-top: 8px; line-height: 1.3;">
-              MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br/>
-              BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
-              <div style="text-align: right; font-weight: bold; margin-top: 2px;">2/3</div>
+            <div class="page-footer" style="position: absolute; bottom: 0.20cm; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
+              <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 8pt; line-height: 1.35; margin-bottom: 2px;">
+                MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br/>
+                BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+              </div>
+              <div style="font-weight: bold; font-family: 'Times New Roman', Times, serif; font-size: 10pt; line-height: 1;">2/3</div>
             </div>
           </div>
 
           <!-- PAGE 3: EDARAN LIST (LAMPIRAN) -->
           <div class="letter-page" style="page-break-after: avoid; position: relative; min-height: 10.2in; box-sizing: border-box; padding-bottom: 75px;">
-            <table style="margin-left: auto; margin-right: 0; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.3; margin-bottom: 35px;">
-              <tbody>
-                <tr>
-                  <td style="padding: 2px 0; font-weight: bold; text-align: left; padding-right: 8px;">Ruj. Kami</td>
-                  <td style="padding: 2px 0; text-align: center; padding-right: 8px;">:</td>
-                  <td style="padding: 2px 0; text-align: left; font-family: monospace; font-weight: bold;">${inv.referenceNo || 'RISDAS.B(S)400-10/2/6 (   )'}</td>
-                </tr>
-              </tbody>
-            </table>
+            <!-- Reference repeating like standard multiple-page letters with centered page number -->
+            <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.3; margin-bottom: 35px; position: relative; width: 100%;">
+              <div style="text-align: left;">
+                Ruj. Kami &nbsp;: &nbsp;${inv.referenceNo || 'RISDAS.B(S)400-10/2/6 (   )'}
+              </div>
+              <div style="width: 50px;"></div>
+            </div>
 
             <div style="font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.6; margin-top: 30px;">
               <div style="font-weight: bold; text-decoration: underline; margin-bottom: 15px; text-transform: uppercase;">EDARAN DALAMAN</div>
@@ -993,10 +1003,12 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
 
             <!-- Page 3 Footer -->
-            <div class="page-footer" style="position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 8pt; font-family: 'Times New Roman', Times, serif; color: #000; border-top: 1px solid #000; padding-top: 8px; line-height: 1.3;">
-              MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br/>
-              BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
-              <div style="text-align: right; font-weight: bold; margin-top: 2px;">3/3</div>
+            <div class="page-footer" style="position: absolute; bottom: 0.20cm; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
+              <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 8pt; line-height: 1.35; margin-bottom: 2px;">
+                MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br/>
+                BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+              </div>
+              <div style="font-weight: bold; font-family: 'Times New Roman', Times, serif; font-size: 10pt; line-height: 1;">3/3</div>
             </div>
           </div>
         `;
@@ -1069,11 +1081,38 @@ Pejabat RISDA Daerah Beaufort, Sabah.
               border-radius: 8px;
               color: #856404;
             }
+            @page {
+              size: auto;
+              margin: 0; /* Disables default browser print header (date, title) and footer (URL, page numbers) */
+            }
             @media print {
-              body { margin: 0.5in; }
-              .no-print, .no-print-bar { display: none !important; }
-              .letter-page { page-break-after: always; }
-              .letter-page:last-child { page-break-after: avoid; }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff;
+              }
+              .no-print, .no-print-bar { 
+                display: none !important; 
+              }
+              .letter-page { 
+                page-break-after: always; 
+                page-break-inside: avoid;
+                margin: 0 !important;
+                padding: 0.05cm 0.8in 1.4in 0.8in !important; /* Safe printable padding */
+                box-sizing: border-box;
+                min-height: 10.2in !important;
+                position: relative !important;
+                background: #fff !important;
+              }
+              .letter-page:last-child { 
+                page-break-after: avoid; 
+              }
+              .page-footer {
+                position: absolute !important;
+                bottom: 0.20cm !important;
+                left: 0.8in !important;
+                right: 0.8in !important;
+              }
             }
           </style>
           <style media="print">
@@ -1099,17 +1138,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
 
           ${documentContentHtml}
 
-          <!-- Page Break to show Supplier List distribution as attachment (only for rasmi) -->
-          ${!isTawaran && selectedPrintSupplierId === 'ALL' ? `
-            <div style="page-break-before: always; border-top: 2px solid #000; padding-top: 15px; margin-top: 20px;">
-              <div style="text-align: center; margin-bottom: 25px;">
-                <span class="title-risda" style="font-size: 13pt;">LAMPIRAN EDARAN PELAWAAN</span><br/>
-                <strong>SENARAI SYARIKAT / PEMBEKAL YANG DIPELAWAKAN</strong><br/>
-                No. Rujukan Fail: ${inv.referenceNo}
-              </div>
-              ${suppliersHtml}
-            </div>
-          ` : ''}
+
         </body>
       </html>
     `);
@@ -1715,9 +1744,9 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                         <table className="border-collapse">
                           <tbody>
                             <tr>
-                              <td className="font-bold pr-2 text-left">Ruj. Kami</td>
+                              <td className="font-normal pr-2 text-left">Ruj. Kami</td>
                               <td className="pr-2">:</td>
-                              <td className="font-mono font-bold text-left">{referenceNo || "RISDA/BFT/...Jld.2"}</td>
+                              <td className="font-normal text-left">{referenceNo || "RISDA/BFT/...Jld.2"}</td>
                             </tr>
                             <tr>
                               <td className="font-bold pr-2 text-left">Tarikh</td>
@@ -1735,7 +1764,6 @@ Pejabat RISDA Daerah Beaufort, Sabah.
 
                       {/* Recipient info on left */}
                       <div className="text-[10px] text-left uppercase mb-4 leading-normal font-sans">
-                        <strong className="underline mb-1 block">Seperti Di Lampiran</strong>
                         {selectedSuppliers.length > 0 ? (
                           <>
                             <strong className="text-blue-900">{selectedSuppliers[0].companyName}</strong><br />
@@ -1752,7 +1780,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                       {/* Letter title and body */}
                       <div className="text-[10.5px] text-justify space-y-3 leading-normal">
                         <div className="font-black text-black uppercase underline tracking-normal mb-3">
-                          PELAWAAN SEBUT HARGA RISDA : S.H/S.6 – {selectedAdId ? ads.find(a => a.id === selectedAdId)?.tenderNo : "[NO. TENDER]"}<br />
+                          PELAWAAN SEBUT HARGA RISDA : {selectedAdId ? ads.find(a => a.id === selectedAdId)?.tenderNo : "[NO. TENDER]"}<br />
                           {selectedAdId ? ads.find(a => a.id === selectedAdId)?.title : "[TAJUK SEBUT HARGA]"}
                         </div>
 
@@ -1805,10 +1833,12 @@ Pejabat RISDA Daerah Beaufort, Sabah.
 
                   {previewPage === 2 && (
                     <div className="animate-[fadeIn_0.3s_ease-out] flex-1">
-                      {/* Rujukan header right */}
-                      <div className="text-right text-[10px] mb-6 font-mono text-slate-500">
-                        <strong>Ruj. Kami:</strong> {referenceNo || "RISDA/BFT/...Jld.2"}<br/>
-                        <strong>Halaman:</strong> 2 drp 3
+                      {/* Rujukan & Halaman Header */}
+                      <div className="flex justify-between items-center text-[10px] mb-6 font-serif text-slate-500 relative">
+                        <div className="text-left py-0.5 text-black">
+                          Ruj. Kami: {referenceNo || "RISDA/BFT/...Jld.2"}
+                        </div>
+                        <div />
                       </div>
 
                       <div className="space-y-4 text-[11px] text-left leading-relaxed mt-12">
@@ -1819,16 +1849,21 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                           "BERKHIDMAT UNTUK NEGARA"
                         </div>
 
-                        <p className="pt-2">Saya yang menjalankan amanah,</p>
-                        
-                        <div className="pt-8">
+                        <p className="pt-2 mb-0">Saya yang menjalankan amanah,</p>
+                        <br />
+                        <br />
+                        <br />
+                        <div>
                           <strong className="underline text-[12px] block uppercase">({officerName || "NAMA PEGAWAI"})</strong>
                           <span className="block font-medium">Pegawai RISDA Daerah Beaufort</span>
                           <span className="block text-slate-500 text-[10px] italic">b.p. Pengarah RISDA Negeri Sabah</span>
                         </div>
 
-                        <div className="text-[8.5px] font-mono text-slate-400 pt-32 italic">
-                          sw/sebutharga2025/desktop
+                        <div className="text-[8.5px] font-mono text-slate-400 pt-16 italic">
+                          sebutharga{(() => {
+                            const d = invitationDate ? new Date(invitationDate) : new Date();
+                            return isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+                          })()}/desktop
                         </div>
                       </div>
                     </div>
@@ -1836,10 +1871,12 @@ Pejabat RISDA Daerah Beaufort, Sabah.
 
                   {previewPage === 3 && (
                     <div className="animate-[fadeIn_0.3s_ease-out] flex-1">
-                      {/* Rujukan header right */}
-                      <div className="text-right text-[10px] mb-8 font-mono text-slate-500">
-                        <strong>Ruj. Kami:</strong> {referenceNo || "RISDA/BFT/...Jld.2"}<br/>
-                        <strong>Halaman:</strong> 3 drp 3
+                      {/* Rujukan & Halaman Header */}
+                      <div className="flex justify-between items-center text-[10px] mb-8 font-serif text-slate-500 relative">
+                        <div className="text-left py-0.5 text-black">
+                          Ruj. Kami: {referenceNo || "RISDA/BFT/...Jld.2"}
+                        </div>
+                        <div />
                       </div>
 
                       <div className="space-y-6 text-left text-[11px] leading-relaxed">
@@ -1876,11 +1913,13 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                     </div>
                   )}
 
-                  {/* Real page footer representation */}
-                  <div className="pt-2 border-t border-black text-[7.5px] text-center font-sans tracking-wide leading-tight text-slate-500 mt-6 select-none uppercase shrink-0">
+                  {/* Real page footer representation (with identical centered page number as the printed template) */}
+                  <div className="pt-2 border-t border-black text-[7.5px] font-sans tracking-wide leading-tight text-slate-500 mt-6 select-none uppercase shrink-0 text-center">
                     MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br />
                     BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
-                    <div className="text-right font-black text-black">Halaman {previewPage}/3</div>
+                    <div className="text-center font-black text-black text-[10px] mt-1.5 font-serif">
+                      {previewPage === 1 ? "1/3" : previewPage === 2 ? "2/3" : "3/3"}
+                    </div>
                   </div>
                 </div>
               ) : (

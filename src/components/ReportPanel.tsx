@@ -468,6 +468,8 @@ export default function ReportPanel() {
       const sstBumiBil = winningBumi.length;
       const sstBumiNilai = winningBumi.reduce((sum, a) => sum + a.winningPrice, 0);
 
+      const hasDecision = catAds.some(ad => ad.status === 'SELESAI (KEPUTUSAN)' || (ad.winner && ad.winner.companyName && ad.winner.companyName !== 'TIADA'));
+
       return {
         category: cat,
         perancanganBil,
@@ -481,7 +483,7 @@ export default function ReportPanel() {
         sstBumiNilai,
         sstNonBumiBil: 0,
         sstNonBumiNilai: 0,
-        syorJangkaan: cat === 'BEKALAN' ? '12 MINGGU' : cat === 'KERJA' ? '11 MINGGU' : ''
+        syorJangkaan: cat === 'BEKALAN' ? (hasDecision ? '12 MINGGU' : '') : cat === 'KERJA' ? '11 MINGGU' : ''
       };
     });
     setRowsA1(computedA1);
