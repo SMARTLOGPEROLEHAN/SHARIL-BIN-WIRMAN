@@ -1098,7 +1098,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                 page-break-after: always; 
                 page-break-inside: avoid;
                 margin: 0 !important;
-                padding: 0.05cm 0.8in 1.4in 0.8in !important; /* Safe printable padding */
+                padding: 0.10cm 0.8in 1.4in 0.8in !important; /* Safe printable padding */
                 box-sizing: border-box;
                 min-height: 10.2in !important;
                 position: relative !important;

@@ -255,17 +255,40 @@ export default function StaffManagement() {
           });
         }
 
-        const roleText = (role === 'penginput') ? 'PENGINPUT' : 'PELULUS/PENTADBIR';
-        const notifySubject = `Pendaftaran Akaun Kakitangan Sistem e-SebutHarga Berjaya`;
-        const notifyBody = `Assalamualaikum dan Salam Sejahtera, Tuan/Puan,
+        const formatMalayRegistrationDate = () => {
+          const months = [
+            'Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 
+            'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'
+          ];
+          const d = new Date();
+          return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        };
 
-PENDAFTARAN ANDA TELAH BERJAYA DI DALAM SISTEM INI.
+        const formattedRegDate = formatMalayRegistrationDate();
+        const notifySubject = `Pengesahan Pendaftaran Akaun Kakitangan Sistem e-SebutHarga`;
+        const notifyBody = `Assalamualaikum / Salam Sejahtera,
 
-Butiran pendaftaran adalah seperti berikut:
-Nama Kakitangan : ${displayName}
-ID Kakitangan   : ${staffId}
-E-mel yang didaftarkan : ${trimmedEmail}
-Peranan/Akses   : ${roleText}`;
+Tahniah.
+
+Pendaftaran anda ke dalam Sistem ini telah berjaya.
+
+Maklumat Akaun:
+
+Nama: ${displayName}
+
+Email: ${trimmedEmail}
+
+No. ID Kakitangan : ${staffId}
+
+Tarikh Daftar: ${formattedRegDate}
+
+Anda kini boleh log masuk menggunakan email, ID dan kata laluan yang telah didaftarkan.
+
+Sekiranya terdapat sebarang masalah, sila hubungi Pentadbir Sistem.
+
+Terima kasih.
+
+Pentadbir Sistem`;
 
         try {
           const docPromises = [
@@ -323,7 +346,55 @@ Peranan/Akses   : ${roleText}`;
           ];
 
           await Promise.all(docPromises);
-          registrationEmailSent = true;
+          
+          let apiEmailSent = false;
+          let apiSimulated = false;
+          let apiErrorMessage = "";
+
+          // Also call direct backend API send-email route
+          try {
+            const emailResponse = await fetch('/api/send-email', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                to: trimmedEmail,
+                subject: notifySubject,
+                text: notifyBody,
+              }),
+            });
+            if (emailResponse.ok) {
+              const resData = await emailResponse.json();
+              if (resData.simulated) {
+                apiSimulated = true;
+              } else {
+                apiEmailSent = true;
+              }
+            } else {
+              const resErr = await emailResponse.json().catch(() => ({}));
+              apiErrorMessage = resErr.error || "Ralat SMTP tidak diketahui";
+            }
+          } catch (apiErr: any) {
+            console.error('Error invoking direct send-email backend API:', apiErr);
+            apiErrorMessage = apiErr.message || "Ralat menyambung ke pelayan";
+          }
+
+          if (apiEmailSent) {
+            registrationEmailSent = true;
+          } else if (apiSimulated) {
+            registrationEmailSent = false;
+            toast.error('Gagal Hantar E-mel Sebenar! Sila hubungi Admin untuk menyediakan kelayakan "SMTP_USER" & "SMTP_PASS" dalam Tetapan / Fail .env (Buat masa ini e-mel disimulasikan ke logs server).', { 
+              duration: 12000,
+              icon: '⚠️'
+            });
+          } else if (apiErrorMessage) {
+            registrationEmailSent = false;
+            toast.error(`Ralat Sambungan SMTP: ${apiErrorMessage}. Sila pastikan kata laluan e-mel atau port SMTP adalah betul!`, { 
+              duration: 12000, 
+              icon: '❌' 
+            });
+          }
         } catch (emailErr) {
           console.error('Error queuing staff welcome email:', emailErr);
         }
