@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, deleteDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, OperationType, handleFirestoreError } from '../lib/firebase';
 
 export type UserRole = 'admin' | 'penginput' | 'pelulus' | 'pentadbir' | 'pelawat';
@@ -35,23 +35,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           let userDoc = await getDoc(userDocRef);
           
           if (!userDoc.exists() && firebaseUser.email) {
-            const emailSlug = firebaseUser.email.replace(/[^a-zA-Z0-9]/g, '_');
-            const emailDocRef = doc(db, 'users', emailSlug);
-            const emailDoc = await getDoc(emailDocRef);
+            // Find pre-registered document that matches the email and doesn't have a real synced UID yet
+            const q = query(collection(db, 'users'), where('email', '==', firebaseUser.email));
+            const querySnapshot = await getDocs(q);
             
-            if (emailDoc.exists()) {
-              const data = emailDoc.data();
+            let emailDocRef = null;
+            let emailDocData = null;
+            
+            querySnapshot.forEach((d) => {
+              const data = d.data();
+              // A pre-registered user has either no UID, or their UID is equal to their document ID
+              if (!data.uid || data.uid === d.id || data.uid === firebaseUser.email.replace(/[^a-zA-Z0-9]/g, '_')) {
+                emailDocRef = d.ref;
+                emailDocData = data;
+              }
+            });
+            
+            if (emailDocRef && emailDocData) {
               await setDoc(userDocRef, {
-                ...data,
+                ...emailDocData,
                 uid: firebaseUser.uid,
                 updatedAt: serverTimestamp()
               });
               await deleteDoc(emailDocRef);
               
-              setRole(data.role as UserRole);
-              setOffice(data.office || null);
-              setState(data.state || null);
-              setDistrict(data.district || null);
+              setRole(emailDocData.role as UserRole);
+              setOffice(emailDocData.office || null);
+              setState(emailDocData.state || null);
+              setDistrict(emailDocData.district || null);
               setLoading(false);
               return;
             }

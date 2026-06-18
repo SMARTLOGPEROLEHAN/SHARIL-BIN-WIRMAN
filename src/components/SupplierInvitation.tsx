@@ -11,7 +11,6 @@ import {
   FileText, 
   Send, 
   Printer, 
-  MessageCircle, 
   Mail, 
   Building, 
   Phone, 
@@ -22,10 +21,10 @@ import {
   Briefcase,
   Layers,
   MapPin,
-  Clock,
-  ExternalLink
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { exportToPDF, exportOfficialLetterToPDF, exportTenderOfferToPDF } from '../lib/exportUtils';
 
 interface Supplier {
   id?: string;
@@ -85,7 +84,7 @@ const getLicensesText = (adObj: any) => {
 };
 
 export default function SupplierInvitation() {
-  const { user, role } = useAuth();
+  const { user, role, office: userOffice, district: userDistrict, state: userState } = useAuth();
   const [activeTab, setActiveTab] = useState<'list' | 'create' | 'directory'>('list');
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,6 +95,103 @@ export default function SupplierInvitation() {
     office: 'ALL'
   });
   const [locations, setLocations] = useState<LocationItem[]>([]);
+
+  // Get active staff layout info based on logged in record
+  const getStaffDefaultOfficeAndAddress = () => {
+    if (userOffice || userDistrict) {
+      const queryOffice = (userOffice || '').toUpperCase().trim();
+      const queryDistrict = (userDistrict || '').toUpperCase().trim();
+
+      const matching = locations.find(loc => 
+        (queryOffice && loc.office?.toUpperCase().includes(queryOffice)) ||
+        (queryDistrict && loc.district?.toUpperCase() === queryDistrict)
+      );
+
+      if (matching) {
+        const officeName = matching.office || `PEJABAT RISDA DAERAH ${matching.district}`;
+        const addressText = matching.address || '';
+        const pcode = matching.postcode || '';
+        const dist = matching.district || '';
+        const st = matching.state || '';
+
+        let fullAddress = addressText;
+        if (pcode && !fullAddress.includes(pcode)) {
+          fullAddress += `, ${pcode}`;
+        }
+        if (dist && !fullAddress.toUpperCase().includes(dist.toUpperCase())) {
+          fullAddress += ` ${dist}`;
+        }
+        if (st && !fullAddress.toUpperCase().includes(st.toUpperCase())) {
+          fullAddress += `, ${st}`;
+        }
+
+        return {
+          office: officeName.toUpperCase(),
+          address: addressText.toUpperCase(),
+          fullAddress: `${officeName}, ${fullAddress}`.toUpperCase(),
+          district: dist.toUpperCase(),
+          state: st.toUpperCase()
+        };
+      }
+
+      if (userOffice) {
+        return {
+          office: userOffice.toUpperCase(),
+          address: `PEJABAT RISDA DAERAH ${userDistrict || 'BEAUFORT'}, NEGERI ${userState || 'SABAH'}`,
+          fullAddress: `${userOffice.toUpperCase()}, PEJABAT RISDA DAERAH ${userDistrict || 'BEAUFORT'}, NEGERI ${userState || 'SABAH'}`.toUpperCase(),
+          district: (userDistrict || 'BEAUFORT').toUpperCase(),
+          state: (userState || 'SABAH').toUpperCase()
+        };
+      }
+    }
+
+    return {
+      office: 'PEJABAT RISDA DAERAH BEAUFORT',
+      address: 'K77 & K78, BLOCK K, BEAUFORT SQUARE AVENUE, JALAN BINUNUK, 89800 BEAUFORT, SABAH',
+      fullAddress: 'PEJABAT RISDA DAERAH BEAUFORT, K77 & K78, BLOCK K, BEAUFORT SQUARE AVENUE, JALAN BINUNUK, 89800 BEAUFORT, SABAH',
+      district: 'BEAUFORT',
+      state: 'SABAH'
+    };
+  };
+
+  const getReferenceNoShortCode = () => {
+    const def = getStaffDefaultOfficeAndAddress();
+    const dist3 = def.district.substring(0, 3).toUpperCase();
+    return `RISDA.${dist3}`;
+  };
+
+  const getDistrictFromSubmissionVenue = (venue: string) => {
+    if (venue) {
+      const parts = venue.split(',');
+      if (parts.length > 0) {
+        const officeStr = parts[0].toUpperCase();
+        if (officeStr.includes('DAERAH')) {
+          return officeStr.split('DAERAH')[1].trim();
+        }
+      }
+    }
+    return getStaffDefaultOfficeAndAddress().district;
+  };
+
+  const getStateFromSubmissionVenue = (venue: string) => {
+    if (venue) {
+      const venueUpper = venue.toUpperCase();
+      if (venueUpper.includes('SABAH')) return 'Sabah';
+      if (venueUpper.includes('SARAWAK')) return 'Sarawak';
+      if (venueUpper.includes('SEMELAN') || venueUpper.includes('SEMBILAN')) return 'Negeri Sembilan';
+      if (venueUpper.includes('SELANGOR')) return 'Selangor';
+      if (venueUpper.includes('PERAK')) return 'Perak';
+      if (venueUpper.includes('JOHOR')) return 'Johor';
+      if (venueUpper.includes('KEDAH')) return 'Kedah';
+      if (venueUpper.includes('KELANTAN')) return 'Kelantan';
+      if (venueUpper.includes('MELAKA')) return 'Melaka';
+      if (venueUpper.includes('PAHANG')) return 'Pahang';
+      if (venueUpper.includes('PENANG') || venueUpper.includes('PINANG')) return 'Pulau Pinang';
+      if (venueUpper.includes('PERLIS')) return 'Perlis';
+      if (venueUpper.includes('TERENGGANU')) return 'Terengganu';
+    }
+    return getStaffDefaultOfficeAndAddress().state;
+  };
   
   // Data lists
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -126,9 +222,374 @@ export default function SupplierInvitation() {
   const [previewFormat, setPreviewFormat] = useState<'rasmi' | 'tawaran'>('rasmi');
   const [previewPage, setPreviewPage] = useState<1 | 2 | 3>(1);
 
-  const [submissionVenue, setSubmissionVenue] = useState('Pejabat RISDA Daerah Beaufort, K77 dan K78, Blok K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah');
+  const [submissionVenue, setSubmissionVenue] = useState(() => getStaffDefaultOfficeAndAddress().fullAddress);
   const [selectedPrintSupplierId, setSelectedPrintSupplierId] = useState<string>('ALL');
   const [isEditingInvFields, setIsEditingInvFields] = useState(false);
+  const [sendingEmailStates, setSendingEmailStates] = useState<Record<string, boolean>>({});
+  const [bulkSending, setBulkSending] = useState(false);
+
+  const handleSendSmtpEmail = async (supplier: Supplier, inv: Invitation | any) => {
+    const key = supplier.companyName;
+    setSendingEmailStates(prev => ({ ...prev, [key]: true }));
+    const toastId = toast.loading(`Sedang menghantar e-mel pelawaan & dokumen digital rasmi ke ${supplier.companyName}...`);
+
+    try {
+      const subject = `Pelawaan Sebut Harga Rasmi: No. ${inv.tenderNo} - ${inv.adTitle}`;
+      
+      const matchingAd = ads.find(a => a.id === inv.adId);
+      
+      // Compile required licenses if ad is found
+      let licenseReqStr = 'Rujuk dokumen sebut harga';
+      let docInfoStr = '';
+      if (matchingAd) {
+        const reqs: string[] = [];
+        if (matchingAd.licenses?.cidbSpkk) reqs.push(`CIDB & SPKK (Sijil Perolehan Kerja Kerajaan): ${matchingAd.licenseDescriptions?.cidbSpkk || 'Gred berkaitan'}`);
+        if (matchingAd.licenses?.cidbPkk) reqs.push(`CIDB & PKK (Sijil Kontraktor Kerja): ${matchingAd.licenseDescriptions?.cidbPkk || 'Gred berkaitan'}`);
+        if (matchingAd.licenses?.stb) reqs.push(`Sijil Taraf Bumiputera (STB)`);
+        if (matchingAd.licenses?.mof) reqs.push(`Kementerian Kewangan Malaysia (MOF): ${matchingAd.licenseDescriptions?.mof || 'Kod bidang berkaitan'}`);
+        if (matchingAd.licenses?.tcc) reqs.push(`Sijil Kastam / TCC`);
+        if (matchingAd.licenses?.pukonsa) reqs.push(`PUKONSA: ${matchingAd.licenseDescriptions?.pukonsa || 'Kelas berkaitan'}`);
+        if (matchingAd.licenses?.kuhean) reqs.push(`KUHEAN`);
+        if (matchingAd.licenses?.others) reqs.push(`Syarat Lain: ${matchingAd.licenses.others}`);
+        
+        if (reqs.length > 0) {
+          licenseReqStr = reqs.map(r => `• ${r}`).join('\n');
+        }
+
+        if (matchingAd.docStartDate || matchingAd.docEndDate) {
+          docInfoStr = `
+--------------------------------------------------
+C) BUTIRAN PEMBELIAN / PENGAMBILAN DOKUMEN:
+--------------------------------------------------
+Tarikh Edaran Dokumen : ${formatBeautifulDate(matchingAd.docStartDate || '')} hingga ${formatBeautifulDate(matchingAd.docEndDate || '')}
+Tempat Pengambilan    : ${matchingAd.docVenue || 'Pejabat RISDA Daerah Beaufort'}`;
+        }
+      }
+
+    // 2. Sukacita dimaklumkan bahawa Pejabat RISDA Daerah Beaufort menjemput syarikat pihak tuan/puan untuk menghadiri taklimat tapak dan mengemukakan tawaran bagi perolehan sebut harga di atas.
+    // 3. Surat Pelawaan Rasmi ini dikeluarkan khusus untuk syarikat tuan/puan menyertai proses perolehan ini bersandarkan kriteria pendaftaran yang sah... Let's construct bodyText:
+
+      const bodyText = `UNIT PEROLEHAN & KEWANGAN
+PEJABAT RISDA DAERAH BEAUFORT
+K77 & K78, BLOCK K, BEAUFORT SQUARE AVENUE,
+JALAN BINUNUK, 89800 BEAUFORT, SABAH
+NO. TEL: 087-224 335
+--------------------------------------------------
+
+Rujukan Kami : ${inv.referenceNo}
+Tarikh       : ${formatBeautifulDate(inv.invitationDate)}
+
+Kepada:
+${supplier.companyName}
+${supplier.address || 'Alamat Terdaftar'}
+No. Tel: ${supplier.phoneNumber}
+E-mel  : ${supplier.email}
+
+Tuan / Puan,
+
+PELAWAAN MENYERTAI SEBUT HARGA BAGI:
+"${inv.adTitle.toUpperCase()}"
+NO. SEBUT HARGA: ${inv.tenderNo}
+
+Dengan hormatnya perkara di atas adalah dirujuk.
+
+2.  Sukacita dimaklumkan bahawa Pejabat RISDA Daerah Beaufort menjemput syarikat pihak tuan/puan untuk menghadiri taklimat tapak dan mengemukakan tawaran bagi perolehan sebut harga di atas.
+
+3.  Surat Pelawaan Rasmi ini dikeluarkan khusus untuk syarikat tuan/puan menyertai proses perolehan ini bersandarkan kriteria pendaftaran yang sah. Sila Download PDF yang telah disertakan untuk semakan sama ada anda berminat untuk mengikut lawatan tapak bagi Sebutharga ini. Berikut adalah:
+
+==================================================
+LAMPIRAN IKLAN SEBUT HARGA RASMI
+==================================================
+
+1. TAJUK PROJEK  : ${inv.adTitle.toUpperCase()}
+2. NO. SEBUT HARGA : ${inv.tenderNo}
+3. KATEGORI        : ${matchingAd?.category || 'KERJA'}
+
+A) TAKLIMAT DAN LAWATAN TAPAK (WAJIB):
+Tarikh / Hari     : ${formatBeautifulDate(inv.briefingDate || '')} (${indonesianDayName(inv.briefingDate || '')})
+Masa              : ${inv.briefingTime || '-'}
+Tempat Taklimat   : ${inv.briefingVenue || '-'}
+Lawatan Tapak     : KAMPUNG MARABA, BEAUFORT
+
+*Nota: Hanya penama di dalam lesen syarikat sahaja yang dibenarkan menghadiri taklimat dan lawatan tapak wajib. Sila bawa sijil asal dan salinan fotostat.*
+
+==================================================
+
+Sekian untuk maklum balas dan tindakan pihak tuan/puan selanjutnya.
+
+"MALAYSIA MADANI"
+"Berkhidmat Untuk Negara"
+
+b.p : Pegawai RISDA Daerah Beaufort, Sabah.`;
+
+      // Generate the 3 PDFs in memory as base64 string attachments!
+      const attachments: any[] = [];
+      try {
+        const suratRasmiB64 = await exportOfficialLetterToPDF(inv, supplier, true);
+        if (suratRasmiB64) {
+          attachments.push({
+            filename: `Surat_Rasmi_Pelawaan_${supplier.companyName.replace(/\s+/g, '_')}.pdf`,
+            content: suratRasmiB64,
+            contentType: 'application/pdf'
+          });
+        }
+      } catch (pdfErr) {
+        console.error('Failed to generate Surat Rasmi PDF:', pdfErr);
+      }
+
+      try {
+        const borangHargaB64 = await exportTenderOfferToPDF(inv, supplier, true);
+        if (borangHargaB64) {
+          attachments.push({
+            filename: `Borang_Tawaran_Harga_${supplier.companyName.replace(/\s+/g, '_')}.pdf`,
+            content: borangHargaB64,
+            contentType: 'application/pdf'
+          });
+        }
+      } catch (pdfErr) {
+        console.error('Failed to generate Borang Tawaran Harga PDF:', pdfErr);
+      }
+
+      if (matchingAd) {
+        try {
+          const iklanB64 = await exportToPDF(matchingAd, true);
+          if (iklanB64) {
+            attachments.push({
+              filename: `Kenyataan_Iklan_Sebut_Harga_${matchingAd.tenderNo.replace(/\//g, '_')}.pdf`,
+              content: iklanB64,
+              contentType: 'application/pdf'
+            });
+          }
+        } catch (pdfErr) {
+          console.error('Failed to generate Iklan PDF:', pdfErr);
+        }
+      }
+
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: supplier.email.trim(),
+          subject,
+          text: bodyText,
+          attachments
+        })
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        toast.success(`E-mel pelawaan berjaya dihantar ke ${supplier.companyName}!`, { id: toastId });
+        
+        // Log into sent_emails collection in Firestore for auditing
+        await addDoc(collection(db, 'sent_emails'), {
+          to: supplier.email.trim(),
+          toName: supplier.companyName,
+          subject,
+          body: bodyText,
+          sentAt: new Date().toISOString(),
+          invitationId: inv.id,
+          tenderNo: inv.tenderNo
+        });
+      } else {
+        throw new Error(responseData.error || 'Pelayan SMTP gagal menghantar.');
+      }
+
+    } catch (err: any) {
+      console.error('SMTP sending error:', err);
+      toast.error(`Gagal menghantar e-mel: ${err.message || 'Sila semak tetapan SMTP di Secrets.'}`, { id: toastId });
+    } finally {
+      setSendingEmailStates(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleBulkSendSmtpEmail = async (inv: Invitation | any) => {
+    if (!inv.suppliers || inv.suppliers.length === 0) {
+      toast.error('Tiada pembekal berdaftar untuk sebut harga ini.');
+      return;
+    }
+
+    const confirmSend = window.confirm(`Adakah anda pasti mahu menghantar e-mel pelawaan & dokumen digital secara pukal ke semua ${inv.suppliers.length} kontraktor yang tersenarai menggunakan pelayan SMTP?`);
+    if (!confirmSend) return;
+
+    setBulkSending(true);
+    const mainToastId = toast.loading(`Memulakan penghantaran pukal ke ${inv.suppliers.length} kontraktor...`);
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let s of inv.suppliers) {
+      if (!s.email || !s.email.trim() || !s.email.includes('@')) {
+        failCount++;
+        continue;
+      }
+      try {
+        const subject = `Pelawaan Sebut Harga Rasmi: No. ${inv.tenderNo} - ${inv.adTitle}`;
+        const matchingAd = ads.find(a => a.id === inv.adId);
+        
+        // Compile required licenses if ad is found
+        let licenseReqStr = 'Rujuk dokumen sebut harga';
+        let docInfoStr = '';
+        if (matchingAd) {
+          const reqs: string[] = [];
+          if (matchingAd.licenses?.cidbSpkk) reqs.push(`CIDB & SPKK (Sijil Perolehan Kerja Kerajaan): ${matchingAd.licenseDescriptions?.cidbSpkk || 'Gred berkaitan'}`);
+          if (matchingAd.licenses?.cidbPkk) reqs.push(`CIDB & PKK (Sijil Kontraktor Kerja): ${matchingAd.licenseDescriptions?.cidbPkk || 'Gred berkaitan'}`);
+          if (matchingAd.licenses?.stb) reqs.push(`Sijil Taraf Bumiputera (STB)`);
+          if (matchingAd.licenses?.mof) reqs.push(`Kementerian Kewangan Malaysia (MOF): ${matchingAd.licenseDescriptions?.mof || 'Kod bidang berkaitan'}`);
+          if (matchingAd.licenses?.tcc) reqs.push(`Sijil Kastam / TCC`);
+          if (matchingAd.licenses?.pukonsa) reqs.push(`PUKONSA: ${matchingAd.licenseDescriptions?.pukonsa || 'Kelas berkaitan'}`);
+          if (matchingAd.licenses?.kuhean) reqs.push(`KUHEAN`);
+          if (matchingAd.licenses?.others) reqs.push(`Syarat Lain: ${matchingAd.licenses.others}`);
+          
+          if (reqs.length > 0) {
+            licenseReqStr = reqs.map(r => `• ${r}`).join('\n');
+          }
+
+          if (matchingAd.docStartDate || matchingAd.docEndDate) {
+            docInfoStr = `
+--------------------------------------------------
+C) BUTIRAN PEMBELIAN / PENGAMBILAN DOKUMEN:
+--------------------------------------------------
+Tarikh Edaran Dokumen : ${formatBeautifulDate(matchingAd.docStartDate || '')} hingga ${formatBeautifulDate(matchingAd.docEndDate || '')}
+Tempat Pengambilan    : ${matchingAd.docVenue || 'Pejabat RISDA Daerah Beaufort'}`;
+          }
+        }
+
+        const bodyText = `UNIT PEROLEHAN & KEWANGAN
+PEJABAT RISDA DAERAH BEAUFORT
+K77 & K78, BLOCK K, BEAUFORT SQUARE AVENUE,
+JALAN BINUNUK, 89800 BEAUFORT, SABAH
+NO. TEL: 087-224 335
+--------------------------------------------------
+
+Rujukan Kami : ${inv.referenceNo}
+Tarikh       : ${formatBeautifulDate(inv.invitationDate)}
+
+Kepada:
+${s.companyName}
+${s.address || 'Alamat Terdaftar'}
+No. Tel: ${s.phoneNumber}
+E-mel  : ${s.email}
+
+Tuan / Puan,
+
+PELAWAAN MENYERTAI SEBUT HARGA BAGI:
+"${inv.adTitle.toUpperCase()}"
+NO. SEBUT HARGA: ${inv.tenderNo}
+
+Dengan hormatnya perkara di atas adalah dirujuk.
+
+2.  Sukacita dimaklumkan bahawa Pejabat RISDA Daerah Beaufort menjemput syarikat pihak tuan/puan untuk menghadiri taklimat tapak dan mengemukakan tawaran bagi perolehan sebut harga di atas.
+
+3.  Surat Pelawaan Rasmi ini dikeluarkan khusus untuk syarikat tuan/puan menyertai proses perolehan ini bersandarkan kriteria pendaftaran yang sah. Sila Download PDF yang telah disertakan untuk semakan sama ada anda berminat untuk mengikut lawatan tapak bagi Sebutharga ini. Berikut adalah:
+
+==================================================
+LAMPIRAN IKLAN SEBUT HARGA RASMI
+==================================================
+
+1. TAJUK PROJEK  : ${inv.adTitle.toUpperCase()}
+2. NO. SEBUT HARGA : ${inv.tenderNo}
+3. KATEGORI        : ${matchingAd?.category || 'KERJA'}
+
+A) TAKLIMAT DAN LAWATAN TAPAK (WAJIB):
+Tarikh / Hari     : ${formatBeautifulDate(inv.briefingDate || '')} (${indonesianDayName(inv.briefingDate || '')})
+Masa              : ${inv.briefingTime || '-'}
+Tempat Taklimat   : ${inv.briefingVenue || '-'}
+Lawatan Tapak     : KAMPUNG MARABA, BEAUFORT
+
+*Nota: Hanya penama di dalam lesen syarikat sahaja yang dibenarkan menghadiri taklimat dan lawatan tapak wajib. Sila bawa sijil asal dan salinan fotostat.*
+
+==================================================
+
+Sekian untuk maklum balas dan tindakan pihak tuan/puan selanjutnya.
+
+"MALAYSIA MADANI"
+"Berkhidmat Untuk Negara"
+
+b.p : Pegawai RISDA Daerah Beaufort, Sabah.`;
+
+        // Generate the 3 PDFs in memory as base64 string attachments!
+        const attachments: any[] = [];
+        try {
+          const suratRasmiB64 = await exportOfficialLetterToPDF(inv, s, true);
+          if (suratRasmiB64) {
+            attachments.push({
+              filename: `Surat_Rasmi_Pelawaan_${s.companyName.replace(/\s+/g, '_')}.pdf`,
+              content: suratRasmiB64,
+              contentType: 'application/pdf'
+            });
+          }
+        } catch (pdfErr) {
+          console.error('Failed to generate Surat Rasmi PDF:', pdfErr);
+        }
+
+        try {
+          const borangHargaB64 = await exportTenderOfferToPDF(inv, s, true);
+          if (borangHargaB64) {
+            attachments.push({
+              filename: `Borang_Tawaran_Harga_${s.companyName.replace(/\s+/g, '_')}.pdf`,
+              content: borangHargaB64,
+              contentType: 'application/pdf'
+            });
+          }
+        } catch (pdfErr) {
+          console.error('Failed to generate Borang Tawaran Harga PDF:', pdfErr);
+        }
+
+        if (matchingAd) {
+          try {
+            const iklanB64 = await exportToPDF(matchingAd, true);
+            if (iklanB64) {
+              attachments.push({
+                filename: `Kenyataan_Iklan_Sebut_Harga_${matchingAd.tenderNo.replace(/\//g, '_')}.pdf`,
+                content: iklanB64,
+                contentType: 'application/pdf'
+              });
+            }
+          } catch (pdfErr) {
+            console.error('Failed to generate Iklan PDF:', pdfErr);
+          }
+        }
+
+        const response = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: s.email.trim(),
+            subject,
+            text: bodyText,
+            attachments
+          })
+        });
+
+        if (response.ok) {
+          successCount++;
+          await addDoc(collection(db, 'sent_emails'), {
+            to: s.email.trim(),
+            toName: s.companyName,
+            subject,
+            body: bodyText,
+            sentAt: new Date().toISOString(),
+            invitationId: inv.id,
+            tenderNo: inv.tenderNo
+          });
+        } else {
+          failCount++;
+        }
+      } catch (err) {
+        console.error('SMTP bulk send error for ', s.companyName, err);
+        failCount++;
+      }
+    }
+
+    toast.dismiss(mainToastId);
+    if (successCount > 0) {
+      toast.success(`Hebahan e-mel secara pukal selesai! Berjaya: ${successCount} syarikat. Gagal: ${failCount} syarikat.`);
+    } else {
+      toast.error(`Kumpulan hebahan e-mel gagal. Sila semak konfigurasi SMTP di bahagian Secrets AI Studio.`);
+    }
+    setBulkSending(false);
+  };
   const [editSubmissionVenue, setEditSubmissionVenue] = useState('');
   const [editClosingDate, setEditClosingDate] = useState('');
   const [editClosingTime, setEditClosingTime] = useState('');
@@ -138,16 +599,17 @@ export default function SupplierInvitation() {
 
   useEffect(() => {
     if (selectedInvitation) {
-      setEditSubmissionVenue(selectedInvitation.submissionVenue || 'Pejabat RISDA Daerah Beaufort, K77 dan K78, Blok K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah');
+      const def = getStaffDefaultOfficeAndAddress();
+      setEditSubmissionVenue(selectedInvitation.submissionVenue || def.fullAddress);
       setEditClosingDate(selectedInvitation.closingDate || '');
       setEditClosingTime(selectedInvitation.closingTime || '');
       setEditBriefingDate(selectedInvitation.briefingDate || '');
       setEditBriefingTime(selectedInvitation.briefingTime || '');
-      setEditBriefingVenue(selectedInvitation.briefingVenue || '');
+      setEditBriefingVenue(selectedInvitation.briefingVenue || def.office);
       setSelectedPrintSupplierId('ALL');
       setIsEditingInvFields(false);
     }
-  }, [selectedInvitation]);
+  }, [selectedInvitation, locations]);
 
   useEffect(() => {
     fetchInvitations();
@@ -155,6 +617,14 @@ export default function SupplierInvitation() {
     fetchSuppliers();
     fetchLocations();
   }, []);
+
+  useEffect(() => {
+    if (locations.length > 0) {
+      const def = getStaffDefaultOfficeAndAddress();
+      setSubmissionVenue(def.fullAddress);
+      setBriefingVenue(def.office);
+    }
+  }, [locations, userOffice, userDistrict]);
 
   const fetchInvitations = async () => {
     setLoading(true);
@@ -216,18 +686,21 @@ export default function SupplierInvitation() {
             phoneNumber: data.phoneNumber || '',
             email: data.email || '',
             address: data.companyAddress || data.address || '',
-            cidbSpkk: data.cidbSpkk || '',
+            cidbSpkk: data.certificateName || data.cidbSpkk || '',
             source: 'attendance' as const
           });
         }
       });
       
-      // 3. Merge & Deduplicate based on company name (case-insensitive & trimmed)
+      // 3. Merge & Deduplicate based on company name and attached certificate to avoid double entries
       const mergedMap = new Map<string, Supplier>();
       
       // Seed with attendance records first
       attendanceSuppliers.forEach(s => {
-        const key = s.companyName.toUpperCase().trim();
+        const compName = s.companyName.toUpperCase().trim();
+        const licenseKey = s.cidbSpkk ? s.cidbSpkk.toUpperCase().trim() : 'NO_LICENSE';
+        const key = `${compName}||${licenseKey}`;
+        
         const existing = mergedMap.get(key);
         // Keep the one with phone or address if existing has empty values
         if (!existing || (s.phoneNumber && !existing.phoneNumber)) {
@@ -235,10 +708,35 @@ export default function SupplierInvitation() {
         }
       });
       
-      // Overwrite or enrich with manual registrations (manual always overrides)
+      // Overwrite or enrich with manual registrations
       manualSuppliers.forEach(s => {
-        const key = s.companyName.toUpperCase().trim();
-        mergedMap.set(key, s);
+        const compName = s.companyName.toUpperCase().trim();
+        const licenseKey = s.cidbSpkk ? s.cidbSpkk.toUpperCase().trim() : 'NO_LICENSE';
+        const key = `${compName}||${licenseKey}`;
+        
+        let matched = false;
+        for (const [mKey, mVal] of mergedMap.entries()) {
+          const mCompName = mVal.companyName.toUpperCase().trim();
+          if (mCompName === compName) {
+            const mLicenseKey = mVal.cidbSpkk ? mVal.cidbSpkk.toUpperCase().trim() : 'NO_LICENSE';
+            // If the license matches OR either is NO_LICENSE, we merge/replace under the manual detail
+            if (mLicenseKey === licenseKey || mLicenseKey === 'NO_LICENSE' || licenseKey === 'NO_LICENSE') {
+              mergedMap.delete(mKey);
+              mergedMap.set(key, {
+                ...mVal,
+                ...s,
+                id: s.id,
+                source: 'manual' as const
+              });
+              matched = true;
+              break;
+            }
+          }
+        }
+        
+        if (!matched) {
+          mergedMap.set(key, s);
+        }
       });
       
       const finalSuppliers = Array.from(mergedMap.values()).sort((a, b) => 
@@ -255,19 +753,21 @@ export default function SupplierInvitation() {
   const handleAdSelectionChange = (adId: string) => {
     setSelectedAdId(adId);
     const selectedAd = ads.find(a => a.id === adId);
+    const def = getStaffDefaultOfficeAndAddress();
     if (selectedAd) {
       setClosingDate(selectedAd.closingDate || '');
       setClosingTime(selectedAd.closingTime || '');
       setBriefingDate(selectedAd.briefingDate || selectedAd.visitDate || '');
       setBriefingTime(selectedAd.briefingTime || '');
-      setBriefingVenue(selectedAd.briefingVenue || selectedAd.visitVenue || '');
-      setSubmissionVenue(selectedAd.docVenue || 'Pejabat RISDA Daerah Beaufort, K77 dan K78, Blok K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah');
+      setBriefingVenue(selectedAd.briefingVenue || selectedAd.visitVenue || def.office);
+      setSubmissionVenue(selectedAd.docVenue || def.fullAddress);
       
       // Auto generate reference mock number if empty
       if (!referenceNo) {
         const year = new Date().getFullYear();
         const rand = Math.floor(100 + Math.random() * 900);
-        setReferenceNo(`RISDA.BFT.100-3/4/(${rand}) Jld.${year % 100}`);
+        const code = getReferenceNoShortCode();
+        setReferenceNo(`${code}.100-3/4/(${rand}) Jld.${year % 100}`);
       }
     } else {
       setClosingDate('');
@@ -275,7 +775,7 @@ export default function SupplierInvitation() {
       setBriefingDate('');
       setBriefingTime('');
       setBriefingVenue('');
-      setSubmissionVenue('Pejabat RISDA Daerah Beaufort, K77 dan K78, Blok K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah');
+      setSubmissionVenue(def.fullAddress);
     }
   };
 
@@ -288,11 +788,19 @@ export default function SupplierInvitation() {
     }
     const toastId = toast.loading('Menyimpan maklumat pembekal...');
     try {
-      let id = editingSupplier?.id;
-      if (!id || id.startsWith('attendance_')) {
-        id = `supplier_${Date.now()}`;
+      const normalizedName = supForm.companyName.toUpperCase().trim();
+      const targetId = `supplier_${normalizedName.replace(/[^A-Z0-9]/g, '_')}`;
+      
+      let oldId = editingSupplier?.id;
+      if (oldId && oldId !== targetId && !oldId.startsWith('attendance_')) {
+        try {
+          await deleteDoc(doc(db, 'suppliers', oldId));
+        } catch (e) {
+          console.error('Error deleting old supplier document:', e);
+        }
       }
-      await setDoc(doc(db, 'suppliers', id), {
+
+      await setDoc(doc(db, 'suppliers', targetId), {
         companyName: supForm.companyName.trim(),
         phoneNumber: supForm.phoneNumber.trim(),
         email: supForm.email.trim(),
@@ -381,11 +889,13 @@ export default function SupplierInvitation() {
 
       await setDoc(doc(db, 'supplier_invitations', invitationId), payload);
 
+      const def = getStaffDefaultOfficeAndAddress();
+
       // Send direct notification email via sent_emails to each selected supplier
       if (payload.suppliers && payload.suppliers.length > 0) {
         for (const s of payload.suppliers) {
           if (s.email && s.email.trim()) {
-            const emailSubject = `Pelawaan Menyertai Sebut Harga RISDA Beaufort - No. Sebut Harga: ${payload.tenderNo}`;
+            const emailSubject = `Pelawaan Menyertai Sebut Harga RISDA ${def.district} - No. Sebut Harga: ${payload.tenderNo}`;
             const emailBody = `Assalamualaikum dan Salam Sejahtera,
 
 Kepada:
@@ -400,7 +910,7 @@ NO. SEBUT HARGA: ${payload.tenderNo}
 
 Dengan hormatnya perkara di atas adalah dirujuk.
 
-2.    Sukacita dimaklumkan bahawa Pejabat RISDA Daerah Beaufort mempelawa syarikat pihak tuan/puan untuk mengemukakan tawaran bagi perolehan sebut harga tersebut di atas.
+2.    Sukacita dimaklumkan bahawa ${def.office} mempelawa syarikat pihak tuan/puan untuk mengemukakan tawaran bagi perolehan sebut harga tersebut di atas.
 
 3.    Ketetapan bagi taklimat, lawatan tapak dan serahan sebut harga adalah seperti berikut:
 
@@ -411,7 +921,7 @@ TAKLIMAT / LAWATAN TAPAK (WAJIB):
 
 TARIKH TUTUP & SERAHAN:
 - Tarikh Tutup : Sebelum jam ${payload.closingTime || '-'} pada ${formatBeautifulDate(payload.closingDate || '')} (${indonesianDayName(payload.closingDate || '')})
-- Tempat Serah : ${payload.submissionVenue || 'Pejabat RISDA Daerah Beaufort, Sabah'}
+- Tempat Serah : ${payload.submissionVenue || def.fullAddress}
 
 No. Rujukan Fail Surat: ${payload.referenceNo}
 
@@ -423,8 +933,8 @@ Sekian, terima kasih.
 "BERKHIDMAT UNTUK NEGARA"
 
 Saya yang menjalankan amanah,
-(${payload.officerName ? payload.officerName.toUpperCase() : 'PEGAWAI RISDA DAERAH BEAUFORT'})
-b.p. Pegawai RISDA Daerah Beaufort / Pengarah RISDA Negeri Sabah`;
+(${payload.officerName ? payload.officerName.toUpperCase() : def.office})
+b.p. Pegawai RISDA Daerah ${def.district} / Pengarah RISDA Negeri ${def.state}`;
 
             try {
               await addDoc(collection(db, 'sent_emails'), {
@@ -447,7 +957,7 @@ b.p. Pegawai RISDA Daerah Beaufort / Pengarah RISDA Negeri Sabah`;
       setSelectedAdId('');
       setReferenceNo('');
       setSelectedSuppliers([]);
-      setSubmissionVenue('Pejabat RISDA Daerah Beaufort, K77 dan K78, Blok K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah');
+      setSubmissionVenue(def.fullAddress);
       fetchInvitations();
       setActiveTab('list');
     } catch (err) {
@@ -495,6 +1005,49 @@ b.p. Pegawai RISDA Daerah Beaufort / Pengarah RISDA Negeri Sabah`;
       return `${day} ${month} ${year}`;
     } catch (e) {
       return dateStr;
+    }
+  };
+
+  const getHijriDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      
+      const formatter = new Intl.DateTimeFormat('ms-MY-u-ca-islamic-umalqura', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      let result = formatter.format(d)
+        .replace(/Zul-Kada/g, 'Zulkaedah')
+        .replace(/Zul-Hijja/g, 'Zulhijjah')
+        .replace(/Rabi’ al-awwal/g, 'Rabiulawal')
+        .replace(/Rabi’ al-thani/g, 'Rabiulakhir')
+        .replace(/Jumada al-awwal/g, 'Jamadilawal')
+        .replace(/Jumada al-thani/g, 'Jamadilakhir')
+        .replace(/Sha’ban/g, 'Syaaban')
+        .replace(/Ramadan/g, 'Ramadan')
+        .replace(/Shawwal/g, 'Syawal')
+        .replace(/Dhu al-Qi'dah/g, 'Zulkaedah')
+        .replace(/Dhu al-Hijjah/g, 'Zulhijjah')
+        .replace(/Dhu'l-Qi'dah/g, 'Zulkaedah')
+        .replace(/Dhu'l-Hijjah/g, 'Zulhijjah');
+      
+      const monthsEn = ['Muharram', 'Safar', "Rabi' al-Awwal", "Rabi' al-Thani", "Jumada al-Awwal", "Jumada al-Thani", 'Rajab', "Sha'ban", 'Ramadan', 'Shawwal', "Dhu al-Qi'dah", "Dhu al-Hijjah"];
+      const monthsMs = ['Muharram', 'Safar', 'Rabiulawal', 'Rabiulakhir', 'Jamadilawal', 'Jamadilakhir', 'Rejab', 'Syaaban', 'Ramadan', 'Syawal', 'Zulkaedah', 'Zulhijjah'];
+      
+      monthsEn.forEach((m, idx) => {
+        const regex = new RegExp(m, 'gi');
+        result = result.replace(regex, monthsMs[idx]);
+      });
+
+      if (result && !result.endsWith('H') && !result.endsWith('AH')) {
+        return `${result}H`;
+      }
+      return result;
+    } catch (e) {
+      return '';
     }
   };
 
@@ -564,10 +1117,11 @@ Tempat Pengambilan    : ${matchingAd.docVenue || 'Pejabat RISDA Daerah Beaufort'
 
     const subject = `Pelawaan Sebut Harga: ${inv.tenderNo} - ${inv.adTitle}`;
     
-    const body = `PENTADBIRAN RISDA NEGERI SABAH
+    const body = `UNIT PEROLEHAN & KEWANGAN
 PEJABAT RISDA DAERAH BEAUFORT
-Peti Surat 185, 89807 Beaufort, Sabah
-Tel: 087-211142 | Faks: 087-212211
+K77 & K78, BLOCK K, BEAUFORT SQUARE AVENUE,
+JALAN BINUNUK, 89800 BEAUFORT, SABAH
+NO. TEL: 087-224 335
 --------------------------------------------------
 
 Rujukan Kami : ${inv.referenceNo}
@@ -602,21 +1156,13 @@ LAMPIRAN IKLAN SEBUT HARGA RASMI
 2. NO. SEBUT HARGA : ${inv.tenderNo}
 3. KATEGORI        : ${matchingAd?.category || 'KERJA'}
 
-A) SYARAT KELAYAKAN LESEN & PENDAFTARAN:
-${licenseReqStr}
-
-B) TAKLIMAT DAN LAWATAN TAPAK (WAJIB):
+A) TAKLIMAT DAN LAWATAN TAPAK (WAJIB):
 Tarikh / Hari     : ${formatBeautifulDate(inv.briefingDate || '')} (${indonesianDayName(inv.briefingDate || '')})
 Masa              : ${inv.briefingTime || '-'}
 Tempat Taklimat   : ${inv.briefingVenue || '-'}
+Lawatan Tapak     : KAMPUNG MARABA, BEAUFORT
+
 *Nota: Hanya penama di dalam lesen syarikat sahaja yang dibenarkan menghadiri taklimat dan lawatan tapak wajib. Sila bawa sijil asal dan salinan fotostat.*
-${docInfoStr}
---------------------------------------------------
-D) TARIKH DAN TEMPAT TUTUP SERAHAN:
---------------------------------------------------
-Tarikh Tutup      : ${formatBeautifulDate(inv.closingDate || '')} (${indonesianDayName(inv.closingDate || '')})
-Masa Tutup        : Sebelum jam ${inv.closingTime || '-'}
-Tempat Serahan    : Peti Sebut Harga, Pejabat RISDA Daerah Beaufort, Sabah
 
 --------------------------------------------------
 E) PAUTAN RASMI DOKUMEN DIGITAL (CETAK & SIMPAN PDF):
@@ -630,8 +1176,6 @@ Sila muat turun, bincang, atau cetak dokumen rasmi di pautan di bawah untuk tuju
 👉 ${window.location.protocol}//${window.location.host}/?adId=${inv.adId}
 
 ==================================================
-
-Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang berkaitan) semasa taklimat dijalankan. Hanya penama di dalam lesen sahaja dibenarkan mendaftar kehadiran taklimat tapak digital.
 
 Sekian untuk maklum balas dan tindakan pihak tuan/puan selanjutnya.
 
@@ -674,7 +1218,35 @@ Pejabat RISDA Daerah Beaufort, Sabah.
       ? inv.suppliers
       : inv.suppliers.filter((s: Supplier) => s.id === selectedPrintSupplierId || s.companyName === selectedPrintSupplierId);
 
+    // Compute dynamic office header info
+    let officeVal = 'PEJABAT RISDA DAERAH BEAUFORT';
+    let addressVal = 'K77 & K78, Block K, Beaufort Square Avenue 1,<br/>Jalan Binunuk,<br/>89800 Beaufort, Sabah';
+    let emailVal = 'prdbeaufort@risda.gov.my';
+    let telVal = '087-224335/336';
+    
+    const def = getStaffDefaultOfficeAndAddress();
 
+    if (inv?.submissionVenue) {
+      const parts = inv.submissionVenue.split(',');
+      if (parts.length > 0) {
+        officeVal = parts[0].trim().toUpperCase();
+      }
+      if (parts.length > 1) {
+        addressVal = parts.slice(1).map((p: string) => p.trim()).join(',<br/>').toUpperCase();
+      }
+      const rawOffice = parts[0] || '';
+      const cleanedOfficeName = rawOffice.replace('PEJABAT RISDA DAERAH', '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (cleanedOfficeName) {
+        emailVal = `prd${cleanedOfficeName}@risda.gov.my`;
+      }
+    } else {
+      officeVal = def.office;
+      addressVal = def.address.replace(/,\s*/g, ',<br/>');
+      const cleanedOfficeName = def.office.replace('PEJABAT RISDA DAERAH', '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (cleanedOfficeName) {
+        emailVal = `prd${cleanedOfficeName}@risda.gov.my`;
+      }
+    }
 
     let documentContentHtml = '';
     if (isTawaran) {
@@ -689,9 +1261,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
               referrerpolicy="no-referrer"
               alt="RISDA Logo"
             />
-            <div style="font-size: 11pt; font-weight: bold; letter-spacing: 0.5px; color: #000; text-transform: uppercase;">PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH</div>
-            <div style="font-size: 9.5pt; font-weight: bold; font-style: italic; color: #000; margin-top: 2px; text-transform: uppercase;">KEMENTERIAN KEMAJUAN DESA DAN WILAYAH</div>
-            <div style="border-bottom: 4px double #000; margin-top: 15px; margin-bottom: 25px;"></div>
+            <div style="border-bottom: 2px solid #000; margin-top: 15px; margin-bottom: 25px;"></div>
             <div style="font-size: 13.5pt; font-weight: bold; text-decoration: underline; letter-spacing: 1px; color: #000; text-transform: uppercase;">SURAT TAWARAN PELAWAAN SEBUTHARGA</div>
           </div>
 
@@ -736,7 +1306,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
               <span style="width: 25px; font-weight: bold; flex-shrink: 0;">2.</span>
               <div>
                 Dokumen SebutHarga yang telah dilengkapi hendaklah dimasukkan ke dalam satu sampul surat bermetri dan bertulis nombor tawaran disebelah kiri atasnya dan dimasuk ke dalam Peti Tawaran yang terletak di 
-                <strong style="text-decoration: underline;">${(inv.submissionVenue || 'Pejabat RISDA Daerah Beaufort, K77 dan K78, Blok K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah').toUpperCase()}</strong> sebelum atau pada 
+                <strong style="text-decoration: underline;">${(inv.submissionVenue || def.fullAddress).toUpperCase()}</strong> sebelum atau pada 
                 <strong style="text-decoration: underline;">${formatBeautifulDate(inv.closingDate)}</strong> Jam/Masa 
                 <strong style="text-decoration: underline;">${inv.closingTime || '12.00 TENGAHARI'}</strong>.
               </div>
@@ -754,7 +1324,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
               <div>
                 Kontraktor adalah diwajibkan menghadiri taklimat dan lawatan tapak pada 
                 <strong style="text-decoration: underline;">${inv.briefingDate ? `${formatBeautifulDate(inv.briefingDate)} (${indonesianDayName(inv.briefingDate).toUpperCase()})` : '-'}</strong> ${inv.briefingTime ? `Jam <strong style="text-decoration: underline;">${inv.briefingTime}</strong>` : ''}. Taklimat akan di sampaikan hanya sekali sahaja dan pihak kontraktor dikehendaki berkumpul di 
-                <strong style="text-decoration: underline;">${(inv.briefingVenue || 'Pejabat RISDA Beaufort').toUpperCase()}</strong> pada tarikh dan masa yang telah ditetapkan diatas.
+                <strong style="text-decoration: underline;">${(inv.briefingVenue || def.office).toUpperCase()}</strong> pada tarikh dan masa yang telah ditetapkan diatas.
               </div>
             </div>
 
@@ -768,6 +1338,50 @@ Pejabat RISDA Daerah Beaufort, Sabah.
         </div>
       `).join('');
     } else {
+      const sharedHeaderHtml = `
+            <!-- RISDA HEADER KEPALA SURAT -->
+            <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 5px;">
+              <div style="flex: 0 0 85px; text-align: left; margin-right: 15px;">
+                <img 
+                  src="${window.location.origin}/PUBLIC/intrologo_RISDA.png" 
+                  onerror="this.onerror=null; this.src='${window.location.origin}/api/logo'; this.onerror=function(){this.src='https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png'}"
+                  style="height: 75px; width: auto; display: block;" 
+                  referrerpolicy="no-referrer"
+                  alt="RISDA Logo"
+                />
+              </div>
+              <div style="flex: 1; text-align: left; font-family: 'Times New Roman', Times, serif; color: #000; line-height: 1.15; font-size: 10pt;">
+                <strong style="font-size: 11pt; display: block; margin-bottom: 2px; text-transform: uppercase;">PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH<br/>(RISDA)</strong>
+                <strong style="font-size: 11pt; display: block; margin-bottom: 2px; text-transform: uppercase;">${officeVal}</strong>
+                <div style="font-size: 8.5pt; display: flex; justify-content: space-between; align-items: flex-end; color: #000; line-height: 1.35; margin-top: 4px; width: 100%;">
+                  <div style="text-align: left;">
+                    ${addressVal}
+                  </div>
+                  <div style="text-align: right;">
+                    <table style="border-collapse: collapse; font-size: 8.5pt; color: #000; font-family: 'Times New Roman', Times, serif; line-height: 1.3; margin-left: auto;">
+                      <tr>
+                        <td style="padding: 0; text-align: left; font-weight: bold; width: 85px;">TEL</td>
+                        <td style="padding: 0 4px; text-align: left;">:</td>
+                        <td style="padding: 0; text-align: left; white-space: nowrap;">${telVal}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 0; text-align: left; font-weight: bold; width: 85px;">EMAIL</td>
+                        <td style="padding: 0 4px; text-align: left;">:</td>
+                        <td style="padding: 0; text-align: left; white-space: nowrap;">${emailVal}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 0; text-align: left; font-weight: bold; width: 85px;">LAMAN WEB</td>
+                        <td style="padding: 0 4px; text-align: left;">:</td>
+                        <td style="padding: 0; text-align: left; white-space: nowrap;">http://www.risda.gov.my</td>
+                      </tr>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="border-bottom: 2px solid #000; margin-top: 10px; margin-bottom: 15px;"></div>
+      `;
+
       documentContentHtml = suppliersToPrint.map((s: Supplier) => {
         const docDate = inv.invitationDate || inv.createdAt || '';
         let rawDate = '';
@@ -786,51 +1400,8 @@ Pejabat RISDA Daerah Beaufort, Sabah.
 
         return `
           <!-- PAGE 1: SURAT UTAMA -->
-          <div class="letter-page" style="page-break-after: always; position: relative; min-height: 10.2in; box-sizing: border-box; padding-bottom: 75px;">
-            <!-- RISDA HEADER KEPALA SURAT -->
-            <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 5px;">
-              <div style="flex: 0 0 85px; text-align: left; margin-right: 15px;">
-                <img 
-                  src="${window.location.origin}/PUBLIC/intrologo_RISDA.png" 
-                  onerror="this.onerror=null; this.src='${window.location.origin}/api/logo'; this.onerror=function(){this.src='https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png'}"
-                  style="height: 75px; width: auto; display: block;" 
-                  referrerpolicy="no-referrer"
-                  alt="RISDA Logo"
-                />
-              </div>
-              <div style="flex: 1; text-align: left; font-family: 'Times New Roman', Times, serif; color: #000; line-height: 1.15; font-size: 10pt;">
-                <strong style="font-size: 11pt; display: block; margin-bottom: 2px; text-transform: uppercase;">PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH<br/>(RISDA)</strong>
-                <strong style="font-size: 11pt; display: block; margin-bottom: 2px; text-transform: uppercase;">PEJABAT RISDA DAERAH BEAUFORT</strong>
-                <strong style="font-size: 9.5pt; font-style: italic; display: block; margin-bottom: 4px; text-transform: uppercase;">(KEMENTERIAN KEMAJUAN DESA DAN WILAYAH)</strong>
-                <div style="font-size: 8.5pt; display: flex; justify-content: space-between; align-items: flex-end; color: #000; line-height: 1.35; margin-top: 4px; width: 100%;">
-                  <div style="text-align: left;">
-                    K77 & K78, Block K, Beaufort Square Avenue 1,<br/>
-                    Jalan Binunuk,<br/>
-                    89800 Beaufort, Sabah
-                  </div>
-                  <div style="text-align: right;">
-                    <table style="border-collapse: collapse; font-size: 8.5pt; color: #000; font-family: 'Times New Roman', Times, serif; line-height: 1.3; margin-left: auto;">
-                      <tr>
-                        <td style="padding: 0; text-align: left; font-weight: bold; width: 85px;">TEL</td>
-                        <td style="padding: 0 4px; text-align: left;">:</td>
-                        <td style="padding: 0; text-align: left; white-space: nowrap;">087-224335/336</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 0; text-align: left; font-weight: bold; width: 85px;">EMAIL</td>
-                        <td style="padding: 0 4px; text-align: left;">:</td>
-                        <td style="padding: 0; text-align: left; white-space: nowrap;">prdbeaufort@risda.gov.my</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 0; text-align: left; font-weight: bold; width: 85px;">LAMAN WEB</td>
-                        <td style="padding: 0 4px; text-align: left;">:</td>
-                        <td style="padding: 0; text-align: left; white-space: nowrap;">http://www.risda.gov.my</td>
-                      </tr>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div style="border-bottom: 4px double #000; margin-top: 10px; margin-bottom: 15px;"></div>
+          <div class="letter-page" style="page-break-after: always; position: relative; min-height: 10.2in; box-sizing: border-box; padding-bottom: 1.25in;">
+            ${sharedHeaderHtml}
 
             <!-- RUJUKAN & TARIKH BOX -->
             <table style="margin-left: auto; margin-right: 0; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.3; margin-bottom: 20px;">
@@ -896,7 +1467,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                     <td style="padding: 4px 0;">Pendaftaran</td>
                     <td style="padding: 4px 0; text-align: center;">:</td>
                     <td style="padding: 4px 0;">
-                      ${inv.briefingVenue || 'Pejabat RISDA Beaufort'}
+                      ${inv.briefingVenue || def.office}
                     </td>
                   </tr>
                   <tr>
@@ -919,9 +1490,9 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
 
             <!-- Page 1 Footer -->
-            <div class="page-footer" style="position: absolute; bottom: 0.20cm; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
+            <div class="page-footer" style="position: absolute; bottom: 0.75in; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
               <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 8pt; line-height: 1.35; margin-bottom: 2px;">
-                MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br/>
+                MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
                 BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
               </div>
               <div style="font-weight: bold; font-family: 'Times New Roman', Times, serif; font-size: 10pt; line-height: 1;">1/3</div>
@@ -929,7 +1500,8 @@ Pejabat RISDA Daerah Beaufort, Sabah.
           </div>
 
           <!-- PAGE 2: SIGN-OFF -->
-          <div class="letter-page" style="page-break-after: always; position: relative; min-height: 10.2in; box-sizing: border-box; padding-bottom: 75px;">
+          <div class="letter-page" style="page-break-after: always; position: relative; min-height: 10.2in; box-sizing: border-box; padding-bottom: 1.25in; padding-top: 0.5in;">
+
             <!-- Reference repeating like standard multiple-page letters with centered page number -->
             <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.3; margin-bottom: 30px; position: relative; width: 100%;">
               <div style="text-align: left;">
@@ -950,8 +1522,8 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                 (${inv.officerName ? inv.officerName.toUpperCase() : 'MUHD ZUKRI BIN ISMAIL'})
               </div>
               <div style="text-transform: capitalize;">Pegawai RISDA Daerah</div>
-              <div>Beaufort</div>
-              <div style="margin-bottom: 10px;">b.p : Pengarah RISDA Negeri Sabah</div>
+              <div style="text-transform: capitalize;">${getDistrictFromSubmissionVenue(inv.submissionVenue).toLowerCase()}</div>
+              <div style="margin-bottom: 10px;">b.p : Pengarah RISDA Negeri ${getStateFromSubmissionVenue(inv.submissionVenue)}</div>
 
               <div style="font-size: 9.5pt; font-family: monospace; color: #333; margin-top: 50px; font-style: italic;">
                 sebutharga${(() => {
@@ -962,9 +1534,9 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
 
             <!-- Page 2 Footer -->
-            <div class="page-footer" style="position: absolute; bottom: 0.20cm; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
+            <div class="page-footer" style="position: absolute; bottom: 0.75in; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
               <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 8pt; line-height: 1.35; margin-bottom: 2px;">
-                MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br/>
+                MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
                 BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
               </div>
               <div style="font-weight: bold; font-family: 'Times New Roman', Times, serif; font-size: 10pt; line-height: 1;">2/3</div>
@@ -972,7 +1544,8 @@ Pejabat RISDA Daerah Beaufort, Sabah.
           </div>
 
           <!-- PAGE 3: EDARAN LIST (LAMPIRAN) -->
-          <div class="letter-page" style="page-break-after: avoid; position: relative; min-height: 10.2in; box-sizing: border-box; padding-bottom: 75px;">
+          <div class="letter-page" style="page-break-after: avoid; position: relative; min-height: 10.2in; box-sizing: border-box; padding-bottom: 1.25in; padding-top: 0.5in;">
+
             <!-- Reference repeating like standard multiple-page letters with centered page number -->
             <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; line-height: 1.3; margin-bottom: 35px; position: relative; width: 100%;">
               <div style="text-align: left;">
@@ -987,7 +1560,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                 <span style="width: 25px; font-weight: bold;">1.</span>
                 <div>
                   <strong>Unit Tanam Semula</strong><br/>
-                  Pejabat RISDA Daerah Beaufort
+                  ${officeVal}
                 </div>
               </div>
 
@@ -1003,9 +1576,9 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
 
             <!-- Page 3 Footer -->
-            <div class="page-footer" style="position: absolute; bottom: 0.20cm; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
+            <div class="page-footer" style="position: absolute; bottom: 0.75in; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
               <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 8pt; line-height: 1.35; margin-bottom: 2px;">
-                MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br/>
+                MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
                 BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
               </div>
               <div style="font-weight: bold; font-family: 'Times New Roman', Times, serif; font-size: 10pt; line-height: 1;">3/3</div>
@@ -1028,8 +1601,15 @@ Pejabat RISDA Daerah Beaufort, Sabah.
               font-size: 11pt;
               line-height: 1.4;
             }
+            .letter-page {
+              box-sizing: border-box;
+              min-height: 10.2in;
+              position: relative;
+              background: #fff;
+              padding: 1.15in 0px 1.4in 0px; /* Shifted down by ~3 lines (1.15in) for elegant preview */
+            }
             .header-info {
-              border-bottom: 3px double #000;
+              border-bottom: 2px solid #000;
               padding-bottom: 15px;
               margin-bottom: 30px;
               text-align: center;
@@ -1098,7 +1678,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                 page-break-after: always; 
                 page-break-inside: avoid;
                 margin: 0 !important;
-                padding: 0.10cm 0.8in 1.4in 0.8in !important; /* Safe printable padding */
+                padding: 0.75in 0.8in 1.25in 0.8in !important; /* Safe printable padding with 0.75in top & 1.25in bottom to protect the 0.75in footer */
                 box-sizing: border-box;
                 min-height: 10.2in !important;
                 position: relative !important;
@@ -1109,7 +1689,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
               }
               .page-footer {
                 position: absolute !important;
-                bottom: 0.20cm !important;
+                bottom: 0.75in !important;
                 left: 0.8in !important;
                 right: 0.8in !important;
               }
@@ -1213,6 +1793,29 @@ Pejabat RISDA Daerah Beaufort, Sabah.
 
     return matchesSearch && matchesYear && matchesState && matchesOffice;
   });
+
+  // Dynamic header calculations for live preview
+  let previewOffice = 'PEJABAT RISDA DAERAH BEAUFORT';
+  let previewAddress = 'K77 & K78, Block K, Beaufort Square Avenue 1,<br/>Jalan Binunuk,<br/>89800 Beaufort, Sabah';
+  let previewEmail = 'prdbeaufort@risda.gov.my';
+  let previewTel = '087-224335/336';
+  
+  const defOfficeAddress = getStaffDefaultOfficeAndAddress();
+  const currentVenue = submissionVenue || defOfficeAddress.fullAddress;
+  if (currentVenue) {
+    const parts = currentVenue.split(',');
+    if (parts.length > 0) {
+      previewOffice = parts[0].trim().toUpperCase();
+    }
+    if (parts.length > 1) {
+      previewAddress = parts.slice(1).map(p => p.trim()).join(',<br/>').toUpperCase();
+    }
+    const rawOffice = parts[0] || '';
+    const cleanedOfficeName = rawOffice.replace('PEJABAT RISDA DAERAH', '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cleanedOfficeName) {
+      previewEmail = `prd${cleanedOfficeName}@risda.gov.my`;
+    }
+  }
 
   return (
     <div className="space-y-6 pt-4">
@@ -1467,6 +2070,37 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                   </select>
                 </div>
 
+                {/* Pilih Format Cetakan Utama */}
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-[9px] font-black text-risda-orange uppercase tracking-[2px] px-1 block">PILIH FORMAT CETAKAN UTAMA</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFormat('rasmi')}
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all ${
+                        previewFormat === 'rasmi'
+                          ? 'bg-risda-orange/10 border-risda-orange text-white shadow-[0_0_15px_rgba(243,156,18,0.15)] font-black'
+                          : 'bg-black/30 border-white/10 text-risda-muted hover:border-white/20 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-[9px] uppercase tracking-wider block">Format 1</span>
+                      <strong className="text-[10px] uppercase tracking-widest mt-1">SURAT RASMI</strong>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFormat('tawaran')}
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all ${
+                        previewFormat === 'tawaran'
+                          ? 'bg-risda-orange/10 border-risda-orange text-white shadow-[0_0_15px_rgba(243,156,18,0.15)] font-black'
+                          : 'bg-black/30 border-white/10 text-risda-muted hover:border-white/20 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-[9px] uppercase tracking-wider block">Format 2</span>
+                      <strong className="text-[10px] uppercase tracking-widest mt-1">SURAT TAWARAN</strong>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Reference fail */}
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-risda-orange uppercase tracking-[2px] px-1 block">NO. RUJUKAN FAIL</label>
@@ -1636,230 +2270,248 @@ Pejabat RISDA Daerah Beaufort, Sabah.
           {/* RIGHT SIDE: LIVE PRATINJAU LETTER (5 COLS) */}
           <div className="xl:col-span-5 space-y-4">
             
-            {/* Elegant Selector */}
-            <div className="flex bg-black/40 border border-white/10 p-1 rounded-2xl relative shadow-inner">
-              <button
-                type="button"
-                onClick={() => setPreviewFormat('rasmi')}
-                className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                  previewFormat === 'rasmi'
-                    ? 'bg-gradient-to-r from-risda-orange to-risda-gold text-black shadow-lg font-black'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                📄 Format 1: Surat Rasmi
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewFormat('tawaran')}
-                className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                  previewFormat === 'tawaran'
-                    ? 'bg-gradient-to-r from-risda-orange to-risda-gold text-black shadow-lg font-black'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                ✏️ Format 2: Surat Tawaran
-              </button>
+            {/* Pratinjau Header */}
+            <div className="flex flex-col sm:flex-row bg-black/40 border border-white/10 p-3 rounded-2xl relative shadow-inner sm:items-center justify-between gap-3">
+              <span className="text-[10px] font-black text-white/95 uppercase tracking-widest flex items-center gap-2 px-1">
+                📄 PRATINJAU DRAFT SURAT
+              </span>
+              <div className="flex bg-black/50 p-1 rounded-xl border border-white/10 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setPreviewFormat('rasmi')}
+                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    previewFormat === 'rasmi'
+                      ? 'bg-risda-orange text-black'
+                      : 'text-risda-muted hover:text-white'
+                  }`}
+                >
+                  FORMAT 1: RASMI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFormat('tawaran')}
+                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    previewFormat === 'tawaran'
+                      ? 'bg-risda-orange text-black'
+                      : 'text-risda-muted hover:text-white'
+                  }`}
+                >
+                  FORMAT 2: TAWARAN
+                </button>
+              </div>
             </div>
 
-            {previewFormat === 'rasmi' && (
-              <div className="flex bg-black/40 border border-white/10 p-1 rounded-2xl relative shadow-inner text-[10px] font-black uppercase text-center">
-                <button
-                  type="button"
-                  onClick={() => setPreviewPage(1)}
-                  className={`flex-1 py-2 px-3 rounded-xl transition-all ${
-                    previewPage === 1
-                      ? 'bg-gradient-to-r from-risda-orange to-risda-gold text-black shadow font-black'
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  Muka 1: Rujukan & Tajuk
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewPage(2)}
-                  className={`flex-1 py-2 px-3 rounded-xl transition-all ${
-                    previewPage === 2
-                      ? 'bg-gradient-to-r from-risda-orange to-risda-gold text-black shadow font-black'
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  Muka 2: Tandatangan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewPage(3)}
-                  className={`flex-1 py-2 px-3 rounded-xl transition-all ${
-                    previewPage === 3
-                      ? 'bg-gradient-to-r from-risda-orange to-risda-gold text-black shadow font-black'
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  Muka 3: Edaran Lampiran
-                </button>
-              </div>
-            )}
-
-            <div className="bg-white text-black p-6 md:p-8 rounded-[40px] shadow-2xl min-h-[660px] border border-gray-200 relative overflow-hidden flex flex-col font-serif" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-              {/* Draft marker */}
-              <div className="absolute top-2 right-2 bg-red-600 text-white text-[8px] font-mono px-3 py-1 rounded font-black tracking-widest transform rotate-4 shadow-md uppercase z-20">
-                PRATINJAU DRAFT
-              </div>
-
-              {previewFormat === 'rasmi' ? (
-                <div className="flex-1 flex flex-col justify-between text-black text-xs leading-relaxed">
-                  {previewPage === 1 && (
+            {previewFormat === 'rasmi' ? (
+              <div className="max-h-[85vh] overflow-y-auto space-y-6 pr-1">
+                {/* PAGE 1 */}
+                <div className="bg-white text-black rounded-[40px] shadow-2xl min-h-[680px] border border-gray-200 relative overflow-hidden flex flex-col font-serif" style={{ fontFamily: "'Times New Roman', Times, serif", paddingTop: '0.75in', paddingBottom: '1.25in', paddingLeft: '0.8in', paddingRight: '0.8in' }}>
+                  {/* Subtle Elegant Watermark */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-[0.032] pointer-events-none select-none z-0">
+                    <img 
+                      src="https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png"
+                      className="w-80 h-auto grayscale" 
+                      alt=""
+                    />
+                  </div>
+                  
+                  {/* Draft marker */}
+                  <div className="absolute top-2 right-2 bg-red-600 text-white text-[8px] font-mono px-3 py-1 rounded font-black tracking-widest transform rotate-4 shadow-md uppercase z-20">
+                    PRATINJAU DRAFT (MUKA 1/3)
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col justify-between text-black text-[10.5px] leading-relaxed relative z-10">
                     <div className="animate-[fadeIn_0.3s_ease-out]">
-                      {/* Header Logo & Address */}
-                      <div className="flex items-start justify-between border-b-[4px] border-double border-black pb-3 mb-4">
-                        <div className="w-[65px] h-[65px] shrink-0 mr-3">
+                      {/* Shared Official Header - Identical on Pages 1, 2, and 3 */}
+                      <div className="border-b-2 border-solid border-black pb-3 mb-4 text-center flex items-center justify-between">
+                        <div className="w-[70px] text-left shrink-0">
                           <img 
                             src="/PUBLIC/intrologo_RISDA.png" 
                             onError={(e) => {
                               const img = e.currentTarget;
-                              if (!img.src.includes("/api/logo") && !img.src.endsWith("/api/logo")) {
-                                img.src = "/api/logo";
-                              } else if (!img.src.includes("Logo_RISDA.png") && !img.src.includes("logo_risda.png")) {
-                                img.src = "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png";
-                              }
+                              img.src = "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png";
                             }}
-                            className="w-full h-auto object-contain block"
-                            referrerPolicy="no-referrer"
+                            className="h-[60px] w-auto block"
                             alt="RISDA Logo"
+                            referrerPolicy="no-referrer"
                           />
                         </div>
-                        <div className="flex-1 text-left leading-tight text-black" style={{ fontSize: '7.5pt' }}>
-                          <strong className="text-[8.5pt] block mb-0.5 uppercase">PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH<br/>(RISDA)</strong>
-                          <strong className="text-[8.5pt] block mb-0.5 uppercase">PEJABAT RISDA DAERAH BEAUFORT</strong>
-                          <strong className="text-[7.5pt] italic block mb-1 uppercase text-slate-700">(KEMENTERIAN KEMAJUAN DESA DAN WILAYAH)</strong>
-                          <div className="text-[7pt] text-slate-800 line-clamp-3">
-                            K77 & K78, Block K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah.<br/>
-                            Tel: 087-224335/336 &nbsp;|&nbsp; Emel: prdbeaufort@risda.gov.my &nbsp;|&nbsp; Web: http://www.risda.gov.my
+                        <div className="flex-1 text-left pl-3 font-serif text-black leading-tight">
+                          <strong className="text-[10pt] block mb-0.5 uppercase tracking-wide font-extrabold">
+                            PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH<br/>(RISDA)
+                          </strong>
+                          <strong className="text-[9.5pt] block mb-0.5 uppercase tracking-wide font-bold font-serif text-black">
+                            {previewOffice}
+                          </strong>
+                          <div className="text-[6.5pt] leading-tight text-slate-800 mt-2.5 flex justify-between items-end bg-transparent font-sans">
+                            <div className="text-left font-sans text-slate-600 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: previewAddress }} />
+                            <div className="text-right font-sans whitespace-nowrap pl-2 space-y-0.5 text-slate-600">
+                              <div><strong className="text-black font-semibold">TEL:</strong> {previewTel}</div>
+                              <div><strong className="text-black font-semibold">MEL:</strong> {previewEmail}</div>
+                              <div><strong className="text-black font-semibold">WEB:</strong> www.risda.gov.my</div>
+                            </div>
                           </div>
                         </div>
                       </div>
 
                       {/* Reference box right */}
-                      <div className="flex justify-end text-[10px] mb-4 text-right">
-                        <table className="border-collapse">
-                          <tbody>
-                            <tr>
-                              <td className="font-normal pr-2 text-left">Ruj. Kami</td>
-                              <td className="pr-2">:</td>
-                              <td className="font-normal text-left">{referenceNo || "RISDA/BFT/...Jld.2"}</td>
-                            </tr>
-                            <tr>
-                              <td className="font-bold pr-2 text-left">Tarikh</td>
-                              <td className="pr-2">:</td>
-                              <td className="text-left">{invitationDate ? formatBeautifulDate(invitationDate) : "—"}</td>
-                            </tr>
-                            <tr>
-                              <td className="pr-2"></td>
-                              <td className="pr-2"></td>
-                              <td className="text-[9px] text-slate-500 text-left">11 Syaaban 1446H</td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      <div className="flex justify-end text-[14px] mb-6">
+                        <div className="flex flex-col text-left font-serif text-black leading-tight">
+                          <div className="flex items-start">
+                            <span className="w-20 font-bold">Ruj. Kami</span>
+                            <span className="mx-2">:</span>
+                            <span className="font-semibold uppercase">{referenceNo || "RISDA.BFT.100-3/4/(376) Jld.26"}</span>
+                          </div>
+                          <div className="flex items-start mt-1">
+                            <span className="w-20 font-bold">Tarikh</span>
+                            <span className="mx-2">:</span>
+                            <div className="flex flex-col">
+                              <span className="font-bold">{invitationDate ? formatBeautifulDate(invitationDate) : "15 JUN 2026"}</span>
+                              <span className="font-bold text-slate-800">{invitationDate ? getHijriDate(invitationDate) : "11 Syaaban 1446H"}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Recipient info on left */}
-                      <div className="text-[10px] text-left uppercase mb-4 leading-normal font-sans">
+                      {/* Recipient info on left - plain bold Times text */}
+                      <div className="text-[14px] text-left uppercase mb-6 leading-relaxed font-serif text-black font-bold">
                         {selectedSuppliers.length > 0 ? (
-                          <>
-                            <strong className="text-blue-900">{selectedSuppliers[0].companyName}</strong><br />
-                            <span className="text-slate-700 font-medium whitespace-pre-wrap">{selectedSuppliers[0].address || "ALAMAT KONTRAKTOR TIADA"}</span><br />
-                            <span>NO. TEL: {selectedSuppliers[0].phoneNumber}</span>
-                          </>
+                          <div className="space-y-0.5">
+                            <div className="font-bold">{selectedSuppliers[0].companyName.toUpperCase()}</div>
+                            <div className="font-normal whitespace-pre-wrap leading-tight">{selectedSuppliers[0].address ? selectedSuppliers[0].address.toUpperCase() : "ALAMAT KONTRAKTOR TIADA"}</div>
+                            {selectedSuppliers[0].phoneNumber && <div className="font-normal">NO. TEL: {selectedSuppliers[0].phoneNumber}</div>}
+                          </div>
                         ) : (
-                          <span className="text-red-500 italic">[Sila pilih sekurang-kurangnya satu pembekal untuk diuji alamatnya]</span>
+                          <div className="space-y-0.5">
+                            <div>RIDUK ENTERPRISE</div>
+                            <div className="font-normal">BATU LIMA TAMAN WAWASAN BEAUFORT</div>
+                            <div className="font-normal">NO. TEL: 0198304207</div>
+                          </div>
                         )}
                       </div>
 
-                      <div className="text-[10.5px] mb-2 font-sans text-left">Tuan/Puan,</div>
+                      <div className="text-[14px] mb-6 font-serif text-left text-black">
+                        Tuan/Puan,
+                      </div>
 
                       {/* Letter title and body */}
-                      <div className="text-[10.5px] text-justify space-y-3 leading-normal">
-                        <div className="font-black text-black uppercase underline tracking-normal mb-3">
-                          PELAWAAN SEBUT HARGA RISDA : {selectedAdId ? ads.find(a => a.id === selectedAdId)?.tenderNo : "[NO. TENDER]"}<br />
-                          {selectedAdId ? ads.find(a => a.id === selectedAdId)?.title : "[TAJUK SEBUT HARGA]"}
+                      <div className="text-[14px] text-justify space-y-5 leading-normal font-serif text-black">
+                        <div className="font-bold text-[14px] mb-6 uppercase tracking-normal leading-normal text-black font-serif space-y-1">
+                          <div className="underline uppercase">
+                            PELAWAAN SEBUT HARGA RISDA : {selectedAdId ? ads.find(a => a.id === selectedAdId)?.tenderNo : "SH/S.6-02/2026"}
+                          </div>
+                          <div className="underline uppercase leading-snug">
+                            {selectedAdId ? ads.find(a => a.id === selectedAdId)?.title : "CADANGAN PROJEK JALAN BAGI PROGRAM PRASARANA ASAS PERTANIAN (PAP) 2026 KAMPUNG MARABA, BEAUFORT"}
+                          </div>
                         </div>
 
-                        <p>Perkara di atas adalah dirujuk.</p>
-                        <p>2. &nbsp;&nbsp;&nbsp;&nbsp; Dimaklumkan tuan/puan dijemput hadir untuk menyertai sebut harga di atas mengikut ketetapan berikut:</p>
-
-                        {/* Briefing table details */}
-                        <table className="w-[90%] mx-auto border border-collapse text-[10px] my-3">
-                          <tbody>
-                            <tr className="border-b border-gray-100">
-                              <td className="w-[22%] py-1 font-bold">Tarikh</td>
-                              <td className="w-[3%] py-1 text-center">:</td>
-                              <td className="w-[75%] py-1 font-black text-slate-900">
-                                {briefingDate ? `${formatBeautifulDate(briefingDate)} (${indonesianDayName(briefingDate)})` : "-"}
-                              </td>
-                            </tr>
-                            <tr className="border-b border-gray-100">
-                              <td className="py-1 font-bold">Masa</td>
-                              <td className="py-1 text-center">:</td>
-                              <td className="py-1 font-black">
-                                {briefingTime || "-"}
-                              </td>
-                            </tr>
-                            <tr className="border-b border-gray-100">
-                              <td className="py-1 font-bold">Pendaftaran</td>
-                              <td className="py-1 text-center">:</td>
-                              <td className="py-1">
-                                {briefingVenue || "Pejabat RISDA Beaufort"}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="py-1 font-bold">Lawatan</td>
-                              <td className="py-1 text-center">:</td>
-                              <td className="py-1 italic text-slate-600">
-                                {selectedAdId ? (ads.find(a => a.id === selectedAdId)?.visitVenue || ads.find(a => a.id === selectedAdId)?.briefingVenue || briefingVenue || "Lokaliti iklan") : "Lokaliti iklan"}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-
-                        <p>
-                          3. &nbsp;&nbsp;&nbsp;&nbsp; Sehubungan itu, tuan/puan diminta membawa <strong>Sijil Asal {selectedAdId ? getLicensesText(ads.find(a => a.id === selectedAdId)).toUpperCase() : "SIJIL PENDAFTARAN"}</strong> berserta 1 salinan semasa mengambil dokumen.
+                        <p className="text-black">Perkara di atas adalah dirujuk.</p>
+                        
+                        <p className="text-black">
+                          2. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Dimaklumkan tuan/puan dijemput hadir untuk menyertai sebut harga di atas mengikut ketetapan berikut  :
                         </p>
-                        <p>
-                          4. &nbsp;&nbsp;&nbsp;&nbsp; Bersama ini disertakan salinan iklan sebut harga untuk rujukan pihak tuan/puan.
+
+                        {/* Indented borderless details list exactly mimicking photo */}
+                        <div className="pl-14 my-4 font-serif text-[14px]">
+                          <table className="border-none text-black w-full max-w-lg leading-relaxed">
+                            <tbody>
+                              <tr className="border-none">
+                                <td className="py-1 w-32 font-normal text-black">Tarikh</td>
+                                <td className="py-1 w-6 text-black">:</td>
+                               <td className="py-1 font-bold text-black uppercase">
+                                  {briefingDate ? `${formatBeautifulDate(briefingDate)} (${indonesianDayName(briefingDate)})` : "23 JUN 2026 (SELASA)"}
+                                </td>
+                              </tr>
+                              <tr className="border-none">
+                                <td className="py-1 w-32 font-normal text-black">Masa</td>
+                                <td className="py-1 w-6 text-black">:</td>
+                                <td className="py-1 font-bold text-black uppercase">
+                                  {briefingTime || "10.00 Pagi"}
+                                </td>
+                              </tr>
+                              <tr className="border-none">
+                                <td className="py-1 w-32 font-normal text-black">Pendaftaran</td>
+                                <td className="py-1 w-6 text-black">:</td>
+                                <td className="py-1 text-black font-semibold uppercase">
+                                  {briefingVenue || "PEJABAT RISDA DAERAH BEAUFORT"}
+                                </td>
+                              </tr>
+                              <tr className="border-none">
+                                <td className="py-1 w-32 font-normal text-black">Lawatan</td>
+                                <td className="py-1 w-6 text-black">:</td>
+                                <td className="py-1 italic text-black font-semibold uppercase">
+                                  {briefingVenue || "PEJABAT RISDA DAERAH BEAUFORT"}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <p className="text-black">
+                          3. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Sehubungan itu, tuan/puan diminta membawa <strong className="font-bold">Sijil Asal SIJIL PENDAFTARAN YANG BERKAITAN</strong> berserta 1 salinan semasa mengambil dokumen.
+                        </p>
+                        <p className="text-black">
+                          4. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Bersama ini disertakan salinan iklan sebut harga untuk rujukan tuan/puan.
                         </p>
                       </div>
                     </div>
-                  )}
 
-                  {previewPage === 2 && (
+                    {/* Real page footer representation */}
+                    <div className="absolute left-[0.8in] right-[0.8in] bottom-[0.75in] border-t border-black text-[10px] sm:text-[11px] font-sans tracking-tight leading-snug text-black select-none uppercase text-center pt-2" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                      MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br />
+                      BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+                      <div className="text-center font-bold text-black text-[11px] mt-1 font-serif">
+                        1/3
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PAGE 2 */}
+                <div className="bg-white text-black rounded-[40px] shadow-2xl min-h-[680px] border border-gray-200 relative overflow-hidden flex flex-col font-serif" style={{ fontFamily: "'Times New Roman', Times, serif", paddingTop: '0.75in', paddingBottom: '1.25in', paddingLeft: '0.8in', paddingRight: '0.8in' }}>
+                  {/* Subtle Elegant Watermark */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-[0.032] pointer-events-none select-none z-0">
+                    <img 
+                      src="https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png"
+                      className="w-80 h-auto grayscale" 
+                      alt=""
+                    />
+                  </div>
+                  
+                  {/* Draft marker */}
+                  <div className="absolute top-2 right-2 bg-red-600 text-white text-[8px] font-mono px-3 py-1 rounded font-black tracking-widest transform rotate-4 shadow-md uppercase z-20">
+                    PRATINJAU DRAFT (MUKA 2/3)
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col justify-between text-black text-[14px] leading-relaxed relative z-10">
                     <div className="animate-[fadeIn_0.3s_ease-out] flex-1">
-                      {/* Rujukan & Halaman Header */}
-                      <div className="flex justify-between items-center text-[10px] mb-6 font-serif text-slate-500 relative">
-                        <div className="text-left py-0.5 text-black">
-                          Ruj. Kami: {referenceNo || "RISDA/BFT/...Jld.2"}
-                        </div>
-                        <div />
+                      {/* Rujukan header exactly matching Image 2 */}
+                      <div className="text-[14px] text-left font-serif text-black leading-tight mb-8">
+                        <span className="font-bold">Ruj. Kami</span>
+                        <span className="mx-2">:</span>
+                        <span className="font-semibold uppercase">{referenceNo || "RISDA.BFT.100-3/4/(376) Jld.26"}</span>
                       </div>
 
-                      <div className="space-y-4 text-[11px] text-left leading-relaxed mt-12">
-                        <p>Sekian, terima kasih.</p>
+                      <div className="space-y-4 text-[14px] text-justify leading-relaxed mt-4 font-serif text-black relative">
+                        <p className="text-black">Sekian, terima kasih.</p>
                         
-                        <div className="font-extrabold uppercase text-slate-900 tracking-tight">
+                        <div className="font-bold uppercase text-black leading-loose py-2">
                           "MALAYSIA MADANI"<br />
                           "BERKHIDMAT UNTUK NEGARA"
                         </div>
 
-                        <p className="pt-2 mb-0">Saya yang menjalankan amanah,</p>
-                        <br />
-                        <br />
-                        <br />
-                        <div>
-                          <strong className="underline text-[12px] block uppercase">({officerName || "NAMA PEGAWAI"})</strong>
-                          <span className="block font-medium">Pegawai RISDA Daerah Beaufort</span>
-                          <span className="block text-slate-500 text-[10px] italic">b.p. Pengarah RISDA Negeri Sabah</span>
+                        <p className="pt-2 mb-0 text-black">Saya yang menjalankan amanah,</p>
+                        
+                        {/* Empty signature gap matching the layout */}
+                        <div className="h-20" />
+                        
+                        <div className="relative z-20">
+                          <strong className="text-[14px] block uppercase text-black font-bold">({officerName ? officerName.toUpperCase() : "INNOGRANITE"})</strong>
+                          <span className="block font-medium text-black">Pegawai RISDA Daerah</span>
+                          <span className="block text-black">Beaufort</span>
+                          <span className="block text-black">b.p : Pengarah RISDA Negeri Sabah</span>
                         </div>
 
-                        <div className="text-[8.5px] font-mono text-slate-400 pt-16 italic">
+                        <div className="text-[12px] font-mono text-slate-500 pt-8 italic select-none">
                           sebutharga{(() => {
                             const d = invitationDate ? new Date(invitationDate) : new Date();
                             return isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
@@ -1867,126 +2519,171 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                         </div>
                       </div>
                     </div>
-                  )}
 
-                  {previewPage === 3 && (
+                    {/* Real page footer representation */}
+                    <div className="absolute left-[0.8in] right-[0.8in] bottom-[0.75in] border-t border-black text-[10px] sm:text-[11px] font-sans tracking-tight leading-snug text-black select-none uppercase text-center pt-2" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                      MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br />
+                      BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+                      <div className="text-center font-bold text-black text-[11px] mt-1 font-serif">
+                        2/3
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PAGE 3 */}
+                <div className="bg-white text-black rounded-[40px] shadow-2xl min-h-[680px] border border-gray-200 relative overflow-hidden flex flex-col font-serif" style={{ fontFamily: "'Times New Roman', Times, serif", paddingTop: '0.75in', paddingBottom: '1.25in', paddingLeft: '0.8in', paddingRight: '0.8in' }}>
+                  {/* Subtle Elegant Watermark */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-[0.032] pointer-events-none select-none z-0">
+                    <img 
+                      src="https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png"
+                      className="w-80 h-auto grayscale" 
+                      alt=""
+                    />
+                  </div>
+                  
+                  {/* Draft marker */}
+                  <div className="absolute top-2 right-2 bg-red-600 text-white text-[8px] font-mono px-3 py-1 rounded font-black tracking-widest transform rotate-4 shadow-md uppercase z-20">
+                    PRATINJAU DRAFT (MUKA 3/3)
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col justify-between text-black text-[10.5px] leading-relaxed relative z-10">
                     <div className="animate-[fadeIn_0.3s_ease-out] flex-1">
-                      {/* Rujukan & Halaman Header */}
-                      <div className="flex justify-between items-center text-[10px] mb-8 font-serif text-slate-500 relative">
-                        <div className="text-left py-0.5 text-black">
-                          Ruj. Kami: {referenceNo || "RISDA/BFT/...Jld.2"}
-                        </div>
-                        <div />
+                      {/* Rujukan header exactly matching Image 3 */}
+                      <div className="text-[14px] text-left font-serif text-black leading-tight mb-8">
+                        <span className="font-bold">Ruj. Kami</span>
+                        <span className="mx-2">:</span>
+                        <span className="font-semibold uppercase">{referenceNo || "RISDA.BFT.100-3/4/(376) Jld.26"}</span>
                       </div>
 
-                      <div className="space-y-6 text-left text-[11px] leading-relaxed">
+                      <div className="space-y-8 text-left text-[14px] leading-relaxed font-serif text-black">
                         <div>
-                          <strong className="underline text-slate-900 block mb-2 uppercase tracking-wide">EDARAN DALAMAN</strong>
-                          <div className="flex gap-2 items-start pl-2">
-                            <span>1.</span>
+                          <strong className="underline text-black block mb-3 uppercase tracking-wide font-bold">EDARAN DALAMAN</strong>
+                          <div className="flex gap-4 items-start pl-4">
+                            <span className="font-bold">1.</span>
                             <div>
-                              <strong>Unit Tanam Semula</strong><br/>
-                              Pejabat RISDA Daerah Beaufort, Sabah.
+                              <strong className="text-black font-bold">Unit Tanam Semula</strong><br/>
+                              <span className="text-black">Pejabat RISDA Daerah Beaufort</span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="pt-2">
-                          <strong className="underline text-slate-900 block mb-2 uppercase tracking-wide">EDARAN LUARAN</strong>
-                          <div className="space-y-3 font-sans">
+                        <div>
+                          <strong className="underline text-black block mb-3 uppercase tracking-wide font-bold">EDARAN LUARAN</strong>
+                          <div className="space-y-4 pl-4">
                             {selectedSuppliers.length === 0 ? (
-                              <span className="text-red-500 italic">[Sila pilih pembekal untuk menjana edaran luaran di lampiran ini]</span>
-                            ) : (
-                              selectedSuppliers.map((s, idx) => (
-                                <div key={idx} className="flex gap-2 items-start pl-2 border-b border-slate-100 pb-2">
-                                  <strong>{idx + 1}.</strong>
-                                  <div>
-                                    <strong className="text-blue-900">{s.companyName.toUpperCase()}</strong><br />
-                                    <span className="text-[10px] text-slate-600 block">{s.address ? s.address.toUpperCase() : "TIADA REKOD ALAMAT"}</span>
-                                  </div>
+                              <div className="flex gap-4 items-start">
+                                <strong className="font-bold">1.</strong>
+                                <div>
+                                  <strong className="text-black block font-bold text-[14px]">RIDUK ENTERPRISE</strong>
+                                  <span className="text-black block leading-snug">BATU LIMA TAMAN WAWASAN BEAUFORT</span>
+                                  <span className="text-black block">SABAH.</span>
                                 </div>
-                              ))
+                              </div>
+                            ) : (
+                              selectedSuppliers.map((s, idx) => {
+                                const uppercaseAddr = s.address ? s.address.toUpperCase() : "TIADA REKOD ALAMAT";
+                                return (
+                                  <div key={idx} className="flex gap-4 items-start">
+                                    <strong className="font-bold">{idx + 1}.</strong>
+                                    <div>
+                                      <strong className="text-black block font-bold text-[14px]">{s.companyName.toUpperCase()}</strong>
+                                      <span className="text-black block leading-snug whitespace-pre-wrap">{uppercaseAddr}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })
                             )}
                           </div>
                         </div>
                       </div>
                     </div>
-                  )}
 
-                  {/* Real page footer representation (with identical centered page number as the printed template) */}
-                  <div className="pt-2 border-t border-black text-[7.5px] font-sans tracking-wide leading-tight text-slate-500 mt-6 select-none uppercase shrink-0 text-center">
-                    MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER COMMODITI DAN HASIL<br />
-                    BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
-                    <div className="text-center font-black text-black text-[10px] mt-1.5 font-serif">
-                      {previewPage === 1 ? "1/3" : previewPage === 2 ? "2/3" : "3/3"}
+                    {/* Real page footer representation */}
+                    <div className="absolute left-[0.8in] right-[0.8in] bottom-[0.75in] border-t border-black text-[10px] sm:text-[11px] font-sans tracking-tight leading-snug text-black select-none uppercase text-center pt-2" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                      MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br />
+                      BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+                      <div className="text-center font-bold text-black text-[11px] mt-1 font-serif">
+                        3/3
+                      </div>
                     </div>
                   </div>
                 </div>
-              ) : (
-                <>
-                  <div className="w-full font-serif text-black overflow-y-auto max-h-[80vh] p-2 leading-relaxed" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-                    {/* Header with Logo */}
-                    <div className="text-center mb-6 flex flex-col items-center">
-                      <img 
-                        src="/PUBLIC/intrologo_RISDA.png" 
-                        onError={(e) => {
-                          const img = e.currentTarget;
-                          if (!img.src.includes("/api/logo") && !img.src.endsWith("/api/logo")) {
-                            img.src = "/api/logo";
-                          } else if (!img.src.includes("Logo_RISDA.png") && !img.src.includes("logo_risda.png")) {
-                            img.src = "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png";
-                          }
-                        }}
-                        className="h-[65px] w-auto mb-3 mx-auto block"
-                        referrerPolicy="no-referrer"
-                        alt="RISDA Logo"
-                      />
-                      <div className="font-bold text-[11pt] text-black tracking-normal leading-tight uppercase">
-                        PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH
-                      </div>
-                      <div className="font-bold text-[9.5pt] text-black italic tracking-wide mt-1 uppercase">
-                        KEMENTERIAN KEMAJUAN DESA DAN WILAYAH
-                      </div>
-                      <div className="w-full border-b-[4px] border-double border-black mt-3 mb-5"></div>
-                      
-                      <h1 className="font-bold text-[13pt] text-black tracking-wider mt-1 underline uppercase text-center leading-normal">
-                        SURAT TAWARAN PELAWAAN SEBUTHARGA
-                      </h1>
-                    </div>
+              </div>
+            ) : (
+              <div className="bg-white text-black rounded-[40px] shadow-2xl min-h-[680px] border border-gray-200 relative overflow-hidden flex flex-col font-serif" style={{ fontFamily: "'Times New Roman', Times, serif", paddingTop: '0.75in', paddingBottom: '1.25in', paddingLeft: '0.8in', paddingRight: '0.8in' }}>
+                {/* Subtle Elegant Watermark */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-[0.032] pointer-events-none select-none z-0">
+                  <img 
+                    src="https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png"
+                    className="w-80 h-auto grayscale" 
+                    alt=""
+                  />
+                </div>
+                
+                {/* Draft marker */}
+                <div className="absolute top-2 right-2 bg-red-600 text-white text-[8px] font-mono px-3 py-1 rounded font-black tracking-widest transform rotate-4 shadow-md uppercase z-20">
+                  PRATINJAU DRAFT
+                </div>
+                
+                <div className="w-full font-serif text-black overflow-y-auto max-h-[80vh] p-1 leading-relaxed relative z-10" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                  {/* Header with Logo */}
+                  <div className="text-center mb-6 flex flex-col items-center">
+                    <img 
+                      src="/PUBLIC/intrologo_RISDA.png" 
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        if (!img.src.includes("/api/logo") && !img.src.endsWith("/api/logo")) {
+                          img.src = "/api/logo";
+                        } else if (!img.src.includes("Logo_RISDA.png") && !img.src.includes("logo_risda.png")) {
+                          img.src = "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png";
+                        }
+                      }}
+                      className="h-[65px] w-auto mb-3 mx-auto block"
+                      referrerPolicy="no-referrer"
+                      alt="RISDA Logo"
+                    />
+                    <div className="w-full border-b-2 border-solid border-black mt-3.5 mb-5"></div>
+                    
+                    <h1 className="font-bold text-[13pt] text-black tracking-wider mt-1 underline uppercase text-center leading-normal font-extrabold">
+                      SURAT TAWARAN PELAWAAN SEBUTHARGA
+                    </h1>
+                  </div>
 
-                    {/* Metadata table */}
-                    <table className="w-full text-[11pt] leading-normal text-black border-collapse mb-5">
+                  {/* Metadata table styled as premium administrative list box */}
+                  <div className="border border-slate-300 rounded-xl overflow-hidden shadow-sm bg-slate-50/55 p-3 mb-5">
+                    <table className="w-full text-[10.5pt] leading-relaxed text-black border-collapse">
                       <tbody>
                         <tr>
-                          <td className="w-[28%] font-bold py-1 align-top text-black">No.Sebutharga</td>
-                          <td className="w-[3%] py-1 text-center align-top text-black">:</td>
-                          <td className="w-[69%] font-bold py-1 align-top font-mono tracking-wide text-black text-red-700">
+                          <td className="w-[28%] font-bold py-1.5 align-top text-black uppercase text-[9.5px]">No. Sebutharga</td>
+                          <td className="w-[3%] py-1.5 text-center align-top text-zinc-400">:</td>
+                          <td className="w-[69%] font-bold py-1.5 align-top font-mono tracking-wide text-red-800 text-[11px] bg-red-50/50 px-2 rounded border border-red-100">
                             {selectedAdId ? ads.find(a => a.id === selectedAdId)?.tenderNo : "[PILIH PROJEK UNTUK NO. SEBUT HARGA]"}
                           </td>
                         </tr>
                         <tr>
-                          <td className="font-bold py-1 align-top text-black">Sebutharga</td>
-                          <td className="py-1 text-center align-top text-black">:</td>
-                          <td className="font-bold py-1 align-top text-black uppercase leading-relaxed text-left text-blue-900">
+                          <td className="font-bold py-1.5 align-top text-black uppercase text-[9.5px]">Projek Sebutharga</td>
+                          <td className="py-1.5 text-center align-top text-zinc-400">:</td>
+                          <td className="font-extrabold py-1.5 align-top text-neutral-900 uppercase leading-relaxed text-left">
                             {selectedAdId ? ads.find(a => a.id === selectedAdId)?.title : "[TAJUK SEBUT HARGA AKAN TERHASIL SECARA AUTOMATIK]"}
                           </td>
                         </tr>
-                        <tr className="h-[8px]"><td colSpan={3}></td></tr>
+                        <tr className="h-[4px]"><td colSpan={3}></td></tr>
                         <tr>
-                          <td className="font-bold py-1 align-top text-black">Pembekal/Kontraktor</td>
-                          <td className="py-1 text-center align-top text-black">:</td>
-                          <td className="font-bold py-1 align-top text-black uppercase tracking-wide text-slate-800">
+                          <td className="font-bold py-1.5 align-top text-black uppercase text-[9.5px]">Pembekal Dipelawa</td>
+                          <td className="py-1.5 text-center align-top text-zinc-400">:</td>
+                          <td className="font-extrabold py-1.5 align-top text-indigo-950 uppercase tracking-wide">
                             {selectedSuppliers.length > 0 ? (
-                              <span className="bg-amber-50 border border-dashed border-amber-300 px-1 rounded">{selectedSuppliers[0].companyName}</span>
+                              <span className="bg-amber-100/80 border border-amber-300 px-2 py-0.5 rounded shadow-xs inline-block text-[11px]">{selectedSuppliers[0].companyName}</span>
                             ) : (
                               <span className="text-red-500 italic font-normal text-[9.5pt]">[Sila pilih pembekal di bawah untuk auto-masuk di sini]</span>
                             )}
                           </td>
                         </tr>
                         <tr>
-                          <td className="font-bold py-1 align-top text-black">Alamat</td>
-                          <td className="py-1 text-center align-top text-black">:</td>
-                          <td className="py-1 align-top text-black uppercase leading-relaxed text-left whitespace-pre-wrap text-slate-700">
+                          <td className="font-bold py-1.5 align-top text-black uppercase text-[9.5px]">Alamat Berdaftar</td>
+                          <td className="py-1.5 text-center align-top text-zinc-400">:</td>
+                          <td className="py-1.5 align-top text-slate-800 uppercase leading-relaxed text-left whitespace-pre-wrap text-[10px] font-medium">
                             {selectedSuppliers.length > 0 ? (
                               selectedSuppliers[0].address || "ALAMAT TIADA REKOD"
                             ) : (
@@ -1996,84 +2693,86 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                         </tr>
                       </tbody>
                     </table>
+                  </div>
 
-                    {/* Standard 5 Items */}
-                    <div className="text-[11pt] leading-relaxed text-black text-justify space-y-3">
-                      <div className="flex items-start">
-                        <span className="w-6 font-bold shrink-0">1.</span>
-                        <div>
-                          Sebut harga adalah dipelawa daripada Kontraktor-Kontraktor yang berdaftar dengan{" "}
-                          <strong className="underline text-black uppercase">
-                            {selectedAdId ? getLicensesText(ads.find(a => a.id === selectedAdId)) : "sijil pendaftaran yang berkaitan"}
-                          </strong>{" "}
-                          dan masih sah laku pendaftaran untuk dibenarkan menyertai sebutharga ini.
-                        </div>
+                  {/* Standard 5 Items - beautifully spaced on watermarked sheet */}
+                  <div className="text-[11pt] leading-relaxed text-black text-justify space-y-4">
+                    <div className="flex items-start">
+                      <span className="w-6 font-bold text-indigo-900 shrink-0">1.</span>
+                      <div>
+                        Sebut harga adalah dipelawa daripada Kontraktor-Kontraktor yang berdaftar dengan{" "}
+                        <strong className="underline text-black uppercase font-extrabold bg-blue-50/50 px-1 border border-blue-100 rounded">
+                          {selectedAdId ? getLicensesText(ads.find(a => a.id === selectedAdId)) : "sijil pendaftaran yang berkaitan"}
+                        </strong>{" "}
+                        dan masih sah laku pendaftaran untuk dibenarkan menyertai sebutharga ini.
                       </div>
+                    </div>
 
-                      <div className="flex items-start">
-                        <span className="w-6 font-bold shrink-0">2.</span>
-                        <div>
-                          Dokumen SebutHarga yang telah dilengkapi hendaklah dimasukkan ke dalam satu sampul surat bermetri dan bertulis nombor tawaran disebelah kiri atasnya dan dimasuk ke dalam Peti Tawaran yang terletak di{" "}
-                          <strong className="underline text-black uppercase">
-                            {submissionVenue || "[ALAMAT PETI SERAHAN PEJABAT RISDA]"}
-                          </strong>{" "}
-                          sebelum atau pada{" "}
-                          <strong className="underline text-black uppercase">
-                            {closingDate ? formatBeautifulDate(closingDate) : "[TARIKH TUTUP]"}
-                          </strong>{" "}
-                          Jam/Masa{" "}
-                          <strong className="underline text-black uppercase">
-                            {closingTime || "12.00 TENGAHARI"}
-                          </strong>
-                          .
-                        </div>
+                    <div className="flex items-start">
+                      <span className="w-6 font-bold text-indigo-900 shrink-0">2.</span>
+                      <div>
+                        Dokumen SebutHarga yang telah dilengkapi hendaklah dimasukkan ke dalam satu sampul surat bermetri dan bertulis nombor tawaran disebelah kiri atasnya dan dimasuk ke dalam Peti Tawaran yang terletak di{" "}
+                        <strong className="underline text-black uppercase font-bold text-slate-900">
+                          {submissionVenue || "[ALAMAT PETI SERAHAN PEJABAT RISDA]"}
+                        </strong>{" "}
+                        sebelum atau pada{" "}
+                        <strong className="underline text-red-700 uppercase font-extrabold bg-red-50 px-1 border border-red-100 rounded">
+                          {closingDate ? formatBeautifulDate(closingDate) : "[TARIKH TUTUP]"}
+                        </strong>{" "}
+                        Jam/Masa{" "}
+                        <strong className="underline text-red-600 uppercase font-extrabold bg-red-50 px-1 border border-red-100 rounded">
+                          {closingTime || "12.00 TENGAHARI"}
+                        </strong>
+                        .
                       </div>
+                    </div>
 
-                      <div className="flex items-start">
-                        <span className="w-6 font-bold shrink-0">3.</span>
-                        <div>
-                          Syarat-syarat Sebut Harga, Pelan Lukisan serta Ringkasan Sebut Harga dikembarkan bersama-sama ini.
-                        </div>
+                    <div className="flex items-start">
+                      <span className="w-6 font-bold text-indigo-900 shrink-0">3.</span>
+                      <div>
+                        Syarat-syarat Sebut Harga, Pelan Lukisan serta Ringkasan Sebut Harga dikembarkan bersama-sama ini.
                       </div>
+                    </div>
 
-                      <div className="flex items-start">
-                        <span className="w-6 font-bold shrink-0">4.</span>
-                        <div>
-                          Kontraktor adalah diwajibkan menghadiri taklimat dan lawatan tapak pada{" "}
-                          <strong className="underline text-black uppercase">
-                            {briefingDate ? `${formatBeautifulDate(briefingDate)} (${indonesianDayName(briefingDate)})` : "[TARIKH TAKLIMAT]"}
-                          </strong>{" "}
-                          Jam{" "}
-                          <strong className="underline text-black uppercase">
-                            {briefingTime || "[WAKTU TAKLIMAT]"}
-                          </strong>
-                          . Taklimat akan di sampaikan hanya sekali sahaja dan pihak kontraktor dikehendaki berkumpul di{" "}
-                          <strong className="underline text-black uppercase">
-                            {briefingVenue || "[LOKASI HIMPUNAN TAKLIMAT]"}
-                          </strong>{" "}
-                          pada tarikh dan masa yang telah ditetapkan diatas.
-                        </div>
+                    <div className="flex items-start">
+                      <span className="w-6 font-bold text-indigo-900 shrink-0">4.</span>
+                      <div>
+                        Kontraktor adalah diwajibkan menghadiri taklimat dan lawatan tapak pada{" "}
+                        <strong className="underline text-[11.5px] text-indigo-950 uppercase font-extrabold bg-amber-50 px-1 border border-amber-200 rounded">
+                          {briefingDate ? `${formatBeautifulDate(briefingDate)} (${indonesianDayName(briefingDate)})` : "[TARIKH TAKLIMAT]"}
+                        </strong>{" "}
+                        Jam{" "}
+                        <strong className="underline text-indigo-950 uppercase font-extrabold bg-amber-50 px-1 border border-amber-200 rounded">
+                          {briefingTime || "[WAKTU TAKLIMAT]"}
+                        </strong>
+                        . Taklimat akan di sampaikan hanya sekali sahaja dan pihak kontraktor dikehendaki berkumpul di{" "}
+                        <strong className="underline text-slate-900 uppercase font-bold">
+                          {briefingVenue || "[LOKASI HIMPUNAN TAKLIMAT]"}
+                        </strong>{" "}
+                        pada tarikh dan masa yang telah ditetapkan diatas.
                       </div>
+                    </div>
 
-                      <div className="flex items-start">
-                        <span className="w-6 font-bold shrink-0">5.</span>
-                        <div>
-                          Pihak RISDA tidak terikat untuk menerima sebut harga yang terendah sekali atau mana-mana sebutharga lain.
-                        </div>
+                    <div className="flex items-start">
+                      <span className="w-6 font-bold text-indigo-900 shrink-0">5.</span>
+                      <div>
+                        Pihak RISDA tidak terikat untuk menerima sebut harga yang terendah sekali atau mana-mana sebutharga lain.
                       </div>
                     </div>
                   </div>
 
-                  {/* Footer style for tawaran */}
-                  <div className="pt-2 border-t border-gray-100 mt-2 flex justify-between items-center text-[9px] shrink-0">
-                    <span className="text-gray-400 tracking-wide font-sans font-medium">E-SebutHarga RISDA Beaufort</span>
-                    <span className="text-[8px] bg-risda-orange text-black px-2 py-0.5 rounded font-sans font-black uppercase">
-                      Pratinjau Format 2
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
+
+                </div>
+
+                {/* Footer style for tawaran */}
+                <div className="pt-2 border-t border-gray-200 mt-6 flex justify-between items-center text-[9px] shrink-0 relative z-20">
+                  <span className="text-gray-400 tracking-wide font-sans font-semibold">E-SebutHarga RISDA Beaufort</span>
+                  <span className="text-[8px] bg-gradient-to-r from-risda-orange to-risda-gold text-black px-2.5 py-0.5 rounded font-sans font-black uppercase tracking-wider shadow-sm">
+                    Pratinjau Format 2
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2343,7 +3042,8 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                       <button 
                         type="button"
                         onClick={() => {
-                          setEditSubmissionVenue(selectedInvitation.submissionVenue || 'Pejabat RISDA Daerah Beaufort, K77 dan K78, Blok K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah');
+                          const def = getStaffDefaultOfficeAndAddress();
+                          setEditSubmissionVenue(selectedInvitation.submissionVenue || def.fullAddress);
                           setEditClosingDate(selectedInvitation.closingDate || '');
                           setEditClosingTime(selectedInvitation.closingTime || '');
                           setEditBriefingDate(selectedInvitation.briefingDate || '');
@@ -2386,34 +3086,20 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                             <span className="text-[9px] text-risda-muted font-bold block">{s.phoneNumber} | {s.email}</span>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {/* WhatsApp button */}
-                            <a 
-                              href={getWhatsAppURL(s, selectedInvitation)}
-                              target="_blank" 
-                              rel="noreferrer"
-                              className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-black rounded-xl transition-all"
-                              title="Kongsi Maklumat Jemputan di WhatsApp"
+                            {/* System SMTP Email button */}
+                            <button 
+                              type="button"
+                              onClick={() => handleSendSmtpEmail(s, selectedInvitation)}
+                              disabled={sendingEmailStates[s.companyName]}
+                              className={`p-2 rounded-xl transition-all ${
+                                sendingEmailStates[s.companyName]
+                                  ? 'bg-yellow-500/20 text-yellow-400 animate-pulse cursor-not-allowed'
+                                  : 'bg-risda-orange/10 hover:bg-risda-orange text-risda-orange hover:text-black'
+                              }`}
+                              title="Kirim E-mel & Dokumen Digital Rasmi Terus via SMTP Sistem"
                             >
-                              <MessageCircle size={14} />
-                            </a>
-                            {/* Email button */}
-                            <a 
-                              href={getEmailMailto(s, selectedInvitation)}
-                              className="p-2 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white rounded-xl transition-all"
-                              title="Hantar Mel Pelawaan Rasmi"
-                            >
-                              <Mail size={14} />
-                            </a>
-                            {/* Supplier letter PDF link */}
-                            <a 
-                              href={`/?viewLetter=${selectedInvitation.id}&company=${encodeURIComponent(s.companyName)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-2 bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-white rounded-xl transition-all"
-                              title="Lihat Pautan Surat & Iklan PDF Kontraktor"
-                            >
-                              <ExternalLink size={14} />
-                            </a>
+                              <Send size={14} />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -2437,6 +3123,19 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                     <Printer size={13} /> Cetak Surat Tawaran
                   </button>
                   <button 
+                    type="button"
+                    onClick={() => handleBulkSendSmtpEmail(selectedInvitation)}
+                    disabled={bulkSending}
+                    className={`flex-1 min-w-[160px] py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02] flex items-center justify-center gap-2 ${
+                      bulkSending 
+                        ? 'bg-yellow-500/20 text-yellow-400 animate-pulse cursor-not-allowed'
+                        : 'bg-emerald-500 hover:bg-emerald-600 text-black font-black'
+                    }`}
+                    title="Hantar Hebahan E-mel Pukal secara Autopilot via Pelayan SMTP"
+                  >
+                    <Send size={13} /> Hebahan E-mel (SMTP)
+                  </button>
+                  <button 
                     onClick={() => setSelectedInvitation(null)}
                     className="px-4 py-3.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
                   >
@@ -2450,7 +3149,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                 <div className="bg-white text-black p-6 rounded-2xl shadow-lg border border-gray-200 text-[10px] font-serif leading-relaxed space-y-4">
                   <div className="border-b border-black text-center pb-2">
                     <span className="font-bold text-[11px]">PEJABAT RISDA DAERAH BEAUFORT</span><br />
-                    <span className="text-[6px] text-gray-500">Tel: 087-211142 | Faks: 087-212211</span>
+                    <span className="text-[6px] text-gray-500">K77 & K78, BLOCK K, BEAUFORT SQUARE AVENUE, JALAN BINUNUK, 89800 BEAUFORT, SABAH | TEL: 087-224 335</span>
                   </div>
                   <div className="flex justify-between text-[9px]">
                     <span>Ruj: <strong className="font-sans font-bold">{selectedInvitation.referenceNo}</strong></span>

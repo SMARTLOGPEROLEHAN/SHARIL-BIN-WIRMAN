@@ -12,6 +12,65 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
 
+  // API Route for sending automated emails
+  app.post("/api/send-email", async (req, res) => {
+    try {
+      const { to, subject, text, html, attachments } = req.body;
+      if (!to || !subject || (!text && !html)) {
+        return res.status(400).json({ error: "Sila berikan parameter email yang lengkap (to, subject, text dan/atau html)" });
+      }
+
+      const host = process.env.SMTP_HOST;
+      const port = process.env.SMTP_PORT;
+      const user = process.env.SMTP_USER;
+      const pass = process.env.SMTP_PASS;
+      const from = process.env.SMTP_FROM || user;
+
+      if (!host || !user || !pass) {
+        console.warn("SMTP credentials are not fully configured in Secrets. Email cannot be sent via direct SMTP.");
+        return res.status(501).json({ 
+          error: "Konfigurasi SMTP tidak lengkap. Sila tambahkan SMTP_HOST, SMTP_USER, dan SMTP_PASS di bahagian Secrets di AI Studio."
+        });
+      }
+
+      const transporter = nodemailer.createTransport({
+        host,
+        port: port ? parseInt(port, 10) : 587,
+        secure: port === "465", // Use SSL for port 465, TLS/secure=false for others
+        auth: {
+          user,
+          pass,
+        },
+        tls: {
+          rejectUnauthorized: false // Avoid issues with self-signed certs
+        }
+      });
+
+      const mailOptions: any = {
+        from: from || `"Sistem Pengurusan Organisasi" <${user}>`,
+        to,
+        subject,
+        text,
+        html: html || text.replace(/\n/g, "<br/>"),
+      };
+
+      if (attachments && Array.isArray(attachments)) {
+        mailOptions.attachments = attachments.map((att: any) => ({
+          filename: att.filename,
+          content: Buffer.from(att.content, 'base64'),
+          contentType: att.contentType || 'application/pdf'
+        }));
+      }
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log("Email sent successfully: ", info.messageId);
+      res.json({ success: true, messageId: info.messageId });
+    } catch (error: any) {
+      console.error("Failed to send email via SMTP:", error);
+      res.status(500).json({ error: error.message || "Gagal menghantar e-mel melalui SMTP." });
+    }
+  });
+
   // API Route for Gemini Analysis
   app.post("/api/analyze-tender", async (req, res) => {
     try {
@@ -233,68 +292,6 @@ Answer in Bahasa Melayu properly. Be professional, humble, helpful, and concise.
     } catch (error) {
       console.error("Logo Proxy Error:", error);
       res.status(500).send("Internal Server Error");
-    }
-  });
-
-  // API Route for Sending Email Confirmation via SMTP
-  app.post("/api/send-email", async (req, res) => {
-    try {
-      const { to, subject, html, text } = req.body;
-      if (!to || !subject) {
-        return res.status(400).json({ error: "Missing to or subject parameters" });
-      }
-
-      const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-      const smtpPort = parseInt(process.env.SMTP_PORT || "465", 10);
-      const smtpSecure = process.env.SMTP_SECURE !== "false";
-      const smtpUser = process.env.SMTP_USER;
-      const smtpPass = process.env.SMTP_PASS;
-      const fromName = process.env.SMTP_FROM_NAME || "Pentadbir Sistem";
-      const fromEmail = process.env.SMTP_FROM_EMAIL || smtpUser;
-
-      if (!smtpUser || !smtpPass) {
-        console.log(`[SMTP SIMULATION] SMTP not configured. Printing email content:`);
-        console.log(`To: ${to}`);
-        console.log(`Subject: ${subject}`);
-        console.log(`Body:\n${text || html}`);
-        return res.json({ 
-          success: true, 
-          simulated: true, 
-          message: "SMTP is not configured. Email logged in simulation mode to the server logs." 
-        });
-      }
-
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpSecure,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-        tls: {
-          rejectUnauthorized: false // Avoid common SSL certificate matching errors
-        },
-        connectionTimeout: 15000, // 15 seconds timeout
-        greetingTimeout: 10000,
-      });
-
-      await transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
-        to,
-        subject,
-        text,
-        html,
-      });
-
-      console.log(`[SMTP SUCCESS] Email successfully sent to ${to}`);
-      res.json({ success: true, message: "Real email sent successfully." });
-    } catch (error: any) {
-      console.error("[SMTP ERROR] Error sending email:", error);
-      res.status(500).json({ 
-        error: `Gagal menghantar e-mel: ${error.message}`,
-        details: error.toString() 
-      });
     }
   });
 

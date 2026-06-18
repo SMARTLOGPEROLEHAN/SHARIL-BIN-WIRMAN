@@ -237,6 +237,8 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
     return displayStatus === 'SELESAI (KEPUTUSAN)';
   }).length;
 
+  const batalCount = ads.filter(ad => ad.status === 'BATAL').length;
+
   const totalCount = ads.length;
 
   // Pre-calculate filtered ads to avoid logic branch mess in JSX
@@ -295,77 +297,102 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                 <span className="text-[9px] font-black uppercase tracking-[3px] text-risda-orange">KEMAS KINI LANGSUNG (LIVE)</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tight font-display !leading-tight">
-                PORTAL PEROLEHAN <span className="text-transparent bg-clip-text bg-gradient-to-r from-risda-orange to-risda-gold font-black italic">& KEPUTUSAN</span>
+                {initialStatus === 'SELESAI (KEPUTUSAN)' ? 'KEPUTUSAN RASMI' : initialStatus === 'AKTIF' ? 'PORTAL IKLAN' : 'PORTAL PEROLEHAN'}{' '}
+                {initialStatus === 'SELESAI (KEPUTUSAN)' ? 'KONTRAKTOR' : initialStatus === 'AKTIF' ? 'SEBUT HARGA' : '& KEPUTUSAN'}
               </h2>
               <p className="text-xs sm:text-sm text-risda-muted font-bold max-w-2xl leading-relaxed">
-                Papar iklan sebut harga aktif semasa, pendaftaran taklimat tapak, serta keputusan rasmi pemenang lantikan kontraktor RISDA secara bersepadu dan telus.
+                {initialStatus === 'SELESAI (KEPUTUSAN)' 
+                  ? 'Papar keputusan rasmi pemenang lantikan kontraktor RISDA secara bersepadu, telus dan mutakhir.'
+                  : initialStatus === 'AKTIF'
+                  ? 'Papar iklan sebut harga semasa, pendaftaran taklimat tapak, serta arkib status sebut harga secara bersepadu dan telus.'
+                  : 'Papar iklan sebut harga aktif semasa, pendaftaran taklimat tapak, serta keputusan rasmi pemenang lantikan kontraktor RISDA secara bersepadu dan telus.'}
               </p>
             </div>
 
             {/* Live Stats badging */}
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 shrink-0 lg:w-96">
-              <div 
-                onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
-                className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
-                  filters.status === 'AKTIF' ? 'border-risda-orange/50 shadow-[0_0_15px_rgba(255,176,0,0.1)]' : 'border-white/5'
-                }`}
-              >
-                <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-risda-orange transition-colors">{activeCount}</div>
-                <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Iklan Aktif Terbit</div>
+            {initialStatus === 'SELESAI (KEPUTUSAN)' ? (
+              <div className="grid grid-cols-1 gap-4 sm:gap-6 shrink-0 lg:w-48">
+                <div 
+                  className="bg-black/45 border rounded-3xl p-5 border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+                >
+                  <div className="text-2xl sm:text-3xl font-black text-white">{resolvedCount}</div>
+                  <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Sebut Harga Selesai</div>
+                </div>
               </div>
-              <div 
-                onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
-                className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
-                  filters.status === 'SELESAI (KEPUTUSAN)' ? 'border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'border-white/5'
-                }`}
-              >
-                <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-blue-400 transition-colors">{resolvedCount}</div>
-                <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Sebut Harga Selesai</div>
+            ) : initialStatus === 'AKTIF' ? (
+              <div className="grid grid-cols-1 gap-4 sm:gap-6 shrink-0 lg:w-48">
+                <div 
+                  onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
+                  className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
+                    filters.status === 'AKTIF' ? 'border-risda-orange/50 shadow-[0_0_15px_rgba(255,176,0,0.1)]' : 'border-white/5'
+                  }`}
+                >
+                  <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-risda-orange transition-colors">{activeCount}</div>
+                  <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Iklan Aktif Terbit</div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 sm:gap-6 shrink-0 lg:w-96">
+                <div 
+                  onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
+                  className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
+                    filters.status === 'AKTIF' ? 'border-risda-orange/50 shadow-[0_0_15px_rgba(255,176,0,0.1)]' : 'border-white/5'
+                  }`}
+                >
+                  <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-risda-orange transition-colors">{activeCount}</div>
+                  <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Iklan Aktif Terbit</div>
+                </div>
+                <div 
+                  onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
+                  className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
+                    filters.status === 'SELESAI (KEPUTUSAN)' ? 'border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'border-white/5'
+                  }`}
+                >
+                  <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-blue-400 transition-colors">{resolvedCount}</div>
+                  <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Sebut Harga Selesai</div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Master Selector Tab Bar */}
         <div className="flex flex-wrap items-center gap-3 mb-8 overflow-x-auto pb-2 scrollbar-none border-b border-white/5">
-          <button
-            onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
-            className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
-              filters.status === 'AKTIF'
-                ? 'bg-gradient-to-r from-risda-orange/20 to-risda-gold/10 text-white border-risda-orange/40 shadow-[0_0_20px_rgba(255,176,0,0.15)]'
-                : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
-            }`}
-          >
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-            IKLAN SEBUT HARGA AKTIF
-            <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{activeCount}</span>
-          </button>
-
-          <button
-            onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
-            className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
-              filters.status === 'SELESAI (KEPUTUSAN)'
-                ? 'bg-gradient-to-r from-blue-500/20 to-indigo-500/10 text-white border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
-                : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
-            }`}
-          >
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
-            KEPUTUSAN RASMI PEROLEHAN
-            <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{resolvedCount}</span>
-          </button>
-
-          {isStaff && (
+          {initialStatus === 'SELESAI (KEPUTUSAN)' ? (
+            <button
+              onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
+              className="px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-default shrink-0 border bg-gradient-to-r from-blue-500/20 to-indigo-500/10 text-white border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.15)]"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+              KEPUTUSAN RASMI PEROLEHAN
+              <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{resolvedCount}</span>
+            </button>
+          ) : (
             <>
               <button
-                onClick={() => setFilters({ ...filters, status: 'SEMUA' })}
+                onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
                 className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
-                  filters.status === 'SEMUA'
-                    ? 'bg-white/15 text-white border-white/20'
+                  filters.status === 'AKTIF'
+                    ? 'bg-gradient-to-r from-risda-orange/20 to-risda-gold/10 text-white border-risda-orange/40 shadow-[0_0_20px_rgba(255,176,0,0.15)]'
                     : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
                 }`}
               >
-                SEMUA IKLAN
-                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{totalCount}</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+                IKLAN AKTIF
+                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{activeCount}</span>
+              </button>
+
+              <button
+                onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
+                className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
+                  filters.status === 'SELESAI (KEPUTUSAN)'
+                    ? 'bg-gradient-to-r from-blue-500/20 to-indigo-500/10 text-white border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
+                    : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
+                }`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+                IKLAN SELESAI
+                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{resolvedCount}</span>
               </button>
 
               <button
@@ -376,7 +403,21 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                     : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
                 }`}
               >
-                BATAL / PENAGGuhan
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                IKLAN BATAL
+                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{batalCount}</span>
+              </button>
+
+              <button
+                onClick={() => setFilters({ ...filters, status: 'SEMUA' })}
+                className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
+                  filters.status === 'SEMUA'
+                    ? 'bg-white/15 text-white border-white/20'
+                    : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
+                }`}
+              >
+                SEMUA IKLAN
+                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{totalCount}</span>
               </button>
             </>
           )}
@@ -552,7 +593,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                           </span>
                         )}
                       </div>
-                      <div className="text-[14px] font-black text-white group-hover:text-risda-orange transition-colors uppercase truncate max-w-[420px] font-display mb-3">{item.title}</div>
+                      <div className="text-[14px] font-black text-white group-hover:text-risda-orange transition-colors uppercase font-display mb-3 break-words whitespace-normal leading-relaxed">{item.title}</div>
                       {showRegistration && 
                         (item.displayStatus === 'AKTIF') && 
                         !(item.title?.toUpperCase().includes('PROJEK JALAN') && (role === 'pelawat' || !role)) && (
@@ -653,7 +694,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                     {item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus}
                   </span>
                 </div>
-                <h4 className="text-sm font-black text-white leading-tight uppercase line-clamp-2">{item.title}</h4>
+                <h4 className="text-sm font-black text-white leading-relaxed uppercase break-words whitespace-normal">{item.title}</h4>
                 {item.displayStatus === 'SELESAI (KEPUTUSAN)' && item.winner && (
                   <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
                     <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Pembekal Terpilih:</p>
@@ -694,7 +735,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
       
         <div className="mt-8 p-6 bg-gradient-to-r from-risda-orange/5 to-transparent border-l-2 border-risda-orange rounded-r-xl">
            <p className="text-[11px] text-risda-text-secondary leading-relaxed italic uppercase tracking-wider">
-             Sistem RISDA memastikan ketelusan seratus peratus dalam setiap fasa perolehan. Sila pastikan anda mempunyai dokumen dan lesen sah pendaftaran sebelum menyertai sebut harga.
+             Sistem SMARTLOG PEROLEHAN memastikan ketelusan seratus peratus dalam setiap fasa perolehan. Sila pastikan anda mempunyai dokumen dan lesen sah pendaftaran sebelum menyertai sebut harga.
            </p>
         </div>
       </div>
@@ -736,7 +777,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                           <p className="text-[11px] text-risda-orange font-black uppercase tracking-[4px]">
                             {isRegisterMode 
                               ? 'Sila pilih projek untuk pendaftaran taklimat tapak' 
-                              : 'Sila pilih projek untuk melihat maklumat & muat turun dokumen sebut harga'}
+                              : (isStaff ? 'Sila pilih projek untuk melihat maklumat & muat turun dokumen sebut harga' : 'Sila pilih projek untuk melihat maklumat sebut harga')}
                           </p>
                         </div>
 
@@ -773,7 +814,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                             >
                               <div className="absolute top-0 right-0 w-32 h-32 bg-risda-orange/5 -mr-16 -mt-16 rounded-full blur-2xl group-hover:bg-risda-orange/10 transition-all" />
                               <div className="font-mono text-[10px] text-risda-orange mb-2 font-bold tracking-widest">{ad.tenderNo}</div>
-                              <div className="text-[13px] font-black text-white uppercase group-hover:text-risda-orange transition-colors leading-relaxed line-clamp-2">{ad.title}</div>
+                              <div className="text-[13px] font-black text-white uppercase group-hover:text-risda-orange transition-colors leading-relaxed break-words whitespace-normal">{ad.title}</div>
                               <div className="mt-4 flex items-center justify-between">
                                 <span className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{ad.office}</span>
                                 <span className="text-[9px] text-risda-gold font-bold uppercase tracking-widest">{formatDate(ad.closingDate)}</span>
@@ -844,7 +885,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                       </div>
 
                       {/* Beautiful Unified Download Bar exactly matching the image layout */}
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#0a0f1d] p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-2xl text-left">
+                      <div className={`${isStaff ? 'flex' : 'hidden'} flex-col sm:flex-row items-center justify-between gap-4 bg-[#0a0f1d] p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-2xl text-left`}>
                         <div className="flex items-center gap-4 w-full sm:w-auto">
                           <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
                             <Download size={20} className="stroke-[3]" />
@@ -1266,7 +1307,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                             </p>
                             <div className="h-px bg-white/5" />
                             <p className="text-[10px] text-risda-muted leading-relaxed uppercase">
-                              Pastikan anda berada di lokasi taklimat pada tarikh dan masa yang ditetapkan bersendirian untuk mengimbas pendaftaran.
+                              Pastikan anda berada di lokasi taklimat pada tarikh dan masa yang ditetapkan bersendirian. Mohon untuk mengimbas kod qr yang ada pada iklan bagi tujuan pendaftaran secara digital dari iklan di keluarkan atau sehari sebelum hari taklimat tapak.
                             </p>
                           </div>
                         </div>

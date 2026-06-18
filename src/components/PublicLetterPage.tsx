@@ -136,6 +136,26 @@ export default function PublicLetterPage({ invitationId, companyName, onBackToPo
     return parts.slice(0, -1).join(', ') + ' & ' + parts[parts.length - 1];
   };
 
+  let officeVal = 'PEJABAT RISDA DAERAH BEAUFORT';
+  let addressVal = 'K77 & K78, Block K, Beaufort Square Avenue 1,<br/>Jalan Binunuk,<br/>89800 Beaufort, Sabah';
+  let emailVal = 'prdbeaufort@risda.gov.my';
+  let telVal = '087-224335/336';
+  
+  if (invitation?.submissionVenue) {
+    const parts = invitation.submissionVenue.split(',');
+    if (parts.length > 0) {
+      officeVal = parts[0].trim().toUpperCase();
+    }
+    if (parts.length > 1) {
+      addressVal = parts.slice(1).map((p: string) => p.trim()).join(',<br/>').toUpperCase();
+    }
+    const rawOffice = parts[0] || '';
+    const cleanedOfficeName = rawOffice.replace('PEJABAT RISDA DAERAH', '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cleanedOfficeName) {
+      emailVal = `prd${cleanedOfficeName}@risda.gov.my`;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#070b12] text-slate-800 flex flex-col selection:bg-risda-orange/30 print:bg-white">
       
@@ -238,328 +258,417 @@ export default function PublicLetterPage({ invitationId, companyName, onBackToPo
 
       {/* simulated A4 Document Container */}
       <div className="flex-1 py-8 px-4 print:py-0 print:px-0">
-        <div 
-          className="bg-white max-w-[210mm] min-h-[297mm] mx-auto p-[1.5in] sm:p-[1in] md:p-[1.2in] shadow-2xl relative border border-slate-200/50 rounded-none print:shadow-none print:border-none print:p-0"
-          style={{ fontFamily: "'Times New Roman', Times, serif", contentVisibility: 'auto' }}
-        >
-          {/* Letterhead Logo Watermark Effect */}
-          <div className="absolute inset-0 pointer-events-none opacity-[0.02] flex items-center justify-center p-20 select-none">
-            <div className="border-[15px] border-black rounded-full p-20 w-[400px] h-[400px] flex items-center justify-center text-center">
-              <span className="text-[40px] font-bold tracking-[8px] uppercase">RISDA</span>
-            </div>
-          </div>
-
-          {/* Conditionally Render Letterhead & Content depending on activeFormat to match PDF exact layout */}
+        <div className="max-w-[210mm] mx-auto select-none print:max-w-none">
           {activeFormat === 'rasmi' ? (
-            <>
-              {/* Reference/Standard Letterhead for Rasmi Layout */}
-              <div className="border-b-[4px] border-double border-black pb-4 mb-8 text-center flex flex-col items-center">
-                <h2 className="text-lg md:text-xl font-bold tracking-wider leading-tight text-black uppercase">
-                  PENTADBIRAN RISDA NEGERI SABAH
-                </h2>
-                <h1 className="text-base md:text-lg font-bold text-black mt-0.5 uppercase">
-                  PEJABAT RISDA DAERAH BEAUFORT
-                </h1>
-                <p className="text-[9.5pt] font-normal text-slate-700 tracking-wide mt-1">
-                  Peti Surat 185, 89807 Beaufort, Sabah | Tel: 087-211142 | Faks: 087-212211
-                </p>
-              </div>
-
-              {/* Metadata Section */}
-              <table className="w-full text-[11pt] border-collapse mb-8">
-                <tbody>
-                  <tr>
-                    <td className="w-[18%] py-0.5 text-black">Rujukan Kami</td>
-                    <td className="w-[2%] py-0.5 text-center text-black">:</td>
-                    <td className="w-[45%] py-0.5 font-normal text-black uppercase">{invitation.referenceNo}</td>
-                    <td className="w-[35%] py-0.5 text-right text-black">
-                      Tarikh: <span className="font-bold text-black uppercase">{formatBeautifulDate(invitation.invitationDate)}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Recipient details */}
-              <div className="mb-6 text-[11pt] leading-relaxed text-black">
-                <div className="font-bold underline uppercase">KEPADA SYARIKAT EDARAN BERDAFTAR:</div>
-                <div className="font-bold text-[12pt] tracking-wide mt-1 uppercase">{matchedSupplier?.companyName || 'PIHAK TUAN / PUAN'}</div>
-                <div className="text-[11.5pt] mt-0.5 whitespace-pre-wrap max-w-xl uppercase">
-                  {matchedSupplier?.address || 'Alamat Perniagaan Syarikat Berdaftar'}
-                </div>
-                {matchedSupplier?.phoneNumber && (
-                  <div className="text-[10pt] text-slate-700 mt-1 uppercase">
-                    No. Tel: {matchedSupplier.phoneNumber} {matchedSupplier.email ? `| E-mel: ${matchedSupplier.email}` : ''}
+            <div className="flex flex-col gap-6 print:gap-0 font-serif" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+              
+              {/* PAGE 1 */}
+              <div className="print-page print-page-first relative">
+                <div className="print-content-wrap">
+                  {/* Shared Official Header - Identical on Pages 1, 2, and 3 */}
+                  <div className="border-b-2 border-solid border-black pb-4 mb-6 text-center flex items-center justify-between">
+                    <div className="w-[85px] text-left shrink-0">
+                      <img 
+                        src="/PUBLIC/intrologo_RISDA.png" 
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          img.src = "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png";
+                        }}
+                        className="h-[75px] w-auto block"
+                        referrerPolicy="no-referrer"
+                        alt="RISDA Logo"
+                      />
+                    </div>
+                    <div className="flex-1 text-left pl-4 font-serif text-black leading-tight">
+                      <strong className="text-[11pt] block mb-0.5 uppercase tracking-wide font-extrabold text-black">
+                        PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH<br/>(RISDA)
+                      </strong>
+                      <strong className="text-[11pt] block mb-0.5 uppercase tracking-wide font-bold text-black font-serif">
+                        {officeVal}
+                      </strong>
+                      <div className="text-[8.5pt] leading-normal mt-2 flex justify-between items-end bg-transparent font-sans">
+                        <div className="text-left font-sans text-slate-800 font-medium" dangerouslySetInnerHTML={{ __html: addressVal }} />
+                        <div className="text-right font-sans whitespace-nowrap pl-2 space-y-0.5 text-zinc-600">
+                          <div><strong className="text-black font-semibold">TEL:</strong> {telVal}</div>
+                          <div><strong className="text-black font-semibold">EMAIL:</strong> {emailVal}</div>
+                          <div><strong className="text-black font-semibold">WEB:</strong> www.risda.gov.my</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
 
-              <div className="text-[11pt] mb-6 text-black font-serif">
-                Tuan / Puan,
-              </div>
-
-              {/* Letter Title */}
-              <div className="font-bold text-[12pt] mb-6 border-b border-black pb-2 uppercase tracking-wide leading-relaxed text-black">
-                PELAWAAN MENYERTAI SEBUT HARGA BAGI:<br/>
-                "{invitation.adTitle}"<br/>
-                NO. RUJUKAN SEBUT HARGA: <span className="underline font-mono">{invitation.tenderNo}</span>
-              </div>
-
-              {/* Letter Body paragraphs */}
-              <div className="text-[11pt] leading-relaxed text-black text-justify space-y-4 font-serif">
-                <p>
-                  Dengan hormatnya perkara di atas adalah dirujuk.
-                </p>
-
-                <p className="indent-8">
-                  2. &nbsp;&nbsp; Sukacita dimaklumkan bahawa Pejabat RISDA Daerah Beaufort bersetuju mengundang syarikat pihak tuan / puan yang terpilih untuk menyertai sebut harga perolehan bagi projek/bekalan yang dinyatakan di atas berteraskan kriteria pendaftaran syarikat di Sabah.
-                </p>
-
-                <p className="indent-8">
-                  3. &nbsp;&nbsp; Selaras dengan ketetapan perolehan, taklimat, lawatan tapak wajib serta tarikh tutup penutupan sebut harga akan dilaksanakan mengikut jadual ketat di bawah:
-                </p>
-
-                {/* Sub-table with details */}
-                <div className="pl-8 py-2">
-                  <table className="w-full border-collapse text-[10.5pt]">
+                  {/* Metadata Section */}
+                  <table className="w-full text-[11pt] border-collapse mb-5 font-serif text-black">
                     <tbody>
                       <tr>
-                        <td className="w-[32%] font-bold py-1 text-black">A) SEBUT HARGA / PROJEK</td>
-                        <td className="w-[3%] py-1 text-center text-black">:</td>
-                        <td className="w-[65%] py-1 text-black font-semibold uppercase">{invitation.adTitle}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold py-1 text-black">B) RAWATAN & TAKLIMAT TAPAK</td>
-                        <td className="py-1 text-center text-black">:</td>
-                        <td className="py-1 text-black font-bold text-[11pt] text-sky-700 print:text-black uppercase">WAJIB HADIR</td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 pl-4 text-slate-700">Tarikh & Hari Taklimat</td>
-                        <td className="py-1 text-center text-black">:</td>
-                        <td className="py-1 text-black font-bold uppercase">
-                          {formatBeautifulDate(invitation.briefingDate || '')} ({indonesianDayName(invitation.briefingDate || '')})
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 pl-4 text-slate-700">Masa Taklimat</td>
-                        <td className="py-1 text-center text-black">:</td>
-                        <td className="py-1 text-black uppercase">{invitation.briefingTime || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 pl-4 text-slate-700">Tempat Berkumpul</td>
-                        <td className="py-1 text-center text-black">:</td>
-                        <td className="py-1 text-black whitespace-pre-wrap max-w-md uppercase">{invitation.briefingVenue || '-'}</td>
-                      </tr>
-                      <tr className="h-2"><td></td><td></td><td></td></tr>
-                      <tr>
-                        <td className="font-bold py-1 text-black">C) TARIKH TUTUP SEBUT HARGA</td>
-                        <td className="py-1 text-center text-black">:</td>
-                        <td className="py-1 text-black"></td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 pl-4 text-slate-700">Tarikh & Jam Tutup</td>
-                        <td className="py-1 text-center text-black">:</td>
-                        <td className="py-1 text-black font-bold text-red-700 print:text-black uppercase">
-                          {indonesianDayName(invitation.closingDate || '')}, {formatBeautifulDate(invitation.closingDate || '')} SEBELUM JAM {invitation.closingTime || '-'}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 pl-4 text-slate-700">Tempat Penghantaran</td>
-                        <td className="py-1 text-center text-black">:</td>
-                        <td className="py-1 text-black uppercase">
-                          {invitation.submissionVenue || 'PEJABAT RISDA DAERAH BEAUFORT, SABAH'}
+                        <td className="w-[18%] py-0.5 text-black">Rujukan Kami</td>
+                        <td className="w-[2%] py-0.5 text-center text-black">:</td>
+                        <td className="w-[45%] py-0.5 font-sans font-bold text-black uppercase">{invitation.referenceNo}</td>
+                        <td className="w-[35%] py-0.5 text-right text-black">
+                          Tarikh: <span className="font-bold text-black uppercase">{formatBeautifulDate(invitation.invitationDate)}</span>
                         </td>
                       </tr>
                     </tbody>
                   </table>
-                </div>
 
-                <p className="indent-8">
-                  4. &nbsp;&nbsp; Hanya penama rasmi di dalam lesen Sijil Pendaftaran sahaja yang dibenarkan menghadiri taklimat dan lawatan tapak. Wakil kontraktor adalah tidak dibenarkan sama sekali. Sila bawa sijil lesen asal (CIDB, SPKK, PUKONSA atau MOF berkaitan) serta salinan untuk rujukan Jabatan.
-                </p>
-
-                <p className="indent-8">
-                  Sila mendaftar kehadiran secara digital sebaik sahaja tiba di lokasi taklimat menerusi portal log digital di:
-                  <br />
-                  <strong className="text-black block underline font-mono select-all text-xs text-center mt-1.5 p-1 bg-slate-50 border border-slate-100 rounded print:border-none print:p-0 print:bg-transparent">
-                    {window.location.protocol}//{window.location.host}/?adId={invitation.adId}
-                  </strong>
-                </p>
-
-                <p>
-                  Sekian untuk makluman dan tindakan profesional pihak tuan / puan selanjutnya.
-                </p>
-              </div>
-
-              {/* Slogan */}
-              <div className="mt-8 text-[11pt] text-black">
-                <strong>"MALAYSIA MADANI"</strong><br/>
-                <span className="italic text-[10pt]">"Berkhidmat Untuk Negara"</span>
-              </div>
-
-              {/* Signoff */}
-              <div className="mt-12 text-[11px] leading-relaxed text-black break-inside-avoid">
-                <p>Saya yang menjalankan amanah,</p>
-                <div className="h-16" /> {/* space for sign */}
-                <strong>({invitation.officerName ? invitation.officerName.toUpperCase() : 'PEGAWAI PENTADBIRAN'})</strong><br/>
-                b.p. Pegawai RISDA Daerah Beaufort<br/>
-                RISDA Negeri Sabah
-              </div>
-            </>
-          ) : (
-            <>
-              {/* HIGH-FIDELITY OFFICIAL SURAT TAWARAN PELAWAAN LAYOUT MATCHING THE PDF ACCURATELY */}
-              <div className="text-center mb-6 flex flex-col items-center" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-                {/* Gold RISDA Seal Badge inline SVG */}
-                <svg width="65" height="65" viewBox="0 0 100 100" className="mb-3 mx-auto block">
-                  <circle cx="50" cy="50" r="46" fill="none" stroke="#E2A612" strokeWidth="2.5"/>
-                  <circle cx="50" cy="50" r="41" fill="none" stroke="#E2A612" strokeWidth="1" strokeDasharray="2,2"/>
-                  <path d="M50,15 C35,40 38,70 50,85 C62,70 65,40 50,15 Z" fill="#E2A612" opacity="0.15"/>
-                  <path d="M30,75 Q20,50 35,30 Q38,45 32,65" fill="none" stroke="#E2A612" strokeWidth="2"/>
-                  <path d="M70,75 Q80,50 65,30 Q62,45 68,65" fill="none" stroke="#E2A612" strokeWidth="2"/>
-                  <circle cx="50" cy="53" r="14" fill="#E2A612"/>
-                  <text x="50" y="57" fontFamily="sans-serif" fontWeight="900" fontSize="8" fill="#ffffff" textAnchor="middle">RISDA</text>
-                </svg>
-
-                <div className="font-bold text-[11pt] text-black tracking-normal leading-tight">
-                  PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH
-                </div>
-                <div className="font-bold text-[9.5pt] text-black italic tracking-wide mt-1">
-                  KEMENTERIAN KEMAJUAN DESA DAN WILAYAH
-                </div>
-                <div className="w-full border-b-[4px] border-double border-black mt-4 mb-6"></div>
-                
-                <h1 className="font-black text-[13.5pt] text-black tracking-widest mt-1 underline">
-                  SURAT TAWARAN PELAWAAN SEBUTHARGA
-                </h1>
-              </div>
-
-              {/* Exact Aligned Metadata Block */}
-              <table className="w-full text-[11.5pt] leading-normal text-black border-collapse mb-6" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-                <tbody>
-                  <tr>
-                    <td className="w-[25%] font-bold py-1.5 align-top text-black">No.Sebutharga</td>
-                    <td className="w-[3%] py-1.5 text-center align-top text-black">:</td>
-                    <td className="w-[72%] font-bold py-1.5 align-top font-mono tracking-wide text-black">{invitation.tenderNo}</td>
-                  </tr>
-                  <tr>
-                    <td className="font-bold py-1.5 align-top text-black">Sebutharga</td>
-                    <td className="py-1.5 text-center align-top text-black">:</td>
-                    <td className="font-bold py-1.5 align-top text-black uppercase leading-relaxed">{invitation.adTitle}</td>
-                  </tr>
-                  <tr className="h-[12px]"><td colSpan={3}></td></tr>
-                  <tr>
-                    <td className="font-bold py-1.5 align-top text-black">Pembekal/Kontraktor</td>
-                    <td className="py-1.5 text-center align-top text-black">:</td>
-                    <td className="font-bold py-1.5 align-top text-black uppercase tracking-wide">{matchedSupplier?.companyName || 'PIHAK KONTRAKTOR TERPILIH'}</td>
-                  </tr>
-                  <tr>
-                    <td className="font-bold py-1.5 align-top text-black">Alamat</td>
-                    <td className="py-1.5 text-center align-top text-black">:</td>
-                    <td className="py-1.5 align-top text-black uppercase leading-relaxed whitespace-pre-wrap">{matchedSupplier?.address || 'TIADA ALAMAT BERDAFTAR'}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Numbered Requirements List matches the exact layout */}
-              <div className="text-[11.5pt] leading-relaxed text-black text-justify space-y-4 font-serif" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-                <div className="flex items-start">
-                  <span className="w-7 font-bold shrink-0">1.</span>
-                  <div>
-                    Sebut harga adalah dipelawa daripada Kontraktor-Kontraktor yang berdaftar dengan{" "}
-                    <strong className="underline text-black uppercase">{getLicensesText(ad)}</strong> dan masih sah laku pendaftaran untuk dibenarkan menyertai sebutharga ini.
-                  </div>
-                </div>
-
-                <div className="flex items-start">
-                  <span className="w-7 font-bold shrink-0">2.</span>
-                  <div>
-                    Dokumen SebutHarga yang telah dilengkapi hendaklah dimasukkan ke dalam satu sampul surat bermetri dan bertulis nombor tawaran disebelah kiri atasnya dan dimasuk ke dalam Peti Tawaran yang terletak di{" "}
-                    <strong className="underline text-black uppercase">
-                      {invitation.submissionVenue || 'Pejabat RISDA Daerah Beaufort, K77 dan K78, Blok K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah'}
-                    </strong>{" "}
-                    sebelum atau pada{" "}
-                    <strong className="underline text-black uppercase">
-                      {formatBeautifulDate(invitation.closingDate)}
-                    </strong>{" "}
-                    jam{" "}
-                    <strong className="underline text-black">
-                      {invitation.closingTime || '12.00 TENGAHARI'}
-                    </strong>
-                    .
-                  </div>
-                </div>
-
-                <div className="flex items-start">
-                  <span className="w-7 font-bold shrink-0">3.</span>
-                  <div>
-                    Syarat-syarat Sebut Harga, Pelan Lukisan serta Ringkasan Sebut Harga dikembarkan bersama-sama ini.
-                  </div>
-                </div>
-
-                <div className="flex items-start">
-                  <span className="w-7 font-bold shrink-0">4.</span>
-                  <div>
-                    Kontraktor adalah diwajibkan menghadiri taklimat dan lawatan tapak pada{" "}
-                    <strong className="underline text-black uppercase">
-                      {invitation.briefingDate ? `${formatBeautifulDate(invitation.briefingDate)} (${indonesianDayName(invitation.briefingDate)})` : 'TARIKH TAKLIMAT'}
-                    </strong>{" "}
-                    Jam{" "}
-                    <strong className="underline text-black">
-                      {invitation.briefingTime || '-'}
-                    </strong>
-                    . Taklimat akan di sampaikan hanya sekali sahaja dan pihak kontraktor dikehendaki berkumpul di{" "}
-                    <strong className="underline text-black uppercase">
-                      {invitation.briefingVenue || 'Pejabat RISDA Beaufort'}
-                    </strong>{" "}
-                    pada tarikh dan masa yang telah ditetapkan diatas.
-                  </div>
-                </div>
-
-                <div className="flex items-start">
-                  <span className="w-7 font-bold shrink-0">5.</span>
-                  <div>
-                    Pihak RISDA tidak terikat untuk menerima sebut harga yang terendah sekali atau mana-mana sebutharga lain.
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Page Break for invited suppliers list */}
-          <div className="page-break-before border-t border-black mt-16 pt-8 break-before-page">
-            <div className="text-center mb-6">
-              <h3 className="text-sm font-bold text-black uppercase tracking-widest">
-                LAMPIRAN EDARAN PELAWAAN SEBUT HARGA
-              </h3>
-              <p className="text-xs text-slate-600 font-serif">
-                Senarai syarikat / pembekal terpilih yang dipelawa secara rasmi
-              </p>
-              <p className="text-[10px] font-mono text-black font-bold mt-1">
-                RUJUKAN FAIL: {invitation.referenceNo}
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {invitation.suppliers.map((s: any, idx: number) => (
-                <div 
-                  key={s.id || idx} 
-                  className={`p-3 border rounded text-[10.5pt] break-inside-avoid ${s.companyName.toLowerCase().trim() === currentSupplierName.toLowerCase().trim() ? 'border-black bg-slate-50 font-bold' : 'border-slate-200'}`}
-                >
-                  <div className="flex justify-between items-start">
-                    <span>BIL {idx + 1}: {s.companyName.toUpperCase()}</span>
-                    {s.companyName.toLowerCase().trim() === currentSupplierName.toLowerCase().trim() && (
-                      <span className="no-print text-[9px] bg-black text-white px-2 py-0.5 rounded font-bold">SYARIKAT ANDA</span>
+                  {/* Recipient details */}
+                  <div className="mb-5 text-[11pt] leading-relaxed text-black font-serif">
+                    <div className="font-bold underline uppercase text-xs tracking-wider">KEPADA SYARIKAT EDARAN BERDAFTAR:</div>
+                    <div className="font-bold text-[12pt] tracking-wide mt-1 uppercase">{matchedSupplier?.companyName || 'PIHAK TUAN / PUAN'}</div>
+                    <div className="text-[11pt] mt-0.5 whitespace-pre-wrap max-w-xl uppercase font-serif">
+                      {matchedSupplier?.address || 'Alamat Perniagaan Syarikat Berdaftar'}
+                    </div>
+                    {matchedSupplier?.phoneNumber && (
+                      <div className="text-[10pt] text-slate-700 mt-1 uppercase font-sans">
+                        No. Tel: {matchedSupplier.phoneNumber} {matchedSupplier.email ? ` | E-mel: ${matchedSupplier.email}` : ''}
+                      </div>
                     )}
                   </div>
-                  <div className="text-[9.5pt] text-slate-700 font-normal mt-1 whitespace-pre-wrap pl-4 leading-normal">
-                    {s.address || 'Alamat tidak berdaftar'}<br/>
-                    Tel: {s.phoneNumber} {s.email ? `| E-mel: ${s.email}` : ''}
+
+                  <div className="text-[11pt] mb-3 text-black font-serif">
+                    Tuan / Puan,
+                  </div>
+
+                  {/* Letter Title */}
+                  <div className="font-bold text-[11.5pt] mb-4 border-b border-black pb-2 uppercase tracking-wide leading-relaxed text-black font-serif">
+                    PELAWAAN MENYERTAI SEBUT HARGA BAGI:<br/>
+                    "{invitation.adTitle}"<br/>
+                    NO. RUJUKAN SEBUT HARGA: <span className="underline font-mono">{invitation.tenderNo}</span>
+                  </div>
+
+                  {/* Letter Body paragraphs */}
+                  <div className="text-[11pt] leading-relaxed text-black text-justify space-y-3 font-serif">
+                    <p>
+                      Dengan hormatnya perkara di atas adalah dirujuk.
+                    </p>
+
+                    <p className="indent-8">
+                      2. &nbsp;&nbsp; Sukacita dimaklumkan bahawa Pejabat RISDA Daerah Beaufort bersetuju mengundang syarikat pihak tuan / puan yang terpilih untuk menyertai sebut harga perolehan bagi projek/bekalan yang dinyatakan di atas berteraskan kriteria pendaftaran syarikat di Sabah.
+                    </p>
+
+                    <p className="indent-8">
+                      3. &nbsp;&nbsp; Selaras dengan ketetapan perolehan, taklimat, lawatan tapak wajib serta tarikh tutup penutupan sebut harga akan dilaksanakan mengikut jadual ketat di bawah:
+                    </p>
+
+                    {/* Sub-table with details */}
+                    <div className="pl-6 py-1">
+                      <table className="w-full border-collapse text-[10pt]">
+                        <tbody>
+                          <tr>
+                            <td className="w-[32%] font-bold py-1 text-black">A) SEBUT HARGA / PROJEK</td>
+                            <td className="w-[3%] py-1 text-center text-black">:</td>
+                            <td className="w-[65%] py-1 text-black font-semibold uppercase">{invitation.adTitle}</td>
+                          </tr>
+                          <tr>
+                            <td className="font-bold py-1 text-black">B) RAWATAN & TAKLIMAT TAPAK</td>
+                            <td className="py-1 text-center text-black">:</td>
+                            <td className="py-1 text-sky-700 font-bold uppercase text-[10.5pt]">WAJIB HADIR</td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pl-4 text-slate-800">Tarikh & Hari Taklimat</td>
+                            <td className="py-0.5 text-center text-black">:</td>
+                            <td className="py-0.5 text-black font-bold uppercase">
+                              {formatBeautifulDate(invitation.briefingDate || '')} ({indonesianDayName(invitation.briefingDate || '')})
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pl-4 text-slate-800">Masa Taklimat</td>
+                            <td className="py-0.5 text-center text-black">:</td>
+                            <td className="py-0.5 text-black uppercase">{invitation.briefingTime || '-'}</td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pl-4 text-slate-800">Tempat Berkumpul</td>
+                            <td className="py-0.5 text-center text-black">:</td>
+                            <td className="py-0.5 text-black whitespace-pre-wrap max-w-md uppercase">{invitation.briefingVenue || '-'}</td>
+                          </tr>
+                          <tr className="h-1"><td></td><td></td><td></td></tr>
+                          <tr>
+                            <td className="font-bold py-0.5 text-black">C) TARIKH TUTUP SEBUT HARGA</td>
+                            <td className="py-0.5 text-center text-black">:</td>
+                            <td className="py-0.5 text-black"></td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pl-4 text-slate-800">Tarikh & Jam Tutup</td>
+                            <td className="py-0.5 text-center text-black">:</td>
+                            <td className="py-0.5 text-black font-bold text-red-600 uppercase">
+                              {indonesianDayName(invitation.closingDate || '')}, {formatBeautifulDate(invitation.closingDate || '')} SEBELUM JAM {invitation.closingTime || '-'}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pl-4 text-slate-800">Tempat Penghantaran</td>
+                            <td className="py-0.5 text-center text-black">:</td>
+                            <td className="py-0.5 text-black uppercase text-[9.5pt]">
+                              {invitation.submissionVenue || 'PEJABAT RISDA DAERAH BEAUFORT, SABAH'}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <p className="indent-8">
+                      4. &nbsp;&nbsp; Bersama-sama ini disertakan salinan butiran iklan sebut harga untuk rujukan pihak tuan/puan selanjutnya. Sila bawa sijil kelayakan asal syarikat semasa taklimat dijalankan.
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
 
+                {/* Page 1 Footer */}
+                <div className="print-footer select-none">
+                  <div className="mb-1 uppercase tracking-wide text-center text-[7.5pt]">
+                    MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
+                    BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+                  </div>
+                  <div className="font-bold text-[10pt] font-serif text-center mt-1">1/3</div>
+                </div>
+              </div>
+
+              {/* PAGE 2 */}
+              <div className="print-page relative">
+                <div className="print-content-wrap">
+                  {/* Ref repeats */}
+                  <div className="flex justify-between items-center text-[11pt] font-serif mb-8 text-black border-b border-gray-100 pb-2">
+                    <span>Ruj. Kami &nbsp;: &nbsp;<strong className="font-sans text-[10pt] font-black uppercase text-black">{invitation.referenceNo}</strong></span>
+                    <span>Tarikh: {formatBeautifulDate(invitation.invitationDate)}</span>
+                  </div>
+
+                  <div className="text-[11pt] leading-relaxed text-black text-justify space-y-4 font-serif mt-12 bg-transparent">
+                    <p className="indent-8">
+                      Sila lakukan pendaftaran rekod kehadiran tapak secara digital sebaik sahaja tiba di lokasi taklimat menerusi pautan pengesahan kehadiran di bawah:
+                    </p>
+                    
+                    <div className="no-print p-3 bg-[#0d1421]/90 rounded-2xl border border-risda-orange/15 shadow-inner mt-4 select-all">
+                      <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-1">Pautan Log Masuk Kehadiran Digital:</div>
+                      <a 
+                        href={`${window.location.protocol}//${window.location.host}/?adId=${invitation.adId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-mono text-risda-orange hover:underline font-bold block truncate"
+                      >
+                        {window.location.protocol}//{window.location.host}/?adId={invitation.adId}
+                      </a>
+                    </div>
+                    
+                    <div className="print-only hidden print:block text-slate-800">
+                      <strong className="text-black block underline font-mono text-center text-xs p-2 bg-slate-50 border border-slate-100 rounded">
+                        {window.location.protocol}//{window.location.host}/?adId={invitation.adId}
+                      </strong>
+                    </div>
+
+                    <p className="pt-6">Sekian, terima kasih.</p>
+                  </div>
+
+                  {/* Slogan */}
+                  <div className="mt-10 text-[11pt] text-black font-serif leading-relaxed">
+                    <strong>"MALAYSIA MADANI"</strong><br/>
+                    <strong className="text-[10pt] uppercase">"BERKHIDMAT UNTUK NEGARA"</strong>
+                  </div>
+
+                  {/* Signoff */}
+                  <div className="mt-14 text-[11pt] leading-thick text-black font-serif break-inside-avoid">
+                    <p>Saya yang menjalankan amanah,</p>
+                    <div className="h-20" />
+                    <strong className="text-[11.5pt] block">({invitation.officerName ? invitation.officerName.toUpperCase() : 'PEGAWAI PENTADBIRAN DISTRICT'})</strong>
+                    <span className="text-[10.5pt] block mt-0.5 text-zinc-700">b.p. Pegawai RISDA Daerah Beaufort</span>
+                    <span className="text-[10.5pt] block text-zinc-600">Pejabat RISDA Beaufort, Negeri Sabah</span>
+                    
+                    <div className="text-slate-400 font-mono text-[9px] mt-10 italic">
+                      sebutharga{new Date(invitation.invitationDate).getFullYear() || new Date().getFullYear()}/digital-safeguard
+                    </div>
+                  </div>
+                </div>
+
+                {/* Page 2 Footer */}
+                <div className="print-footer select-none">
+                  <div className="mb-1 uppercase tracking-wide text-center text-[7.5pt]">
+                    MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
+                    BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+                  </div>
+                  <div className="font-bold text-[10pt] font-serif text-center mt-1">2/3</div>
+                </div>
+              </div>
+
+              {/* PAGE 3 */}
+              <div className="print-page relative">
+                <div className="print-content-wrap">
+                  {/* Ref repeats */}
+                  <div className="flex justify-between items-center text-[11pt] font-serif mb-5 text-black border-b border-gray-100 pb-2 bg-transparent">
+                    <span>Ruj. Kami &nbsp;: &nbsp;<strong className="font-sans text-[10pt] font-black uppercase text-black">{invitation.referenceNo}</strong></span>
+                    <span>Tarikh: {formatBeautifulDate(invitation.invitationDate)}</span>
+                  </div>
+
+                  <div className="text-left mt-6 font-serif">
+                    <h3 className="text-[12pt] font-bold text-black uppercase tracking-wider underline mb-4">
+                      LAMPIRAN EDARAN PELAWAAN SEBUT HARGA
+                    </h3>
+                    <p className="text-[10pt] text-slate-700 font-serif leading-relaxed mb-6">
+                      Senarai penuh kontraktor tempatan berwibawa di daerah Beaufort Sabah yang dijemput secara rasmi untuk menyertai perolehan ini:
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                    {invitation.suppliers.map((s: any, idx: number) => (
+                      <div 
+                        key={s.id || idx} 
+                        className={`p-3 border rounded-[15px] text-[10pt] break-inside-avoid ${s.companyName.toLowerCase().trim() === currentSupplierName.toLowerCase().trim() ? 'border-2 border-black bg-slate-50 font-bold shadow-sm' : 'border-slate-200'}`}
+                      >
+                        <div className="flex justify-between items-start font-serif">
+                          <span className="font-bold text-slate-900">{idx + 1}. {s.companyName.toUpperCase()}</span>
+                          {s.companyName.toLowerCase().trim() === currentSupplierName.toLowerCase().trim() && (
+                            <span className="no-print text-[8px] bg-risda-orange text-black px-2 py-0.5 rounded font-black font-sans uppercase">Syarikat Anda</span>
+                          )}
+                        </div>
+                        <div className="text-[9pt] text-slate-600 font-normal mt-1 whitespace-pre-wrap pl-4 leading-normal font-sans">
+                          {s.address || 'Alamat tidak berdaftar'}<br/>
+                          Tel: {s.phoneNumber} {s.email ? ` | E-mel: ${s.email}` : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Page 3 Footer */}
+                <div className="print-footer select-none">
+                  <div className="mb-1 uppercase tracking-wide text-center text-[7.5pt]">
+                    MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
+                    BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+                  </div>
+                  <div className="font-bold text-[10pt] font-serif text-center mt-1">3/3</div>
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            <div className="flex flex-col gap-6 print:gap-0 font-serif" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+              
+              {/* PAGE 1: DOKUMEN HARGA / TAWARAN */}
+              <div className="print-page print-page-first relative">
+                <div className="print-content-wrap">
+                  
+                  {/* Shared Official Header - Identical on Pages 1, 2, and 3 */}
+                  <div className="border-b-2 border-solid border-black pb-4 mb-6 text-center flex items-center justify-between">
+                    <div className="w-[85px] text-left shrink-0">
+                      <img 
+                        src="/PUBLIC/intrologo_RISDA.png" 
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          img.src = "https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png";
+                        }}
+                        className="h-[75px] w-auto block"
+                        referrerPolicy="no-referrer"
+                        alt="RISDA Logo"
+                      />
+                    </div>
+                    <div className="flex-1"></div>
+                  </div>
+
+                  <h1 className="font-black text-[13pt] text-black tracking-widest mt-1 underline uppercase text-center mb-6">
+                    SURAT TAWARAN PELAWAAN SEBUT HARGA
+                  </h1>
+
+                  {/* Aligned Metdata */}
+                  <table className="w-full text-[11pt] leading-normal text-black border-collapse mb-5 font-serif bg-transparent">
+                    <tbody>
+                      <tr>
+                        <td className="w-[25%] font-bold py-1.5 align-top text-black">No.Sebutharga</td>
+                        <td className="w-[3%] py-1.5 text-center align-top text-black">:</td>
+                        <td className="w-[72%] py-1.5 align-top font-sans font-bold text-black uppercase">{invitation.tenderNo}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold py-1.5 align-top text-black">Tajuk Perolehan</td>
+                        <td className="py-1.5 text-center align-top text-black">:</td>
+                        <td className="py-1.5 align-top font-serif uppercase leading-relaxed text-black">{invitation.adTitle}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold py-1.5 align-top text-black">Syarikat Dipelawa</td>
+                        <td className="py-1.5 text-center align-top text-black">:</td>
+                        <td className="py-1.5 align-top font-bold text-[11.5pt] uppercase text-black font-serif">
+                          {matchedSupplier?.companyName || 'PIHAK KONTRAKTOR JEMPUTAN'}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold py-1.5 align-top text-black">Alamat Penerima</td>
+                        <td className="py-1.5 text-center align-top text-black">:</td>
+                        <td className="py-1.5 align-top font-serif text-[10.5pt] text-slate-800 uppercase leading-relaxed font-serif whitespace-pre-wrap">
+                          {matchedSupplier?.address || 'Alamat Perniagaan Terdaftar'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Pricing Matrix Form */}
+                  <div className="border border-black p-4 bg-slate-50/50 rounded-none mb-4 font-serif">
+                    <h3 className="font-bold text-[11pt] text-black uppercase tracking-wider text-center border-b border-black pb-2 mb-3">
+                      AKUAN PENERIMAAN TAWARAN HARGA KONTRAKTOR
+                    </h3>
+                    <p className="text-[10pt] leading-relaxed text-black mb-3 text-justify font-serif">
+                      Pihak kami dengan ini bersetuju untuk melaksanakan kerja-kerja / pembekalan sehubungan dengan spesifikasi yang ditetapkan dengan kadar tawaran harga tunai bersih di bawah:
+                    </p>
+
+                    <table className="w-full border-collapse text-[10pt] font-serif">
+                      <thead>
+                        <tr>
+                          <th className="border border-black px-3 py-1.5 text-center w-[10%] text-black bg-slate-100">BIL</th>
+                          <th className="border border-black px-3 py-1.5 text-left text-black bg-slate-100 font-bold">BUTIRAN RINGKAS SPESIFIKASI</th>
+                          <th className="border border-black px-3 py-1.5 text-right w-[35%] text-black bg-slate-100 font-bold">KADAR TAWARAN (RM)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="h-10">
+                          <td className="border border-black px-3 py-1.5 text-center text-black">1.</td>
+                          <td className="border border-black px-3 py-1.5 text-black text-[9pt] uppercase leading-tight">
+                            {invitation.adTitle}
+                          </td>
+                          <td className="border border-black px-3 py-1.5 text-right font-mono font-bold text-black bg-slate-100/50">
+                            RM <span className="inline-block w-28 border-b border-dotted border-black"></span>
+                          </td>
+                        </tr>
+                        <tr className="h-10">
+                          <td className="border border-black px-3 py-1.5 text-center font-bold text-black" colSpan={2}>
+                            JUMLAH BESAR TAWARAN PIHAK KONTRAKTOR (RM)
+                          </td>
+                          <td className="border border-black px-3 py-1.5 text-right font-mono font-bold text-black bg-slate-100/50">
+                            RM <span className="inline-block w-28 border-b border-double border-black"></span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <p className="text-[8.5pt] italic text-slate-700 mt-3 leading-relaxed">
+                      *Cara Pengurusan: Sila tuliskan Jumlah Penawaran Harga di atas menggunakan pena dakwat hitam, tandatangan, bubuh cop rasmi syarikat, dan bawa bersama dokumen kelayakan lesen syarikat semasa tarikh taklimat dan lawatan tapak wajib dijalankan.*
+                    </p>
+                  </div>
+
+                  {/* Submission and Signoff Section */}
+                  <div className="grid grid-cols-2 gap-8 pt-4 font-serif">
+                    <div className="text-left text-[9.5pt] leading-relaxed text-black">
+                      <p className="font-bold underline uppercase">AKUAN AKUR & TANDATANGAN (SYARIKAT):</p>
+                      <p className="mt-1 text-slate-600 font-serif">Saya mengesahkan tawaran ini bagi pihak syarikat:</p>
+                      <div className="h-12 border-b border-dotted border-black mt-2"></div>
+                      <p className="mt-2 text-black font-bold">Tandatangan Penama Sijil & Cop</p>
+                      <p className="text-zinc-600 text-[9pt] mt-1 font-serif">Tarikh : <span className="inline-block w-24 border-b border-dotted border-black"></span></p>
+                    </div>
+
+                    <div className="text-left text-[9.5pt] leading-relaxed text-black font-serif">
+                      <p className="font-bold underline uppercase">DILULUSKAN OLEH JABATAN PEROLEHAN (RISDA):</p>
+                      <div className="h-12 mt-4 animate-transparent"></div>
+                      <p className="text-black font-bold">({invitation.officerName ? invitation.officerName.toUpperCase() : 'PEGAWAI PENTADBIRAN DISTRICT'})</p>
+                      <p className="text-zinc-600">b.p. Pegawai RISDA Daerah Beaufort</p>
+                      <p className="text-zinc-500">Negeri Sabah</p>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Format 2 Footer */}
+                <div className="print-footer select-none">
+                  <div className="mb-1 uppercase tracking-wide text-center text-[7.5pt]">
+                    MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
+                    BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
+                  </div>
+                  <div className="font-bold text-[10pt] font-serif text-center mt-1">FORMAT 2: BORANG TAWARAN HARGA</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

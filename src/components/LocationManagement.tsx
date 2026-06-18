@@ -12,6 +12,8 @@ interface LocationItem {
   district: string;
   office: string;
   station?: string;
+  address?: string;
+  postcode?: string;
   status: 'Aktif' | 'Tidak Aktif';
   createdAt: any;
 }
@@ -221,7 +223,8 @@ export default function LocationManagement() {
   const [state, setState] = useState('');
   const [district, setDistrict] = useState('');
   const [office, setOffice] = useState('');
-  const [station, setStation] = useState('');
+  const [address, setAddress] = useState('');
+  const [postcode, setPostcode] = useState('');
   const [status, setStatus] = useState<'Aktif' | 'Tidak Aktif'>('Aktif');
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -243,7 +246,8 @@ export default function LocationManagement() {
             loc.state?.toLowerCase().includes(qLower) ||
             loc.district?.toLowerCase().includes(qLower) ||
             loc.office?.toLowerCase().includes(qLower) ||
-            loc.station?.toLowerCase().includes(qLower)
+            (loc.station || loc.address || '').toLowerCase().includes(qLower) ||
+            (loc.postcode || '').toLowerCase().includes(qLower)
           )
           .map(loc => loc.state || 'LAIN-LAIN')
       ));
@@ -281,7 +285,9 @@ export default function LocationManagement() {
           state,
           district,
           office,
-          station,
+          address,
+          postcode,
+          station: address,
           status,
           updatedAt: new Date().toISOString()
         }, { merge: true });
@@ -290,7 +296,9 @@ export default function LocationManagement() {
           state,
           district,
           office,
-          station,
+          address,
+          postcode,
+          station: address,
           status,
           createdAt: new Date().toISOString()
         });
@@ -312,7 +320,8 @@ export default function LocationManagement() {
     setState('');
     setDistrict('');
     setOffice('');
-    setStation('');
+    setAddress('');
+    setPostcode('');
     setStatus('Aktif');
     setShowModal(false);
   };
@@ -322,7 +331,8 @@ export default function LocationManagement() {
     setState(loc.state);
     setDistrict(loc.district);
     setOffice(loc.office);
-    setStation(loc.station || '');
+    setAddress(loc.address || loc.station || '');
+    setPostcode(loc.postcode || '');
     setStatus(loc.status || 'Aktif');
     setShowModal(true);
   };
@@ -359,7 +369,8 @@ export default function LocationManagement() {
       loc.state?.toLowerCase().includes(qLower) ||
       loc.district?.toLowerCase().includes(qLower) ||
       loc.office?.toLowerCase().includes(qLower) ||
-      loc.station?.toLowerCase().includes(qLower)
+      (loc.address || loc.station || '').toLowerCase().includes(qLower) ||
+      (loc.postcode || '').toLowerCase().includes(qLower)
     );
   });
 
@@ -545,9 +556,14 @@ export default function LocationManagement() {
                                             </span>
                                           </div>
                                           
-                                          {loc.station && (
+                                          {(loc.address || loc.station) && (
+                                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[1px] mb-1">
+                                              Alamat Pejabat: {loc.address || loc.station}
+                                            </p>
+                                          )}
+                                          {loc.postcode && (
                                             <p className="text-[10px] font-bold text-risda-gold uppercase tracking-[1px] mb-3">
-                                              Stesen: {loc.station}
+                                              Poskod: {loc.postcode}
                                             </p>
                                           )}
 
@@ -700,12 +716,25 @@ export default function LocationManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Stesen (Opsional)</label>
+                  <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Alamat Pejabat</label>
+                  <textarea 
+                    value={address || ''}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="CTH: K77 DAN K78, BLOK K, BEAUFORT SQUARE AVENUE 1, BEAUFORT, SABAH"
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/15 uppercase tracking-widest min-h-[80px]"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Poskod</label>
                   <input 
-                    value={station || ''}
-                    onChange={(e) => setStation(e.target.value)}
-                    placeholder="cth: STESEN RISDA BEAUFORT"
-                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/15 uppercase tracking-widest"
+                    type="text"
+                    maxLength={5}
+                    value={postcode || ''}
+                    onChange={(e) => setPostcode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="CTH: 89800"
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/15 tracking-widest"
                   />
                 </div>
 

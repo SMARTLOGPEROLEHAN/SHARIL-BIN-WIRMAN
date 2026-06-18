@@ -48,6 +48,7 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
   const [dragActiveStates, setDragActiveStates] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [registeredSeriesNo, setRegisteredSeriesNo] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   // Sijil Kelayakan Wajib list computed based on ad configuration
@@ -70,33 +71,42 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
     if (file.type.startsWith('image/')) {
       const compressToastId = toast.loading('Mengoptimumkan saiz imej...');
       try {
-        const optimized = await optimizeImage(file);
+        const optimized = await optimizeImage(file, 1000, 1000, 0.55);
         toast.dismiss(compressToastId);
         
-        if (optimized.size > 5 * 1024 * 1024) {
-          toast.error('Gagal mengoptimumkan: Imej melebihi had saiz 5MB.');
+        if (optimized.size > 600 * 1024) {
+          toast.error('Gagal mengoptimumkan: Imej melebihi had saiz 600KB.');
           return;
         }
         
         setCertificateFiles(prev => ({ ...prev, [key]: optimized }));
-        toast.success(`Imej berjaya dioptimumkan! Saiz sekarang: ${(optimized.size / 1024 / 1024).toFixed(2)} MB`);
+        toast.success(`Imej berjaya dioptimumkan! Saiz sekarang: ${(optimized.size / 1024).toFixed(1)} KB`);
       } catch (optimizeErr) {
         toast.dismiss(compressToastId);
         console.error('Resize error:', optimizeErr);
-        if (file.size > 5 * 1024 * 1024) {
-          toast.error('Gagal: Fail imej melebihi had saiz 5MB.');
+        if (file.size > 600 * 1024) {
+          toast.error('Gagal: Fail imej melebihi had saiz 600KB.');
           return;
         }
         setCertificateFiles(prev => ({ ...prev, [key]: file }));
       }
     } else {
-      // PDF or other non-image format
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Gagal: Fail melebihi had saiz 5MB.');
+      // PDF or other format
+      if (file.size > 600 * 1024) {
+        toast.error('Gagal: Fail melebihi had saiz 600KB.');
         return;
       }
       setCertificateFiles(prev => ({ ...prev, [key]: file }));
     }
+  };
+
+  const fileToBase64 = (fileObj: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(fileObj);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   const handleDrag = (key: string, e: React.DragEvent) => {
@@ -156,6 +166,19 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
         .filter(lic => !!certificateFiles[lic.key])
         .map(lic => `${lic.label}: ${certificateFiles[lic.key].name}`)
         .join(', ');
+
+      const certificatesBase64: Record<string, string> = {};
+      for (const key of Object.keys(certificateFiles)) {
+        const fileObj = certificateFiles[key];
+        if (fileObj) {
+          try {
+            const b64 = await fileToBase64(fileObj);
+            certificatesBase64[key] = b64;
+          } catch (e) {
+            console.error('Error converting file to base64:', e);
+          }
+        }
+      }
       
       const submissionData: any = {
         ...formData,
@@ -168,13 +191,51 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
           ? (editingRecord.certificateUrl ? 'Sijil sedia ada' : (hasUploadedAny ? certificateNamesList : 'Tiada Sijil Dikepilkan (Mendaftar Tanpa Sijil)'))
           : (hasUploadedAny ? certificateNamesList : 'Tiada Sijil Dikepilkan (Mendaftar Tanpa Sijil)'),
         certificates: uploadedCertificateMap,
+        certificatesBase64,
       };
+
+      if (editingRecord && !hasUploadedAny) {
+        try {
+          const existingDoc = await getDoc(doc(db, 'attendance', editingRecord.id));
+          if (existingDoc.exists() && existingDoc.data().certificatesBase64) {
+            submissionData.certificatesBase64 = existingDoc.data().certificatesBase64;
+          }
+        } catch (errPreserve) {
+          console.error("Preserving certificatesBase64 error:", errPreserve);
+        }
+      }
 
       if (editingRecord) {
         await updateDoc(doc(db, 'attendance', editingRecord.id), {
           ...submissionData,
           updatedAt: new Date().toISOString(),
         });
+
+        // Save/Merge to 'suppliers' collection so they are updated/saved for bidding invitation purposes
+        const normalizedCompanyName = formData.companyName.toUpperCase().trim();
+        const supplierDocId = `supplier_${normalizedCompanyName.replace(/[^A-Z0-9]/g, '_')}`;
+        
+        let finalCidb = '';
+        try {
+          const sSnap = await getDoc(doc(db, 'suppliers', supplierDocId));
+          if (sSnap.exists()) {
+            finalCidb = sSnap.data().cidbSpkk || '';
+          }
+        } catch (e) {
+          console.error('Error fetching existing supplier:', e);
+        }
+        if (hasUploadedAny) {
+          finalCidb = certificateNamesList;
+        }
+
+        await setDoc(doc(db, 'suppliers', supplierDocId), {
+          companyName: normalizedCompanyName,
+          phoneNumber: formData.phoneNumber.trim(),
+          email: (formData.email || '').trim(),
+          address: (formData.companyAddress || '').trim(),
+          cidbSpkk: finalCidb,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
       } else {
         submissionData.timestamp = new Date().toISOString();
         // Auto-generate docSeriesNo for this specific project title
@@ -182,23 +243,38 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
         const snap = await getDocs(q);
         const nextNo = (snap.size + 1).toString().padStart(3, '0');
         submissionData.docSeriesNo = nextNo;
+        setRegisteredSeriesNo(nextNo);
         
         await addDoc(collection(db, path), submissionData);
 
         // Save/Merge to 'suppliers' collection so they can receive future invitations directly
         const normalizedCompanyName = formData.companyName.toUpperCase().trim();
         const supplierDocId = `supplier_${normalizedCompanyName.replace(/[^A-Z0-9]/g, '_')}`;
+        
+        let finalCidb = '';
+        try {
+          const sSnap = await getDoc(doc(db, 'suppliers', supplierDocId));
+          if (sSnap.exists()) {
+            finalCidb = sSnap.data().cidbSpkk || '';
+          }
+        } catch (e) {
+          console.error('Error fetching existing supplier:', e);
+        }
+        if (hasUploadedAny) {
+          finalCidb = certificateNamesList;
+        }
+
         await setDoc(doc(db, 'suppliers', supplierDocId), {
           companyName: normalizedCompanyName,
           phoneNumber: formData.phoneNumber.trim(),
           email: (formData.email || '').trim(),
           address: (formData.companyAddress || '').trim(),
-          cidbSpkk: '',
+          cidbSpkk: finalCidb,
           updatedAt: new Date().toISOString()
         }, { merge: true });
 
-        // Queue Registration Confirmation Email in 'sent_emails'
-        if (formData.email && formData.email.trim()) {
+        // Queue Registration Confirmation Email in 'sent_emails' (Ensuring distinct physical email for duplicate name/license on different sebuthargas)
+        if (formData.email && formData.email.trim() && formData.email !== '-') {
           // Fetch full ad details from firebase
           let visitVenue = 'Pejabat RISDA Beaufort';
           let briefingDate = '';
@@ -247,7 +323,7 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
 
           const formattedBriefingDate = briefingDate ? `${formatBeautifulDate(briefingDate)} (${indonesianDayName(briefingDate)})` : '—';
 
-          const emailSubject = `Pengesahan Pendaftaran Sebut Harga Berjaya - No. Siri: ${nextNo}`;
+          const emailSubject = `PENDAFTARAN TAKLIMAT TAPAK BAGI SEBUTHARGA ${adTitle.toUpperCase()} TELAH BERJAYA - No. Siri: ${nextNo}`;
           const emailBody = `Assalamualaikum dan Salam Sejahtera,
 
 Tuan/Puan,
@@ -259,7 +335,7 @@ Pemilik/Penama: ${formData.ownerName.trim()}
 Emel: ${formData.email.trim()}
 Telefon: ${formData.phoneNumber.trim()}
 
-Dengan hormatnya dimaklumkan bahawa syarikat pihak tuan/puan telah BERJAYA mendaftar kehadiran secara online bagi sebut harga berikut:
+Dengan hormatnya dimaklumkan bahawa pendaftaran taklimat tapak bagi sebutharga berikut TELAH BERJAYA:
 
 Tajuk Sebut Harga: ${adTitle.toUpperCase()}
 No. Sebut Harga: ${(tenderNo || '').toUpperCase()}
@@ -280,20 +356,168 @@ Sekian, terima kasih.
 
 Pejabat RISDA Daerah Beaufort, Sabah.`;
 
+          const emailHtml = `
+<div style="font-family: 'Times New Roman', Times, serif; max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #cbd5e1; color: #0b1329; background-color: #ffffff; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+  <!-- Letterhead -->
+  <table style="width: 100%; border-collapse: collapse; border-bottom: 3px double #000000; padding-bottom: 12px; margin-bottom: 20px;">
+    <tr>
+      <td style="width: 80px; vertical-align: middle;">
+        <img src="https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png" alt="RISDA Logo" style="width: 70px; height: auto;" />
+      </td>
+      <td style="padding-left: 15px; text-align: left; vertical-align: middle;">
+        <strong style="font-size: 13px; display: block; text-transform: uppercase; color: #1e3a1e;">PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)</strong>
+        <strong style="font-size: 12px; display: block; text-transform: uppercase; margin-top: 2px; color: #000000;">PEJABAT RISDA DAERAH BEAUFORT, STATE SABAH</strong>
+        <span style="font-size: 9px; display: block; color: #475569; margin-top: 4px; line-height: 1.3;">
+          K77 & K78, Block K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah<br/>
+          Tel: 087-224335/336 | E-Mel: prdbeaufort@risda.gov.my
+        </span>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Meta Info -->
+  <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 15px;">
+    <tr>
+      <td style="width: 50%; font-weight: bold;">NO. SIRI RUJUKAN: <span style="font-family: monospace; font-size: 13px; color: #b45309;">${nextNo}</span></td>
+      <td style="width: 50%; text-align: right; font-weight: bold;">TARIKH: ${new Date().toLocaleDateString('ms-MY')}</td>
+    </tr>
+  </table>
+
+  <!-- Main Body Content -->
+  <div style="font-size: 12.5px; line-height: 1.6; text-align: justify; margin-bottom: 25px;">
+    <p>Tuan / Puan,</p>
+    
+    <p style="font-weight: bold; font-size: 13.5px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 15px; color: #0f172a;">
+      PENGESAHAN PENDAFTARAN ATAS TALIAN KEHADIRAN TAKLIMAT & LAWATAN TAPAK WAJIB
+    </p>
+
+    <p>Sukacita perkara di atas serta proses pengesahan pendaftaran kehadiran digital bagi syarikat tuan/puan dirujuk dengan hormatnya.</p>
+    
+    <p>2. Adalah disah dan dimaklumkan bahawa pendaftaran kehadiran bagi sebut harga di bawah telah <strong>BERJAYA DIDOKUMENKAN</strong> ke dalam sistem pangkalan perolehan RISDA:</p>
+
+    <!-- Tender Details Callout Card -->
+    <div style="background-color: #f8fafc; border-left: 4px solid #0284c7; padding: 12px 16px; border-radius: 4px; margin: 15px 0;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
+        <tr>
+          <td style="width: 30%; font-weight: bold; padding: 3px 0; color: #475569;">NO. SEBUT HARGA</td>
+          <td style="width: 3%; font-weight: bold; padding: 3px 0; color: #475569;">:</td>
+          <td style="font-weight: bold; color: #1d4ed8; padding: 3px 0; text-transform: uppercase; font-family: monospace;">${(tenderNo || '').toUpperCase()}</td>
+        </tr>
+        <tr>
+          <td style="font-weight: bold; padding: 3px 0; color: #475569; vertical-align: top;">TAJUK PROJEK</td>
+          <td style="font-weight: bold; padding: 3px 0; color: #475569; vertical-align: top;">:</td>
+          <td style="font-weight: bold; padding: 3px 0; text-transform: uppercase; line-height: 1.4; color: #0f172a;">${adTitle.toUpperCase()}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p>3. Berikut adalah butiran penuh rekod perolehan dan jadual taklimat lawatan tapak fizikal yang wajib dihadiri oleh syarikat:</p>
+
+    <!-- Contractor Details Table -->
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin: 15px 0; border: 1px solid #cbd5e1;">
+      <thead>
+        <tr style="background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+          <th colspan="2" style="padding: 8px; text-align: left; text-transform: uppercase; color: #0284c7; font-weight: bold;">A) RINGKASAN PENDAFTARAN KONTRAKTOR</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="width: 35%; border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">NAMA SYARIKAT</td>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; text-transform: uppercase; color: #0f172a;">${normalizedCompanyName}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">WAKIL / PENAMA SIJIL</td>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; text-transform: uppercase;">${formData.ownerName.trim()}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">NO. KAD PENGENALAN</td>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; font-family: monospace;">${formData.icNumber.trim()}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">NO. TELEFON BERHUBUNG</td>
+          <td style="border: 1px solid #cbd5e1; padding: 8px;">${formData.phoneNumber.trim()}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Site Visit Details Table -->
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin: 15px 0; border: 1px solid #cbd5e1;">
+      <thead>
+        <tr style="background-color: #fdf2f8; border-bottom: 1px solid #cbd5e1;">
+          <th colspan="2" style="padding: 8px; text-align: left; text-transform: uppercase; color: #db2777; font-weight: bold;">B) JADUAL & LOKASI LAWATAN TAPAK FIZIKAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="width: 35%; border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">HARI & TARIKH LAWATAN</td>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #db2777;">${formattedBriefingDate}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">MASA TAKLIMAT</td>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold;">${briefingTime}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">TEMPAT BERKUMPUL</td>
+          <td style="border: 1px solid #cbd5e1; padding: 8px; text-transform: uppercase; line-height: 1.4;">${visitVenue}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="font-weight: bold; background-color: #fffbeb; border: 1px solid #fef3c7; padding: 12px; border-radius: 6px; font-size: 11px; margin-top: 15px; color: #92400e; line-height: 1.4;">
+      PERINGATAN MANDATORI: Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang berkaitan) beserta satu salinan semasa taklimat dijalankan untuk ditentusahkan secara fizikal oleh Pegawai Pengendali RISDA.
+    </div>
+  </div>
+
+  <!-- Signoff block -->
+  <div style="font-size: 12px; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 25px;">
+    <strong>"MALAYSIA MADANI"</strong><br/>
+    <strong>"BERKHIDMAT UNTUK NEGARA"</strong>
+    <p style="margin-top: 20px; font-weight: bold;">Saya yang menjalankan amanah,</p>
+    <div style="height: 35px;"></div>
+    <strong>JABATAN PEROLEHAN DAERAH BEAUFORT</strong><br/>
+    <span style="color: #475569;">b.p. Pegawai RISDA Daerah Beaufort</span><br/>
+    <span style="color: #64748b; font-size: 10px;">Kementerian Kemajuan Desa dan Wilayah, Sabah</span>
+  </div>
+</div>
+`;
+
+           // Send email directly through secure backend proxy (uses SMTP settings from Secrets)
+          fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: formData.email.trim(),
+              subject: emailSubject,
+              text: emailBody,
+              html: emailHtml
+            })
+          }).then(res => {
+            if (res.ok) {
+              console.log('Direct SMTP email triggered successfully for contractor briefing attendance.');
+            } else {
+              console.warn('Direct SMTP is not active or not configured, falling back to Firestore triggers.');
+            }
+          }).catch(err => {
+            console.error('SMTP route fetch failed, fallback is selected:', err);
+          });
+
           await addDoc(collection(db, 'sent_emails'), {
             to: formData.email.trim(),
             toName: formData.ownerName.trim(),
             subject: emailSubject,
             body: emailBody,
+            html: emailHtml,
             sentAt: new Date().toISOString()
           });
         }
       }
       setSubmitted(true);
       toast.success(editingRecord ? 'Kehadiran dikemaskini!' : 'Kehadiran didaftarkan!');
-      setTimeout(() => {
-        onSuccess();
-      }, 1500);
+      if (editingRecord) {
+        setTimeout(() => {
+          onSuccess();
+        }, 1500);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     } finally {
@@ -303,21 +527,73 @@ Pejabat RISDA Daerah Beaufort, Sabah.`;
 
   if (submitted) {
     return (
-      <div className="p-10 flex flex-col items-center text-center space-y-6">
+      <div className="p-6 md:p-12 flex flex-col items-center justify-center text-center space-y-8 max-w-xl mx-auto">
         <motion.div 
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-black shadow-lg shadow-green-500/20"
+          className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-black shadow-lg shadow-emerald-500/20"
         >
-          <CheckCircle size={40} />
+          <CheckCircle size={32} />
         </motion.div>
-        <div>
-          <h3 className="text-xl font-black text-white uppercase tracking-tight">
+
+        <div className="space-y-2">
+          <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">
             {editingRecord ? 'Kemaskini Berjaya!' : 'Pendaftaran Berjaya!'}
           </h3>
-          <p className="text-sm text-risda-muted mt-2">
-            {editingRecord ? 'Maklumat kehadiran telah dikemaskini.' : 'Terima kasih. Nama anda telah direkodkan dalam senarai kehadiran taklimat tapak.'}
+          <p className="text-xs md:text-sm text-risda-muted uppercase tracking-wider">
+            {editingRecord ? 'Maklumat kehadiran telah dikemaskini.' : 'Rekod pendaftaran taklimat tapak anda telah selamat disimpan.'}
           </p>
+        </div>
+
+        {/* Status Receipt Card */}
+        <div className="w-full bg-risda-card border border-risda-border rounded-2xl p-6 text-left space-y-4 shadow-xl">
+          <div className="flex justify-between items-center border-b border-white/5 pb-3">
+            <span className="text-[10px] md:text-xs text-risda-muted font-bold uppercase tracking-widest">Status Pendaftaran:</span>
+            <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-wider animate-pulse flex items-center gap-1.5">
+              <CheckCircle size={12} /> BERJAYA (AKTIF)
+            </span>
+          </div>
+
+          {!editingRecord && registeredSeriesNo && (
+            <div className="flex flex-col items-center justify-center py-4 bg-white/5 rounded-xl border border-white/5 text-center">
+              <span className="text-[10px] md:text-xs text-risda-orange font-black uppercase tracking-[3px] mb-1">No. Siri Kehadiran Anda</span>
+              <span className="text-4xl md:text-5xl font-mono font-black text-white tracking-widest">{registeredSeriesNo}</span>
+              <span className="text-[9px] text-risda-muted mt-2 uppercase tracking-wider">Sila simpan no. siri ini untuk rujukan</span>
+            </div>
+          )}
+
+          <div className="text-xs md:text-sm space-y-2.5 text-slate-300 font-medium">
+            <div>
+              <span className="text-risda-muted block text-[9px] uppercase tracking-wider">Syarikat Berdaftar:</span>
+              <span className="text-white font-bold uppercase block">{formData.companyName.toUpperCase()}</span>
+            </div>
+            <div>
+              <span className="text-risda-muted block text-[9px] uppercase tracking-wider">Nama Wakil / Penama:</span>
+              <span className="text-white font-bold uppercase block">{formData.ownerName.toUpperCase()}</span>
+            </div>
+            <div>
+              <span className="text-risda-muted block text-[9px] uppercase tracking-wider">Sebut Harga / Tender:</span>
+              <span className="text-white font-semibold uppercase block leading-snug">{adTitle.toUpperCase()}</span>
+              {tenderNo && <span className="text-risda-orange font-bold text-[10px]">{tenderNo.toUpperCase()}</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Email or SMS Feedback */}
+        {formData.email && formData.email.trim() && formData.email !== '-' && (
+          <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4 text-xs text-left text-emerald-300 tracking-wide">
+            <p className="font-semibold text-center uppercase tracking-wider mb-1">E-Mel Maklum Balas Dihantar</p>
+            <p className="text-center">Satu notifikasi e-mel automatik yang menyatakan pendaftaran taklimat tapak telah berjaya telah terus dihantar ke peti masuk e-mel anda: <strong className="text-white">{formData.email}</strong></p>
+          </div>
+        )}
+
+        <div className="pt-2 w-full">
+          <button
+            onClick={() => onSuccess()}
+            className="w-full bg-risda-orange text-black hover:bg-risda-orange-hover font-black text-xs md:text-sm py-4.5 px-6 rounded-xl uppercase tracking-[3px] transition-all hover:scale-[1.02] cursor-pointer shadow-lg shadow-risda-orange/10"
+          >
+            Selesai & Tutup Borang
+          </button>
         </div>
       </div>
     );

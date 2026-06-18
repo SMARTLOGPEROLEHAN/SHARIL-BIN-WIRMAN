@@ -191,7 +191,7 @@ function AppContent() {
       case 'projek':
         return (
           <div className="w-full pt-10">
-            <ProjectFilters showRegistration={false} />
+            <ProjectFilters showRegistration={false} initialStatus="AKTIF" />
           </div>
         );
       case 'keputusan':
@@ -219,7 +219,7 @@ function AppContent() {
           <div className="w-full space-y-8">
             <Hero />
             <div id="main-content" />
-            <ProjectFilters />
+            <ProjectFilters initialStatus="AKTIF" />
           </div>
         );
     }

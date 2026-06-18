@@ -135,7 +135,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, setCollapsed: propSetCollapsed }: SidebarProps) {
-  const { user, role } = useAuth();
+  const { user, role, district } = useAuth();
   const [localCollapsed, setLocalCollapsed] = useState(false);
   const collapsed = propCollapsed !== undefined ? propCollapsed : localCollapsed;
   const setCollapsed = propSetCollapsed !== undefined ? propSetCollapsed : setLocalCollapsed;
@@ -242,7 +242,7 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
               RISDA
             </span>
             <span className="text-[10px] text-risda-gold font-black tracking-[2.5px] uppercase whitespace-nowrap opacity-80">
-              DAERAH BEAUFORT
+              DAERAH {district ? district.toUpperCase() : 'BEAUFORT'}
             </span>
           </motion.div>
         )}

@@ -191,7 +191,49 @@ body {
 }
 
 /* Print Overrides for A4 Letter Printing */
+.print-page {
+  background-color: #ffffff;
+  color: #000000;
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  margin: 0 auto 30px auto;
+  padding: 0.8in 0.8in 0.82in 0.8in; /* Proportional margins: 0.8in left/right, and extra room for absolute footer at the bottom */
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.print-page-first {
+  padding-top: 1.25in !important;
+}
+
+.print-content-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  color: #000000 !important;
+}
+
+.print-footer {
+  position: absolute;
+  bottom: 0.45in; /* Sits perfectly 3 lines of space from bottom edge of the paper */
+  left: 0.8in;
+  right: 0.8in;
+  border-top: 1.5px solid #000000;
+  padding-top: 10px;
+  text-align: center;
+}
+
 @media print {
+  @page {
+    size: A4;
+    margin: 0 !important;
+  }
+
   body, html {
     background-color: #ffffff !important;
     background-image: none !important;
@@ -202,24 +244,66 @@ body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+  
   .no-print, #no-print-actionbar {
     display: none !important;
   }
+  
   .print\:bg-white {
     background-color: #ffffff !important;
   }
+  
   .print\:p-0 {
     padding: 0 !important;
   }
+  
   .print\:shadow-none {
     box-shadow: none !important;
   }
+  
   .print\:border-none {
     border: none !important;
   }
+  
   /* Prevent background color from printing on page border elements */
   div, table, td, span, p {
     color: #000000 !important;
+  }
+
+  .print-page {
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 0.8in 0.8in 0.82in 0.8in !important;
+    box-shadow: none !important;
+    page-break-after: always !important;
+    page-break-inside: avoid !important;
+    box-sizing: border-box !important;
+    background-color: #ffffff !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    position: relative !important;
+  }
+  
+  .print-page-first {
+    padding-top: 1.25in !important;
+  }
+  
+  .print-content-wrap {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .print-footer {
+    position: absolute !important;
+    bottom: 0.45in !important;
+    left: 0.8in !important;
+    right: 0.8in !important;
+    border-top: 1.5px solid #000000 !important;
+    padding-top: 10px !important;
   }
 }
 

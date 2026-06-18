@@ -20,17 +20,18 @@ service cloud.firestore {
     }
 
     function getUserRole() {
-      return !isSignedIn() ? 'pelawat' :
-             (request.auth.token.get('email', '').lower() == 'innogranite@gmail.com') ? 'admin' :
-             hasUserDoc() ? getUserData().role : 'pelawat';
+      return isSignedIn() ? (
+        (request.auth.token.get('email', '').lower() == 'innogranite@gmail.com') ? 'admin' :
+        hasUserDoc() ? getUserData().role : 'pelawat'
+      ) : 'pelawat';
     }
 
     function isAdmin() {
-      return getUserRole() in ['admin', 'pentadbir'];
+      return isSignedIn() && (getUserRole() in ['admin', 'pentadbir']);
     }
 
     function isStaff() {
-      return getUserRole() in ['admin', 'penginput', 'pelulus', 'pentadbir'];
+      return isSignedIn() && (getUserRole() in ['admin', 'penginput', 'pelulus', 'pentadbir']);
     }
 
     function getUserOffice() {
@@ -118,7 +119,7 @@ service cloud.firestore {
     }
 
     match /sent_emails/{emailId} {
-      allow create: if isStaff();
+      allow create: if true;
       allow read: if isStaff();
     }
 
@@ -136,7 +137,9 @@ service cloud.firestore {
     // SUPPLIERS & INVITATIONS
     // -------------------------------------------------------------------------
     match /suppliers/{supplierId} {
-      allow read, write: if isStaff();
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isStaff();
     }
 
     match /supplier_invitations/{invitationId} {

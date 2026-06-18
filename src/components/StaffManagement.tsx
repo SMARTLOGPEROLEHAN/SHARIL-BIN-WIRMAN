@@ -23,6 +23,8 @@ interface StaffMember {
   createdAt: any;
   uid?: string;
   photoURL?: string;
+  jawatan?: string;
+  gred?: string;
 }
 
 export default function StaffManagement() {
@@ -44,6 +46,8 @@ export default function StaffManagement() {
   const [photoURL, setPhotoURL] = useState('');
   const [role, setRole] = useState<'admin' | 'penginput' | 'pelulus' | 'pentadbir'>('penginput');
   const [status, setStatus] = useState<'Aktif' | 'Tidak Aktif' | 'Pencen' | 'Berhenti'>('Aktif');
+  const [jawatan, setJawatan] = useState('');
+  const [gred, setGred] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -219,6 +223,8 @@ export default function StaffManagement() {
         role,
         status,
         photoURL,
+        jawatan,
+        gred,
         updatedAt: serverTimestamp()
       };
 
@@ -234,43 +240,43 @@ export default function StaffManagement() {
         delete dataToSave.district;
         delete dataToSave.staffId;
         delete dataToSave.password;
+        delete dataToSave.jawatan;
+        delete dataToSave.gred;
       }
 
       let registrationEmailSent = false;
       const trimmedEmail = email.trim();
       if (!editingId) {
-        // Create
-        const q = query(collection(db, 'users'), where('email', '==', trimmedEmail));
+        // Create - search by staffId to prevent overwriting other users who share the same email address
+        const q = query(collection(db, 'users'), where('staffId', '==', staffId));
         const emailSnapshot = await getDocs(q);
         if (!emailSnapshot.empty) {
           const existingDoc = emailSnapshot.docs[0];
           await updateDoc(existingDoc.ref, dataToSave);
         } else {
           const emailSlug = trimmedEmail.replace(/[^a-zA-Z0-9]/g, '_');
-          await setDoc(doc(db, 'users', emailSlug), {
+          const finalDocId = `${emailSlug}_${staffId}`;
+          await setDoc(doc(db, 'users', finalDocId), {
             ...dataToSave,
             email: trimmedEmail,
             createdAt: serverTimestamp(),
-            uid: authUid || emailSlug
+            uid: authUid || finalDocId
           });
         }
 
-        const formatMalayRegistrationDate = () => {
-          const months = [
-            'Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 
-            'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'
-          ];
-          const d = new Date();
-          return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-        };
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString('ms-MY', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
 
-        const formattedRegDate = formatMalayRegistrationDate();
-        const notifySubject = `Pengesahan Pendaftaran Akaun Kakitangan Sistem e-SebutHarga`;
+        const notifySubject = `Pendaftaran Akaun Kakitangan Sistem SMARTLOG PEROLEHAN Berjaya`;
         const notifyBody = `Assalamualaikum / Salam Sejahtera,
 
 Tahniah.
 
-Pendaftaran anda ke dalam Sistem ini telah berjaya.
+Pendaftaran anda ke dalam Sistem SMARTLOG PEROLEHAN telah berjaya.
 
 Maklumat Akaun:
 
@@ -280,17 +286,37 @@ Email: ${trimmedEmail}
 
 No. ID Kakitangan : ${staffId}
 
-Tarikh Daftar: ${formattedRegDate}
+Kata Laluan : ${password}
+
+Tarikh Daftar: ${formattedDate}
 
 Anda kini boleh log masuk menggunakan email, ID dan kata laluan yang telah didaftarkan.
 
 Sekiranya terdapat sebarang masalah, sila hubungi Pentadbir Sistem.
-
 Terima kasih.
 
-Pentadbir Sistem`;
+Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
 
         try {
+          // Send email directly through secure backend proxy (uses SMTP settings from Secrets)
+          fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: trimmedEmail,
+              subject: notifySubject,
+              text: notifyBody
+            })
+          }).then(res => {
+            if (res.ok) {
+              console.log('Direct SMTP email triggered successfully for staff registration.');
+            } else {
+              console.warn('Direct SMTP is not active or not configured, falling back to Firestore triggers.');
+            }
+          }).catch(err => {
+            console.error('SMTP route fetch failed, fallback is selected:', err);
+          });
+
           const docPromises = [
             // Format 1: Flat scheme in 'sent_emails'
             addDoc(collection(db, 'sent_emails'), {
@@ -346,55 +372,7 @@ Pentadbir Sistem`;
           ];
 
           await Promise.all(docPromises);
-          
-          let apiEmailSent = false;
-          let apiSimulated = false;
-          let apiErrorMessage = "";
-
-          // Also call direct backend API send-email route
-          try {
-            const emailResponse = await fetch('/api/send-email', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                to: trimmedEmail,
-                subject: notifySubject,
-                text: notifyBody,
-              }),
-            });
-            if (emailResponse.ok) {
-              const resData = await emailResponse.json();
-              if (resData.simulated) {
-                apiSimulated = true;
-              } else {
-                apiEmailSent = true;
-              }
-            } else {
-              const resErr = await emailResponse.json().catch(() => ({}));
-              apiErrorMessage = resErr.error || "Ralat SMTP tidak diketahui";
-            }
-          } catch (apiErr: any) {
-            console.error('Error invoking direct send-email backend API:', apiErr);
-            apiErrorMessage = apiErr.message || "Ralat menyambung ke pelayan";
-          }
-
-          if (apiEmailSent) {
-            registrationEmailSent = true;
-          } else if (apiSimulated) {
-            registrationEmailSent = false;
-            toast.error('Gagal Hantar E-mel Sebenar! Sila hubungi Admin untuk menyediakan kelayakan "SMTP_USER" & "SMTP_PASS" dalam Tetapan / Fail .env (Buat masa ini e-mel disimulasikan ke logs server).', { 
-              duration: 12000,
-              icon: '⚠️'
-            });
-          } else if (apiErrorMessage) {
-            registrationEmailSent = false;
-            toast.error(`Ralat Sambungan SMTP: ${apiErrorMessage}. Sila pastikan kata laluan e-mel atau port SMTP adalah betul!`, { 
-              duration: 12000, 
-              icon: '❌' 
-            });
-          }
+          registrationEmailSent = true;
         } catch (emailErr) {
           console.error('Error queuing staff welcome email:', emailErr);
         }
@@ -456,6 +434,8 @@ Pentadbir Sistem`;
     setRole('penginput');
     setStatus('Aktif');
     setPhotoURL('');
+    setJawatan('');
+    setGred('');
     setShowModal(false);
   };
 
@@ -508,6 +488,8 @@ Pentadbir Sistem`;
     setRole(member.role);
     setStatus(member.status || 'Aktif');
     setPhotoURL(member.photoURL || '');
+    setJawatan(member.jawatan || '');
+    setGred(member.gred || '');
     setShowModal(true);
   };
 
@@ -536,19 +518,34 @@ Pentadbir Sistem`;
       // 1. Delete the primary document
       await deleteDoc(doc(db, 'users', id));
       
-      // 2. Check for any other documents with the same email (e.g. UID vs Slug)
-      const q = query(collection(db, 'users'), where('email', '==', staffMember.email));
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        const batch = writeBatch(db);
-        snapshot.forEach((d) => {
-          if (d.id !== id) batch.delete(d.ref);
-        });
-        await batch.commit();
+      // 2. Clear other documents that share the same staffId (e.g., pre-registration vs UID migrated documents)
+      if (staffMember.staffId) {
+        const q = query(collection(db, 'users'), where('staffId', '==', staffMember.staffId));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.forEach((d) => {
+            if (d.id !== id) batch.delete(d.ref);
+          });
+          await batch.commit();
+        }
       }
 
-      setStaff(prev => prev.filter(s => s.email !== staffMember.email));
-      toast.success('Rekod kakitangan telah dipadam sepenuhnya.', { id: loadingToast });
+      // 3. Delete related system notifications associated with this staff's email completely
+      if (staffMember.email) {
+        const notifQ = query(collection(db, 'notifications'), where('userEmail', '==', staffMember.email.trim()));
+        const notifSnapshot = await getDocs(notifQ);
+        if (!notifSnapshot.empty) {
+          const batch = writeBatch(db);
+          notifSnapshot.forEach((d) => {
+            batch.delete(d.ref);
+          });
+          await batch.commit();
+        }
+      }
+
+      setStaff(prev => prev.filter(s => s.id !== id));
+      toast.success('Rekod kakitangan dan data berkaitan telah dipadam sepenuhnya dari sistem.', { id: loadingToast });
       fetchStaff(); // Force refresh from server
     } catch (error) {
       console.error('Error deleting:', error);
@@ -905,15 +902,20 @@ Pentadbir Sistem`;
                                                       <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-risda-card ${
                                                         member.status === 'Aktif' ? 'bg-green-500' : 'bg-risda-muted'
                                                       }`} />
-                                                    </div>
+                                                     </div>
 
-                                                    <div className="flex-1 min-w-0">
+                                                     <div className="flex-1 min-w-0">
                                                       <div className="flex items-center gap-2 mb-1">
                                                         <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-tight truncate leading-tight group-hover/card:text-risda-orange transition-colors">{member.displayName}</h4>
                                                       </div>
-                                                      <p className="text-[9px] font-black text-risda-gold uppercase tracking-[1.5px] mb-2 leading-none">
+                                                      <p className="text-[9px] font-black text-risda-gold uppercase tracking-[1.5px] mb-1 leading-none">
                                                          {member.role === 'admin' || member.role === 'pentadbir' ? 'Pentadbir Sistem' : member.role === 'penginput' ? 'Pihak Penginput' : 'Pegawai Pelulus'}
                                                       </p>
+                                                      {(member.jawatan || member.gred) && (
+                                                        <p className="text-[9px] font-bold text-slate-300 uppercase tracking-[1px] mb-2 leading-none">
+                                                          {member.jawatan || 'TIADA JAWATAN'} {member.gred ? `[${member.gred}]` : ''}
+                                                        </p>
+                                                      )}
                                                       
                                                       <div className="space-y-1">
                                                         <div className="flex items-center gap-1.5 text-[9px] text-white/40">
@@ -1132,6 +1134,28 @@ Pentadbir Sistem`;
                       placeholder="MINIMA 6 AKSARA"
                       className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10"
                       required={!editingId}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Jawatan Kakitangan</label>
+                    <input 
+                      value={jawatan || ''}
+                      onChange={(e) => setJawatan(e.target.value)}
+                      readOnly={!isAdmin}
+                      placeholder="CTH: PEGAWAI PEROLEHAN"
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10 uppercase"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Gred Jawatan</label>
+                    <input 
+                      value={gred || ''}
+                      onChange={(e) => setGred(e.target.value)}
+                      readOnly={!isAdmin}
+                      placeholder="CTH: G29 / N19"
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10 uppercase"
                     />
                   </div>
 

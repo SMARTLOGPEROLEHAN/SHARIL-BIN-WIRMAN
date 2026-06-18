@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, orderBy, where, writeBatch } from 'firebase/firestore';
+import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, orderBy, where, writeBatch, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -109,6 +109,8 @@ interface LocationItem {
   office: string;
   state: string;
   status: string;
+  address?: string;
+  postcode?: string;
 }
 
 export default function TenderManagement() {
@@ -289,7 +291,7 @@ export default function TenderManagement() {
 
   useEffect(() => {
     fetchAds();
-    if (isAdmin) fetchLocations();
+    fetchLocations();
   }, [role, userOffice]);
 
   const fetchLocations = async () => {
@@ -299,13 +301,52 @@ export default function TenderManagement() {
         id: d.id, 
         office: d.data().office,
         state: d.data().state,
-        status: d.data().status || 'Aktif'
+        status: d.data().status || 'Aktif',
+        address: d.data().address || d.data().station || '',
+        postcode: d.data().postcode || ''
       } as LocationItem));
       setLocations(list);
     } catch (error) {
       console.error('Error fetching locations:', error);
     }
   };
+
+  const getOfficeAddress = (officeName: string) => {
+    if (!officeName) return '';
+    const loc = locations.find(l => l.office.toUpperCase() === officeName.toUpperCase());
+    if (!loc) return officeName.toUpperCase();
+    
+    const parts = [loc.office];
+    if (loc.address) parts.push(loc.address);
+    if (loc.postcode) {
+      const pcStr = String(loc.postcode);
+      if (!loc.address?.includes(pcStr)) {
+        parts.push(pcStr);
+      }
+    }
+    if (loc.state) {
+      parts.push(loc.state);
+    }
+    
+    return parts.join(', ').toUpperCase();
+  };
+
+  useEffect(() => {
+    if (showModal && !editingAd) {
+      const activeOffice = formData.office || userOffice;
+      if (activeOffice) {
+        const addr = getOfficeAddress(activeOffice);
+        if (addr) {
+          setFormData(prev => ({
+            ...prev,
+            office: activeOffice,
+            docVenue: prev.docVenue || addr,
+            closingVenue: prev.closingVenue || addr
+          }));
+        }
+      }
+    }
+  }, [showModal, editingAd, formData.office, locations, userOffice]);
 
   const fetchAds = async () => {
     try {
@@ -520,6 +561,87 @@ export default function TenderManagement() {
 
       toast.success(`Keputusan rasmi telah dikemaskini. ${pendingWinner.companyName} terpilih!`, { id: loadingToast });
       
+      // Send background physical/automated email to selected winner (as requested)
+      if (winnerData.email && winnerData.email.trim() && winnerData.email.trim() !== '-') {
+        const notifySubject = `TAHNIAH KONTRAKTOR ANDA TELAH DIPILIH BAGI SEBUTHARGA NO: ${selectedAdForWinner.tenderNo.toUpperCase()}`;
+        const notifyBody = `Tahniah kontraktor anda telah terpilih bagi:
+
+No. Sebut Harga: ${selectedAdForWinner.tenderNo.toUpperCase()}
+Tajuk Sebut Harga: ${selectedAdForWinner.title.toUpperCase()}
+
+Sila datang ke Pejabat RISDA Daerah Beaufort bagi mengisi dokumen yang berkaitan.
+
+Sekian terima kasih
+
+Daripada,
+Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
+
+        try {
+          // Direct SMTP route dispatch
+          fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: winnerData.email.trim(),
+              subject: notifySubject,
+              text: notifyBody
+            })
+          }).then(res => {
+            if (res.ok) {
+              console.log('Automated SMTP email for selected winner sent successfully.');
+            }
+          }).catch(err => {
+            console.error('Automated SMTP email route failed, relying on DB trigger queuing:', err);
+          });
+
+          // Queue in Firestore collections
+          const docPromises = [
+            addDoc(collection(db, 'sent_emails'), {
+              to: winnerData.email.trim(),
+              toName: winnerData.companyName,
+              subject: notifySubject,
+              body: notifyBody,
+              sentAt: new Date().toISOString()
+            }),
+            addDoc(collection(db, 'sent_emails'), {
+              to: winnerData.email.trim(),
+              message: {
+                subject: notifySubject,
+                text: notifyBody
+              },
+              sentAt: new Date().toISOString()
+            }).catch(() => null),
+            addDoc(collection(db, 'mail'), {
+              to: winnerData.email.trim(),
+              toName: winnerData.companyName,
+              subject: notifySubject,
+              body: notifyBody,
+              sentAt: new Date().toISOString()
+            }).catch(() => null),
+            addDoc(collection(db, 'mail'), {
+              to: winnerData.email.trim(),
+              message: {
+                subject: notifySubject,
+                text: notifyBody
+              },
+              sentAt: new Date().toISOString()
+            }).catch(() => null),
+            addDoc(collection(db, 'emails'), {
+              to: winnerData.email.trim(),
+              toName: winnerData.companyName,
+              subject: notifySubject,
+              body: notifyBody,
+              sentAt: new Date().toISOString()
+            }).catch(() => null)
+          ];
+
+          await Promise.all(docPromises);
+          toast.success(`E-mel maklum balas keputusan rasmi telah dihantar ke ${winnerData.email}`);
+        } catch (emailErr) {
+          console.error('Gagal menghantar e-mel keputusan rasmi:', emailErr);
+        }
+      }
+
       // Auto-trigger notifications based on preferences
       const fullAdData = {...selectedAdForWinner, winner: winnerData} as Advertisement;
       
@@ -664,10 +786,6 @@ export default function TenderManagement() {
               className="w-full bg-transparent border-b-2 border-white/10 rounded-none py-6 pl-10 pr-6 text-sm md:text-base text-white focus:border-risda-orange outline-none transition-all placeholder:text-risda-muted/50 font-black uppercase tracking-widest"
             />
           </div>
-          <button className="px-8 py-5 bg-white/5 border border-white/10 rounded-2xl text-[10px] md:text-[11px] font-black uppercase tracking-[3px] text-white flex items-center justify-center gap-3 hover:bg-white/10 transition-all active:scale-95 group">
-            <FileDown size={20} className="text-risda-orange group-hover:scale-110 transition-transform" />
-            Export Data
-          </button>
         </div>
 
         {/* Filters Grid */}
@@ -1217,7 +1335,19 @@ export default function TenderManagement() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-risda-muted uppercase">Tempat Ambil Dokumen</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[9px] font-bold text-risda-muted uppercase">Tempat Ambil Dokumen</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const addr = getOfficeAddress(formData.office || userOffice || '');
+                            if (addr) setFormData(prev => ({ ...prev, docVenue: addr }));
+                          }}
+                          className="text-[8px] font-black uppercase text-risda-gold hover:text-white transition-colors cursor-pointer tracking-wider decoration-solid hover:underline"
+                        >
+                          [Guna Alamat Pejabat]
+                        </button>
+                      </div>
                       <input placeholder="Unit Kewangan Pejabat RISDA Beaufort" value={formData.docVenue || ''} onChange={(e) => setFormData({...formData, docVenue: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-xs text-white" />
                     </div>
                   </div>
@@ -1235,8 +1365,20 @@ export default function TenderManagement() {
                       </div>
                     </div>
                     <div className="space-y-2">
+                      <div className="flex items-center justify-between">
                         <label className="text-[9px] font-bold text-risda-muted uppercase">Tempat Serahan (Peti Sebut Harga)</label>
-                        <input placeholder="Pejabat RISDA Beaufort" value={formData.closingVenue || ''} onChange={(e) => setFormData({...formData, closingVenue: e.target.value})} className="w-full bg-black/20 border border-red-500/20 rounded-xl py-3 px-4 text-xs text-white" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const addr = getOfficeAddress(formData.office || userOffice || '');
+                            if (addr) setFormData(prev => ({ ...prev, closingVenue: addr }));
+                          }}
+                          className="text-[8px] font-black uppercase text-risda-gold hover:text-white transition-colors cursor-pointer tracking-wider decoration-solid hover:underline"
+                        >
+                          [Guna Alamat Pejabat]
+                        </button>
+                      </div>
+                      <input placeholder="Pejabat RISDA Beaufort" value={formData.closingVenue || ''} onChange={(e) => setFormData({...formData, closingVenue: e.target.value})} className="w-full bg-black/20 border border-red-500/20 rounded-xl py-3 px-4 text-xs text-white" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[9px] font-bold text-risda-muted uppercase">Status</label>
@@ -1288,7 +1430,7 @@ export default function TenderManagement() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-risda-card border border-white/5 w-full max-w-6xl rounded-[40px] overflow-y-auto md:overflow-hidden relative z-10 shadow-2xl flex flex-col md:flex-row max-h-[90vh] scrollbar-thin scrollbar-thumb-white/10"
+              className="bg-risda-card border border-white/5 w-full max-w-6xl rounded-[40px] overflow-y-auto md:overflow-hidden relative z-10 shadow-2xl flex flex-col md:flex-row h-[90vh] md:h-[80vh] min-h-[550px] max-h-[85vh] scrollbar-thin scrollbar-thumb-white/10"
             >
               {/* Left Side: Participant List */}
               <div className={`flex flex-col border-r border-white/5 transition-all duration-500 ${pendingWinner ? 'w-full md:w-[60%]' : 'w-full'}`}>
@@ -1382,7 +1524,7 @@ export default function TenderManagement() {
                     exit={{ x: 300, opacity: 0 }}
                     className="w-full md:w-[40%] bg-black/40 p-6 md:p-8 flex flex-col h-auto md:h-full border-t md:border-t-0 md:border-l border-white/5 overflow-hidden"
                   >
-                    <div className="flex-1 overflow-y-auto space-y-8 pr-2 scrollbar-thin scrollbar-thumb-white/10 scroll-smooth pb-6">
+                    <div className="flex-1 overflow-y-auto space-y-8 pr-3 scrollbar-thin scrollbar-thumb-risda-orange/40 hover:scrollbar-thumb-risda-orange/60 scrollbar-track-white/5 scroll-smooth pb-12">
                       <div className="text-center space-y-2">
                         <div className="inline-flex px-3 py-1 bg-risda-orange/10 border border-risda-orange/20 rounded-full text-[9px] font-black text-risda-orange uppercase tracking-widest">Langkah Pengesahan</div>
                         <h3 className="text-xl font-black text-white uppercase">Maklumat Kontrak</h3>

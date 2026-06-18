@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, Users, Calendar, Building2, Trash2, Eye, Search, ChevronDown, X, Phone, Mail, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, getDocs, orderBy, where, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, deleteDoc, doc, updateDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import AttendanceForm from './AttendanceForm';
@@ -125,16 +125,63 @@ export default function AttendanceList() {
   };
 
   const handleDelete = async (attendanceId: string) => {
-    if (!window.confirm('Adakah anda pasti untuk padam rekod kehadiran ini?')) return;
+    const record = attendance.find(r => r.id === attendanceId);
+    if (!record) return;
+
+    if (!window.confirm('Adakah anda pasti untuk padam rekod kehadiran ini? Semua data berkaitan akan hilang.')) return;
     
     const loadingToast = toast.loading('Memadam rekod...');
     try {
+      // 1. Delete the primary attendance document
       await deleteDoc(doc(db, 'attendance', attendanceId));
+
+      // 2. Clear related sent emails / transient logs in 'sent_emails', 'mail', 'emails'
+      if (record.email) {
+        const collectionsToPurge = ['sent_emails', 'mail', 'emails'];
+        for (const colName of collectionsToPurge) {
+          try {
+            const emailQ = query(collection(db, colName), where('to', '==', record.email.trim()));
+            const qSnap = await getDocs(emailQ);
+            if (!qSnap.empty) {
+              const batch = writeBatch(db);
+              qSnap.forEach((d) => {
+                const data = d.data();
+                const textContent = JSON.stringify(data).toUpperCase();
+                const tenderMatch = record.adTitle ? textContent.includes(record.adTitle.toUpperCase()) : true;
+                const typeMatch = textContent.includes('PENDAFTARAN') || textContent.includes('KEHADIRAN') || textContent.includes('TAKLIMAT');
+                
+                if (tenderMatch || typeMatch) {
+                  batch.delete(d.ref);
+                }
+              });
+              await batch.commit();
+            }
+          } catch (colErr) {
+            console.warn(`Could not purge ${colName} records:`, colErr);
+          }
+        }
+
+        // 3. Clear any related pending/resolved notification flags
+        try {
+          const notifQ = query(collection(db, 'notifications'), where('userEmail', '==', record.email.trim()));
+          const notSnap = await getDocs(notifQ);
+          if (!notSnap.empty) {
+            const batch = writeBatch(db);
+            notSnap.forEach((d) => {
+              batch.delete(d.ref);
+            });
+            await batch.commit();
+          }
+        } catch (notifErr) {
+          console.warn('Could not purge notifications records:', notifErr);
+        }
+      }
+
       setAttendance(prev => prev.filter(r => r.id !== attendanceId));
-      toast.success('Rekod kehadiran telah dipadam.', { id: loadingToast });
+      toast.success('Rekod kehadiran dan seluruh data berkaitan telah dipadam.', { id: loadingToast });
     } catch (error) {
       console.error('Error deleting attendance:', error);
-      toast.error('Gagal memadam rekod. Sila periksa kebenaran akses anda.', { id: loadingToast });
+      toast.error('Gagal memadam rekod sepenuhnya.', { id: loadingToast });
     }
   };
 
@@ -436,21 +483,94 @@ export default function AttendanceList() {
                 </div>
 
                 {/* Sijil / Dokumen Section */}
-                <div className="bg-black/20 p-5 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <span className="text-[8px] font-black text-risda-muted uppercase">Sijil CIDB & SSM Pembekal</span>
-                    <p className="text-white text-xs font-bold">
-                      {previewRecord.hasCertificate ? 'Dokumen Sijil Telah Dimuat Naik' : 'Tiada Sijil Dimuat Naik'}
-                    </p>
-                    {previewRecord.certificateName && (
-                      <span className="text-[9px] text-risda-gold italic font-mono block mt-1">{previewRecord.certificateName}</span>
+                <div className="space-y-4">
+                  <div className="bg-black/20 p-5 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-black text-risda-muted uppercase">Sijil CIDB & SSM Pembekal</span>
+                      <p className="text-white text-xs font-bold">
+                        {previewRecord.hasCertificate ? 'Dokumen Sijil Telah Dimuat Naik' : 'Tiada Sijil Dimuat Naik'}
+                      </p>
+                      {previewRecord.certificateName && (
+                        <span className="text-[9px] text-risda-gold italic font-mono block mt-1">{previewRecord.certificateName}</span>
+                      )}
+                    </div>
+                    {previewRecord.hasCertificate && (
+                      <span className="bg-green-500/10 text-green-400 border border-green-500/20 text-[9px] font-bold px-3 py-1.5 rounded-lg shrink-0 uppercase tracking-widest">
+                        Lengkap
+                      </span>
                     )}
                   </div>
-                  {previewRecord.hasCertificate && (
-                    <span className="bg-green-500/10 text-green-400 border border-green-500/20 text-[9px] font-bold px-3 py-1.5 rounded-lg shrink-0 uppercase tracking-widest">
-                      Lengkap
-                    </span>
-                  )}
+
+                  {/* Inline Document/Image Attachment Viewer */}
+                  {previewRecord.certificatesBase64 && Object.keys(previewRecord.certificatesBase64).length > 0 ? (
+                    <div className="space-y-4 pt-4 border-t border-white/5">
+                      <h5 className="text-[10px] font-black text-risda-gold uppercase tracking-[2px]">Dokumen / Sijil Tempelan Kontraktor</h5>
+                      <div className="grid grid-cols-1 gap-4">
+                        {Object.entries(previewRecord.certificatesBase64).map(([key, base64Str]: [string, any]) => {
+                          const isImage = typeof base64Str === 'string' && base64Str.startsWith('data:image/');
+                          const isPdf = typeof base64Str === 'string' && base64Str.startsWith('data:application/pdf');
+                          
+                          // Find descriptive name for the certificate key
+                          const fileLabel = key === 'cidb' ? 'Sijil CIDB' :
+                                            key === 'stb' ? 'Sijil Taraf Bumiputera' :
+                                            key === 'mof' ? 'Kementerian Kewangan (MOF)' :
+                                            key === 'tcc' ? 'Sijil Pelepasan Cukai (TCC)' :
+                                            key === 'pukonsa' ? 'Sijil PUKONSA' :
+                                            key === 'kuhean' ? 'Sijil KUHEAN' : 'Sijil Pendaftaran';
+
+                          const fileName = previewRecord.certificates?.[key] || `${fileLabel}.webp`;
+
+                          return (
+                            <div key={key} className="bg-black/30 p-4 rounded-2xl border border-white/5 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex flex-col">
+                                  <span className="text-[8px] font-black text-risda-orange uppercase tracking-wider">{fileLabel}</span>
+                                  <span className="text-white text-[11px] font-bold uppercase truncate max-w-[250px] sm:max-w-md">{fileName}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const link = document.createElement('a');
+                                    link.href = base64Str;
+                                    link.download = fileName;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                  }}
+                                  className="px-3 py-1.5 bg-risda-orange/15 hover:bg-risda-orange/30 border border-risda-orange/20 text-risda-orange text-[9px] font-black uppercase tracking-wider rounded-lg transition-all"
+                                >
+                                  Muat Turun
+                                </button>
+                              </div>
+                              {isImage ? (
+                                <div className="relative group rounded-xl overflow-hidden border border-white/5 bg-black/40 p-2 max-h-[300px] flex items-center justify-center">
+                                  <img 
+                                    src={base64Str} 
+                                    alt={fileName} 
+                                    className="max-h-[280px] object-contain rounded-lg w-auto"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                              ) : isPdf ? (
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center justify-between text-xs">
+                                  <span className="text-risda-muted font-mono">{fileName} (Dokumen PDF)</span>
+                                  <span className="text-risda-gold font-bold">PDF</span>
+                                </div>
+                              ) : (
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center justify-between text-xs">
+                                  <span className="text-risda-muted font-mono">{fileName} (Format tersimpan)</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : previewRecord.hasCertificate ? (
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center text-risda-muted text-[10px] font-bold uppercase tracking-wider">
+                      Sijil sedia ada disimpan secara berasingan. Sila hubungi pembekal jika imej lampiran fizikal tidak dipaparkan.
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

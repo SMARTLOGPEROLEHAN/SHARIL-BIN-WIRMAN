@@ -18,7 +18,7 @@ interface AppNotification {
 }
 
 export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
-  const { user, role } = useAuth();
+  const { user, role, district } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
@@ -138,7 +138,7 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 SMART LOG PEROLEHAN
               </span>
               <span className="text-[8px] text-risda-gold font-bold tracking-widest leading-none mt-1">
-                RISDA DAERAH BEAUFORT
+                RISDA DAERAH {district ? district.toUpperCase() : 'BEAUFORT'}
               </span>
             </div>
           </div>
