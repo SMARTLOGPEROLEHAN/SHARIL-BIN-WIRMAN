@@ -280,12 +280,13 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
           let briefingDate = '';
           let briefingTime = 'Seperti diiklankan';
           let briefingVenue = 'Pejabat RISDA Beaufort';
+          let adData: any = null;
 
           try {
             const adDocRef = doc(db, 'ads', adId);
             const adDocSnap = await getDoc(adDocRef);
             if (adDocSnap.exists()) {
-              const adData = adDocSnap.data();
+              adData = adDocSnap.data();
               visitVenue = adData.visitVenue || adData.briefingVenue || visitVenue;
               briefingDate = adData.briefingDate || '';
               briefingTime = adData.briefingTime || briefingTime;
@@ -481,34 +482,73 @@ Pejabat RISDA Daerah Beaufort, Sabah.`;
 </div>
 `;
 
-           // Send email directly through secure backend proxy (uses SMTP settings from Secrets)
-          fetch('/api/send-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: formData.email.trim(),
-              subject: emailSubject,
-              text: emailBody,
-              html: emailHtml
-            })
-          }).then(res => {
-            if (res.ok) {
-              console.log('Direct SMTP email triggered successfully for contractor briefing attendance.');
-            } else {
-              console.warn('Direct SMTP is not active or not configured, falling back to Firestore triggers.');
-            }
-          }).catch(err => {
-            console.error('SMTP route fetch failed, fallback is selected:', err);
-          });
+           // Generate Format 2: Borang_Tawaran_Harga PDF
+           const virtualInv = {
+             adId: adId,
+             adTitle: adTitle,
+             tenderNo: tenderNo || adData?.tenderNo || '-',
+             referenceNo: adData?.referenceNo || '',
+             invitationDate: adData?.publishedDate || '',
+             closingDate: adData?.closingDate || '',
+             closingTime: adData?.closingTime || '',
+             briefingDate: briefingDate || '',
+             briefingTime: briefingTime || '',
+             briefingVenue: briefingVenue || '',
+             submissionVenue: visitVenue || briefingVenue || 'PEJABAT RISDA DAERAH BEAUFORT',
+             officerName: adData?.officerName || 'PEGAWAI PEROLEHAN RISDA',
+             state: adData?.state || 'Sabah',
+             office: office || adData?.office || 'PEJABAT RISDA DAERAH BEAUFORT'
+           };
 
-          await addDoc(collection(db, 'sent_emails'), {
-            to: formData.email.trim(),
-            toName: formData.ownerName.trim(),
-            subject: emailSubject,
-            body: emailBody,
-            html: emailHtml,
-            sentAt: new Date().toISOString()
-          });
+           const virtualSupplier = {
+             companyName: formData.companyName.toUpperCase().trim(),
+             address: formData.companyAddress || 'Kawasan Beaufort'
+           };
+
+           const attachments: any[] = [];
+           try {
+             const b64 = '';
+             if (b64) {
+               attachments.push({
+                 filename: `Surat_Tawaran_Pelawaan_${formData.companyName.replace(/\s+/g, '_')}.pdf`,
+                 content: b64,
+                 contentType: 'application/pdf'
+               });
+             }
+           } catch (pdfErr) {
+             console.error('Failed to generate Surat Tawaran PDF in AttendanceForm:', pdfErr);
+           }
+
+           // Send email directly through secure backend proxy (uses SMTP settings from Secrets)
+           try {
+             const sendRes = await fetch('/api/send-email', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({
+                 to: formData.email.trim(),
+                 subject: emailSubject,
+                 text: emailBody,
+                 html: emailHtml,
+                 attachments
+               })
+             });
+             if (sendRes.ok) {
+               console.log('Direct SMTP email triggered successfully for contractor briefing attendance.');
+             } else {
+               console.warn('Direct SMTP is not active or not configured, falling back to Firestore triggers.');
+             }
+           } catch (err) {
+             console.error('SMTP route fetch failed, fallback is selected:', err);
+           }
+
+           await addDoc(collection(db, 'sent_emails'), {
+             to: formData.email.trim(),
+             toName: formData.ownerName.trim(),
+             subject: emailSubject,
+             body: emailBody,
+             html: emailHtml,
+             sentAt: new Date().toISOString()
+           });
         }
       }
       setSubmitted(true);

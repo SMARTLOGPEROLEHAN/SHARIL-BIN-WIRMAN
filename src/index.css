@@ -220,7 +220,7 @@ body {
 
 .print-footer {
   position: absolute;
-  bottom: 0.45in; /* Sits perfectly 3 lines of space from bottom edge of the paper */
+  bottom: 2cm; /* Placed exactly 2cm from bottom edge of the paper */
   left: 0.8in;
   right: 0.8in;
   border-top: 1.5px solid #000000;
@@ -299,7 +299,7 @@ body {
 
   .print-footer {
     position: absolute !important;
-    bottom: 0.45in !important;
+    bottom: 2cm !important;
     left: 0.8in !important;
     right: 0.8in !important;
     border-top: 1.5px solid #000000 !important;

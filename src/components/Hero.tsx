@@ -99,86 +99,89 @@ export default function Hero() {
         </div>
       )}
 
-      <div className="relative py-12 lg:py-20 flex flex-col items-center text-center gap-10 lg:gap-14">
-        {/* Dynamic Background Accents */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-risda-orange/10 blur-[150px] pointer-events-none group-hover:bg-risda-orange/15 transition-all duration-1000" />
-        
-        <div className="relative z-10 space-y-8 flex-1 flex flex-col items-center">
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-3 px-6 py-2.5 bg-gradient-to-r from-risda-orange/20 via-risda-orange/10 to-transparent border border-risda-orange/20 rounded-full shadow-lg"
-          >
-            <div className="w-2 h-2 bg-risda-orange rounded-full animate-pulse shadow-[0_0_12px_rgba(0,229,255,1)]" />
-            <span className="text-[10px] font-black text-risda-orange uppercase tracking-[4px]">
-              Infrastruktur Digital RISDA
-            </span>
-          </motion.div>
+      {/* Hero Content Section - ONLY Render if NOT staff */}
+      {!isStaff && (
+        <div className="relative py-12 lg:py-20 flex flex-col items-center text-center gap-10 lg:gap-14">
+          {/* Dynamic Background Accents */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-risda-orange/10 blur-[150px] pointer-events-none group-hover:bg-risda-orange/15 transition-all duration-1000" />
           
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="space-y-6 max-w-full w-full"
-          >
-            <div 
-              onClick={() => setIsTitleActive(!isTitleActive)}
-              className={`relative p-8 sm:p-12 md:p-20 overflow-hidden group/title max-w-full rounded-[48px] transition-all duration-700 cursor-pointer ${
-                isTitleActive 
-                  ? 'bg-white/[0.04] border border-white/10 backdrop-blur-sm shadow-2xl' 
-                  : 'bg-transparent border border-transparent backdrop-blur-none shadow-none'
-              }`}
+          <div className="relative z-10 space-y-8 flex-1 flex flex-col items-center">
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center gap-3 px-6 py-2.5 bg-gradient-to-r from-risda-orange/20 via-risda-orange/10 to-transparent border border-risda-orange/20 rounded-full shadow-lg"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br from-risda-orange/10 to-transparent transition-opacity duration-700 ${isTitleActive ? 'opacity-100' : 'opacity-0'}`} />
-              <h2 
-                className="text-4xl xs:text-6xl sm:text-7xl lg:text-[140px] font-black text-white tracking-tighter uppercase italic drop-shadow-2xl relative z-10 break-words lg:!leading-[120px]"
+              <div className="w-2 h-2 bg-risda-orange rounded-full animate-pulse shadow-[0_0_12px_rgba(0,229,255,1)]" />
+              <span className="text-[10px] font-black text-risda-orange uppercase tracking-[4px]">
+                Infrastruktur Digital RISDA
+              </span>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="space-y-6 max-w-full w-full"
+            >
+              <div 
+                onClick={() => setIsTitleActive(!isTitleActive)}
+                className={`relative p-8 sm:p-12 md:p-20 overflow-hidden group/title max-w-full rounded-[48px] transition-all duration-700 cursor-pointer ${
+                  isTitleActive 
+                    ? 'bg-white/[0.04] border border-white/10 backdrop-blur-sm shadow-2xl' 
+                    : 'bg-transparent border border-transparent backdrop-blur-none shadow-none'
+                }`}
               >
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-risda-orange via-risda-gold to-risda-orange bg-[length:200%_auto] animate-shimmer italic text-xl xs:text-3xl sm:text-5xl lg:text-7xl xl:text-8xl block mt-2 sm:mt-6">
-                  <span 
-                    className="whitespace-normal lg:!leading-[1.1] font-poppins"
-                  >
-                    SMART LOG<br/>PEROLEHAN
+                <div className={`absolute inset-0 bg-gradient-to-br from-risda-orange/10 to-transparent transition-opacity duration-700 ${isTitleActive ? 'opacity-100' : 'opacity-0'}`} />
+                <h2 
+                  className="text-4xl xs:text-6xl sm:text-7xl lg:text-[140px] font-black text-white tracking-tighter uppercase italic drop-shadow-2xl relative z-10 break-words lg:!leading-[120px]"
+                >
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-risda-orange via-risda-gold to-risda-orange bg-[length:200%_auto] animate-shimmer italic text-xl xs:text-3xl sm:text-5xl lg:text-7xl xl:text-8xl block mt-2 sm:mt-6">
+                    <span 
+                      className="whitespace-normal lg:!leading-[1.1] font-poppins"
+                    >
+                      SMART LOG<br/>PEROLEHAN
+                    </span>
                   </span>
+                </h2>
+              </div>
+              <p className="text-sm sm:text-base lg:text-xl text-white/50 font-bold uppercase tracking-[4px] mt-8 leading-relaxed">
+                Satu portal bersepadu untuk ketelusan dan kecekapan pendaftaran tapak sebut harga RISDA.
+              </p>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex flex-wrap items-center justify-center gap-6 pt-6 w-full"
+            >
+              <button 
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('triggerViewActiveAds'));
+                }}
+                className="group relative overflow-hidden px-8 py-5 rounded-2xl transition-all active:scale-95 text-white border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/25 shadow-lg flex items-center justify-center gap-3 w-64 max-w-full text-center cursor-pointer font-semibold uppercase tracking-[2px] text-xs"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2 font-black uppercase tracking-[2px] text-[10px] sm:text-xs">
+                  LIHAT IKLAN AKTIF
                 </span>
-              </h2>
-            </div>
-            <p className="text-sm sm:text-base lg:text-xl text-white/50 font-bold uppercase tracking-[4px] mt-8 leading-relaxed">
-              Satu portal bersepadu untuk ketelusan dan kecekapan pendaftaran tapak sebut harga RISDA.
-            </p>
-          </motion.div>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex flex-wrap items-center justify-center gap-6 pt-6 w-full"
-          >
-            <button 
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('triggerViewActiveAds'));
-              }}
-              className="group relative overflow-hidden px-8 py-5 rounded-2xl transition-all active:scale-95 text-white border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/25 shadow-lg flex items-center justify-center gap-3 w-64 max-w-full text-center cursor-pointer font-semibold uppercase tracking-[2px] text-xs"
-            >
-              <span className="relative z-10 flex items-center justify-center gap-2 font-black uppercase tracking-[2px] text-[10px] sm:text-xs">
-                LIHAT IKLAN AKTIF
-              </span>
-            </button>
+              </button>
 
-            <button 
-              onClick={() => {
-                triggerRegistration();
-              }}
-              className="group relative overflow-hidden px-8 py-5 rounded-2xl transition-all hover:scale-[1.02] active:scale-95 btn-gold shadow-[0_15px_30px_rgba(0,176,255,0.2)] flex items-center justify-center gap-3 w-64 max-w-full text-center cursor-pointer"
-            >
-              <span className="relative z-10 flex items-center justify-center gap-2 font-black uppercase tracking-[2px] text-[10px] sm:text-xs text-white">
-                DAFTAR ONLINE
-                <ArrowRight size={16} className="group-hover:translate-x-1.5 transition-transform" />
-              </span>
-            </button>
-          </motion.div>
+              <button 
+                onClick={() => {
+                  triggerRegistration();
+                }}
+                className="group relative overflow-hidden px-8 py-5 rounded-2xl transition-all hover:scale-[1.02] active:scale-95 btn-gold shadow-[0_15px_30px_rgba(0,176,255,0.2)] flex items-center justify-center gap-3 w-64 max-w-full text-center cursor-pointer"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2 font-black uppercase tracking-[2px] text-[10px] sm:text-xs text-white">
+                  DAFTAR ONLINE
+                  <ArrowRight size={16} className="group-hover:translate-x-1.5 transition-transform" />
+                </span>
+              </button>
+            </motion.div>
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

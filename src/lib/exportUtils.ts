@@ -1875,15 +1875,21 @@ const drawOfficialHeader = (doc: jsPDF, logo: any, pageWidth: number, yStart = 1
 };
 
 const drawOfficialFooter = (doc: jsPDF, pageNum: string, pageWidth: number, pageHeight: number) => {
+  // Draw a beautiful thin black divider line at 34mm from the bottom edge
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.4);
+  doc.line(15, pageHeight - 34, pageWidth - 15, pageHeight - 34);
+
   doc.setFont('times', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.text('MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL', pageWidth / 2, pageHeight - 14, { align: 'center' });
-  doc.text('BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU', pageWidth / 2, pageHeight - 11, { align: 'center' });
-  doc.setFont('times', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(7.5);
   doc.setTextColor(0, 0, 0);
-  doc.text(pageNum, pageWidth / 2, pageHeight - 6, { align: 'center' });
+  doc.text('MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL', pageWidth / 2, pageHeight - 29, { align: 'center' });
+  doc.text('BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU', pageWidth / 2, pageHeight - 25, { align: 'center' });
+  
+  doc.setFont('times', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  doc.text(pageNum, pageWidth / 2, pageHeight - 20, { align: 'center' });
 };
 
 export const exportOfficialLetterToPDF = async (invitation: any, matchedSupplier: any, returnBase64 = false): Promise<string | void> => {
@@ -1908,7 +1914,7 @@ export const exportOfficialLetterToPDF = async (invitation: any, matchedSupplier
   doc.text(':', pageWidth - 58, 67.5);
   doc.setFont('times', 'bold');
   doc.text(getMalayFormattedDate(invitation.invitationDate || new Date().toISOString().split('T')[0]), pageWidth - 55, 67.5);
-  doc.text(getMalayHijriDate(invitation.invitationDate || new Date().toISOString().split('T')[0]), pageWidth - 55, 73);
+  doc.text(invitation.hijriDate || getMalayHijriDate(invitation.invitationDate || new Date().toISOString().split('T')[0]), pageWidth - 55, 73);
 
   // Recipient info on left (starts around y = 78)
   let y = 82;
@@ -1948,7 +1954,7 @@ export const exportOfficialLetterToPDF = async (invitation: any, matchedSupplier
   y += 5.5;
   
   // Split title line 2 to be safe
-  const splitLine2 = doc.splitTextToSize(titleLine2, pageWidth - 30);
+  const splitLine2 = doc.splitTextToSize(titleLine2, pageWidth - 36);
   splitLine2.forEach((lineText: string, idx: number) => {
     doc.text(lineText, 15, y);
     doc.line(15, y + 0.8, 15 + doc.getTextWidth(lineText), y + 0.8);
@@ -1961,8 +1967,8 @@ export const exportOfficialLetterToPDF = async (invitation: any, matchedSupplier
   y += 7;
 
   const p2Text = `2.      Dimaklumkan tuan/puan dijemput hadir untuk menyertai sebut harga di atas mengikut ketetapan berikut  :`;
-  const p2Split = doc.splitTextToSize(p2Text, pageWidth - 30);
-  doc.text(p2Split, 15, y, { align: 'justify' });
+  const p2Split = doc.splitTextToSize(p2Text, pageWidth - 36);
+  doc.text(p2Split, 15, y, { align: 'justify', maxWidth: pageWidth - 36 });
   y += (p2Split.length * 5.5) + 3;
 
   // Let's print details with exact indent matching of draft preview
@@ -1991,13 +1997,13 @@ export const exportOfficialLetterToPDF = async (invitation: any, matchedSupplier
   y += 3;
   doc.setFont('times', 'normal');
   const p3Text = `3.      Sehubungan itu, tuan/puan diminta membawa Sijil Asal SIJIL PENDAFTARAN YANG BERKAITAN berserta 1 salinan semasa mengambil dokumen.`;
-  const p3Split = doc.splitTextToSize(p3Text, pageWidth - 30);
-  doc.text(p3Split, 15, y, { align: 'justify' });
+  const p3Split = doc.splitTextToSize(p3Text, pageWidth - 36);
+  doc.text(p3Split, 15, y, { align: 'justify', maxWidth: pageWidth - 36 });
   y += (p3Split.length * 5.5) + 3;
 
   const p4Text = `4.      Bersama ini disertakan salinan iklan sebut harga untuk rujukan tuan/puan.`;
-  const p4Split = doc.splitTextToSize(p4Text, pageWidth - 30);
-  doc.text(p4Split, 15, y, { align: 'justify' });
+  const p4Split = doc.splitTextToSize(p4Text, pageWidth - 36);
+  doc.text(p4Split, 15, y, { align: 'justify', maxWidth: pageWidth - 36 });
 
   drawOfficialFooter(doc, '1/3', pageWidth, pageHeight);
 
@@ -2137,13 +2143,13 @@ export const exportTenderOfferToPDF = async (invitation: any, matchedSupplier: a
   doc.text(':', 45, y);
   doc.setFont('times', 'normal');
   const splitTitle = doc.splitTextToSize((invitation.adTitle || '').toUpperCase(), pageWidth - 65);
-  doc.text(splitTitle, 48, y);
+  doc.text(splitTitle, 48, y, { maxWidth: pageWidth - 65 });
   y += (splitTitle.length * 4.5) + 1.5;
 
   doc.setFont('times', 'bold');
   doc.text('Syarikat Dipelawa', 15, y);
   doc.text(':', 45, y);
-  doc.text((matchedSupplier?.companyName || 'PIHAK KONTRAKTOR JEMPUTAN').toUpperCase(), 48, y);
+  doc.text((matchedSupplier?.companyName || 'PIHAK KONTRAKTOR JEMPUTAN').toUpperCase(), 48, y, { maxWidth: pageWidth - 65 });
 
   y += 6;
   doc.setFont('times', 'bold');
@@ -2151,7 +2157,7 @@ export const exportTenderOfferToPDF = async (invitation: any, matchedSupplier: a
   doc.text(':', 45, y);
   doc.setFont('times', 'normal');
   const splitAddr = doc.splitTextToSize((matchedSupplier?.address || 'Alamat Terdaftar').toUpperCase(), pageWidth - 65);
-  doc.text(splitAddr, 48, y);
+  doc.text(splitAddr, 48, y, { maxWidth: pageWidth - 65 });
   y += (splitAddr.length * 4.5) + 4;
 
   const boxTop = y;
@@ -2166,7 +2172,7 @@ export const exportTenderOfferToPDF = async (invitation: any, matchedSupplier: a
   doc.setFontSize(9.5);
   const introText = 'Pihak kami dengan ini bersetuju untuk melaksanakan kerja-kerja / pembekalan sehubungan dengan spesifikasi yang ditetapkan dengan kadar tawaran harga tunai bersih di bawah:';
   const splitIntro = doc.splitTextToSize(introText, pageWidth - 36);
-  doc.text(splitIntro, 18, y, { align: 'justify' });
+  doc.text(splitIntro, 18, y, { align: 'justify', maxWidth: pageWidth - 36 });
   y += (splitIntro.length * 4) + 4;
 
   autoTable(doc, {
@@ -2211,7 +2217,7 @@ export const exportTenderOfferToPDF = async (invitation: any, matchedSupplier: a
   doc.setTextColor(80, 80, 80);
   const noticeText = '*Cara Pengurusan: Sila tuliskan Jumlah Penawaran Harga di atas menggunakan pena dakwat hitam, tandatangan, bubuh cop rasmi syarikat, dan bawa bersama dokumen kelayakan lesen syarikat semasa tarikh taklimat dan lawatan tapak wajib dijalankan.*';
   const splitNotice = doc.splitTextToSize(noticeText, pageWidth - 36);
-  doc.text(splitNotice, 18, y);
+  doc.text(splitNotice, 18, y, { maxWidth: pageWidth - 36 });
   y += (splitNotice.length * 3.5) + 3;
 
   const boxHeight = (y - boxTop);
@@ -2262,20 +2268,196 @@ export const exportTenderOfferToPDF = async (invitation: any, matchedSupplier: a
   oY += 4;
   doc.text(`${getOfficeFromInvitation(invitation)}, Negeri ${getStateFromInvitation(invitation)}`, pageWidth / 2 + 5, oY);
 
+  // Draw a beautiful thin black divider line at 34mm from the bottom edge
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.4);
+  doc.line(15, pageHeight - 34, pageWidth - 15, pageHeight - 34);
+
   doc.setFont('times', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.text('MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL', pageWidth / 2, pageHeight - 14, { align: 'center' });
-  doc.text('BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU', pageWidth / 2, pageHeight - 11, { align: 'center' });
+  doc.setFontSize(7.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL', pageWidth / 2, pageHeight - 29, { align: 'center' });
+  doc.text('BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU', pageWidth / 2, pageHeight - 25, { align: 'center' });
   
   doc.setFont('times', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
-  doc.text('FORMAT 2: BORANG TAWARAN HARGA', pageWidth / 2, pageHeight - 6, { align: 'center' });
+  doc.text('FORMAT 2: BORANG TAWARAN HARGA', pageWidth / 2, pageHeight - 20, { align: 'center' });
 
   if (returnBase64) {
     return doc.output('datauristring').split(',')[1];
   }
   doc.save(`Borang_Tawaran_Harga_${(matchedSupplier?.companyName || 'Syarikat').replace(/\s+/g, '_')}.pdf`);
+};
+
+export const exportInvitationLetterToPDF = async (invitation: any, matchedSupplier: any, returnBase64 = false): Promise<string | void> => {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const logo = await loadLogo();
+
+  // Draw logo centered
+  if (logo) {
+    doc.addImage(logo, 'PNG', pageWidth / 2 - 12, 12, 24, 24);
+  }
+
+  // Draw thick divider line
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(1.0);
+  doc.line(15, 39, pageWidth - 15, 39);
+
+  let y = 47;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(0, 0, 0);
+  doc.text('SURAT TAWARAN PELAWAAN SEBUTHARGA', pageWidth / 2, y, { align: 'center' });
+  doc.setLineWidth(0.4);
+  doc.line(pageWidth / 2 - 45, y + 1.2, pageWidth / 2 + 45, y + 1.2);
+
+  // Metadata block
+  y += 9;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(10.5);
+
+  // Line 1: No.Sebutharga
+  doc.text('No. Sebutharga', 18, y);
+  doc.text(':', 55, y);
+  doc.text(invitation.tenderNo || '-', 58, y);
+  y += 6;
+
+  // Line 2: Sebutharga
+  doc.text('Sebutharga', 18, y);
+  doc.text(':', 55, y);
+  const titleText = (invitation.adTitle || '').toUpperCase();
+  const splitTitle = doc.splitTextToSize(titleText, pageWidth - 76);
+  doc.text(splitTitle, 58, y, { maxWidth: pageWidth - 76 });
+  y += (splitTitle.length * 4.8) + 1.2;
+
+  // Line 3: Pembekal/Kontraktor
+  doc.text('Pembekal/Kontraktor', 18, y);
+  doc.text(':', 55, y);
+  const supplierName = (matchedSupplier?.companyName || 'PIHAK KONTRAKTOR JEMPUTAN').toUpperCase();
+  doc.text(supplierName, 58, y, { maxWidth: pageWidth - 76 });
+  y += 6;
+
+  // Line 4: Alamat
+  doc.text('Alamat', 18, y);
+  doc.text(':', 55, y);
+  const rawAddr = matchedSupplier?.address || invitation.address || '';
+  const supplierAddr = (rawAddr ? rawAddr : 'Kawasan Beaufort, Sabah').toUpperCase();
+  const splitAddr = doc.splitTextToSize(supplierAddr, pageWidth - 76);
+  doc.text(splitAddr, 58, y);
+  y += (splitAddr.length * 4.8) + 6;
+
+  // Draw 5 Paragraphs
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+
+  // Paragraph 1
+  const grade = invitation.cidbGrade || invitation.cidb || '';
+  const category = invitation.cidbCategory || '';
+  const pukonsa = invitation.pukonsaClass || invitation.pukonsa || '';
+  const mof = invitation.mofCode || '';
+  const licenseArr = [];
+  if (grade) licenseArr.push(`CIDB GRED ${grade}`);
+  if (category) licenseArr.push(`PENGKHUSUSAN ${category}`);
+  if (pukonsa) licenseArr.push(`PUKONSA KELAS ${pukonsa}`);
+  if (mof) licenseArr.push(`KOD MOF ${mof}`);
+  const licensesText = licenseArr.filter(Boolean).join(', ') || 'Lesen Pendaftaran Sijil yang berkaitan';
+
+  doc.setFont('times', 'bold');
+  doc.text('1.', 18, y);
+  doc.setFont('times', 'normal');
+  const p1Text = `Sebut harga adalah dipelawa daripada Kontraktor-Kontraktor yang berdaftar dengan ${licensesText.toUpperCase()} dan masih sah laku pendaftaran untuk dibenarkan menyertai sebutharga ini.`;
+  const splitP1 = doc.splitTextToSize(p1Text, pageWidth - 36);
+  doc.text(splitP1, 23, y, { align: 'justify', maxWidth: pageWidth - 36 });
+  y += (splitP1.length * 4.5) + 4.5;
+
+  // Paragraph 2
+  doc.setFont('times', 'bold');
+  doc.text('2.', 18, y);
+  doc.setFont('times', 'normal');
+  
+  const venueVal = invitation.submissionVenue || invitation.briefingVenue || 'PEJABAT RISDA DAERAH BEAUFORT, K77 & K78, BLOCK K, BEAUFORT SQUARE AVENUE 1, JALAN BINUNUK, 89800 BEAUFORT, SABAH, SABAH';
+  const rawClosingDate = invitation.closingDate || '';
+  let formattedClosingDate = 'Seperti diiklankan';
+  if (rawClosingDate) {
+    try {
+      const d = new Date(rawClosingDate);
+      if (!isNaN(d.getTime())) {
+        const months = ['JAN', 'FEB', 'MAC', 'APR', 'MEI', 'JUN', 'JUL', 'OGOS', 'SEPT', 'OKT', 'NOV', 'DIS'];
+        formattedClosingDate = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+      }
+    } catch(e){}
+  }
+  const closingTime = invitation.closingTime || '12.00 PM';
+  
+  const p2Text = `Dokumen SebutHarga yang telah dilengkapi hendaklah dimasukkan ke dalam satu sampul surat bermetri dan bertulis nombor tawaran disebelah kiri atasnya dan dimasuk ke dalam Peti Tawaran yang terletak di ${venueVal.toUpperCase()} sebelum atau pada ${formattedClosingDate.toUpperCase()} Jam/Masa ${closingTime.toUpperCase()}.`;
+  const splitP2 = doc.splitTextToSize(p2Text, pageWidth - 36);
+  doc.text(splitP2, 23, y, { align: 'justify', maxWidth: pageWidth - 36 });
+  y += (splitP2.length * 4.5) + 4.5;
+
+  // Paragraph 3
+  doc.setFont('times', 'bold');
+  doc.text('3.', 18, y);
+  doc.setFont('times', 'normal');
+  const p3Text = `Syarat-syarat Sebut Harga, Pelan Lukisan serta Ringkasan Sebut Harga dikembarkan bersama-sama ini.`;
+  const splitP3 = doc.splitTextToSize(p3Text, pageWidth - 36);
+  doc.text(splitP3, 23, y, { align: 'justify', maxWidth: pageWidth - 36 });
+  y += (splitP3.length * 4.5) + 4.5;
+
+  // Paragraph 4
+  doc.setFont('times', 'bold');
+  doc.text('4.', 18, y);
+  doc.setFont('times', 'normal');
+  
+  const briefingDateVal = invitation.briefingDate || '';
+  let formattedBriefingDate = '';
+  let dayName = '';
+  if (briefingDateVal) {
+    try {
+      const d = new Date(briefingDateVal);
+      if (!isNaN(d.getTime())) {
+        const months = ['JAN', 'FEB', 'MAC', 'APR', 'MEI', 'JUN', 'JUL', 'OGOS', 'SEPT', 'OKT', 'NOV', 'DIS'];
+        formattedBriefingDate = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        const days = ['AHAD', 'ISNIN', 'SELASA', 'RABU', 'KHAMIS', 'JUMAAT', 'SABTU'];
+        dayName = `${days[d.getDay()]}`;
+      }
+    } catch(e){}
+  }
+  const briefingTimeVal = invitation.briefingTime || '10.00 Pagi';
+  const briefingVenueVal = invitation.briefingVenue || 'PEJABAT RISDA DAERAH BEAUFORT';
+  
+  const dateWithDay = formattedBriefingDate ? `${formattedBriefingDate} (${dayName})` : '-';
+  
+  const p4Text = `Kontraktor adalah diwajibkan menghadiri taklimat dan lawatan tapak pada ${dateWithDay} Jam ${briefingTimeVal}. Taklimat akan di sampaikan hanya sekali sahaja dan pihak kontraktor dikehendaki berkumpul di ${briefingVenueVal.toUpperCase()} pada tarikh dan masa yang telah ditetapkan diatas.`;
+  const splitP4 = doc.splitTextToSize(p4Text, pageWidth - 36);
+  doc.text(splitP4, 23, y, { align: 'justify', maxWidth: pageWidth - 36 });
+  y += (splitP4.length * 4.5) + 4.5;
+
+  // Paragraph 5
+  doc.setFont('times', 'bold');
+  doc.text('5.', 18, y);
+  doc.setFont('times', 'normal');
+  const p5Text = `Pihak RISDA tidak terikat untuk menerima sebut harga yang terendah sekali atau mana-mana sebutharga lain.`;
+  const splitP5 = doc.splitTextToSize(p5Text, pageWidth - 36);
+  doc.text(splitP5, 23, y, { align: 'justify', maxWidth: pageWidth - 36 });
+
+  // Add small beautiful footer
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.4);
+  doc.line(15, pageHeight - 34, pageWidth - 15, pageHeight - 34);
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL', pageWidth / 2, pageHeight - 29, { align: 'center' });
+  doc.text('BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU', pageWidth / 2, pageHeight - 25, { align: 'center' });
+
+  if (returnBase64) {
+    return doc.output('datauristring').split(',')[1];
+  }
+  doc.save(`Surat_Tawaran_Pelawaan_${(matchedSupplier?.companyName || 'Syarikat').replace(/\s+/g, '_')}.pdf`);
 };
 

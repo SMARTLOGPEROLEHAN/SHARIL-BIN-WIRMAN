@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, serverTimestamp, where, writeBatch, Timestamp, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Trash2, Shield, User, RefreshCcw, Plus, X, Search, Folder, FolderOpen, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
+import { UserPlus, Trash2, Shield, User, RefreshCcw, Plus, X, Search, Folder, FolderOpen, ChevronDown, ChevronRight, MapPin, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
 import { initializeApp, deleteApp, getApps } from 'firebase/app';
@@ -299,7 +299,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
 
         try {
           // Send email directly through secure backend proxy (uses SMTP settings from Secrets)
-          fetch('/api/send-email', {
+          const mailRes = await fetch('/api/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -307,15 +307,16 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
               subject: notifySubject,
               text: notifyBody
             })
-          }).then(res => {
-            if (res.ok) {
-              console.log('Direct SMTP email triggered successfully for staff registration.');
-            } else {
-              console.warn('Direct SMTP is not active or not configured, falling back to Firestore triggers.');
-            }
-          }).catch(err => {
-            console.error('SMTP route fetch failed, fallback is selected:', err);
           });
+
+          if (mailRes.ok) {
+            console.log('Direct SMTP email triggered successfully for staff registration.');
+            registrationEmailSent = true;
+          } else {
+            const errData = await mailRes.json().catch(() => ({}));
+            console.warn('Direct SMTP is not active or not configured:', errData.error || 'Unknown error');
+            toast.error(`E-mel fizikal tidak dapat dihantar secara terus. ${errData.error || 'Sila pastikan SMTP_HOST, SMTP_USER dan SMTP_PASS diisi di Secrets.'}`, { duration: 8000 });
+          }
 
           const docPromises = [
             // Format 1: Flat scheme in 'sent_emails'
@@ -372,9 +373,12 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
           ];
 
           await Promise.all(docPromises);
-          registrationEmailSent = true;
-        } catch (emailErr) {
-          console.error('Error queuing staff welcome email:', emailErr);
+          if (mailRes.ok) {
+            registrationEmailSent = true;
+          }
+        } catch (emailErr: any) {
+          console.error('Error sending welcome email via direct flow or queueing logs:', emailErr);
+          toast.error(`Ralat semasa cubaan menghantar e-mel: ${emailErr.message || emailErr}`);
         }
       } else {
         // Update
@@ -579,6 +583,81 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
     } catch (error: any) {
       console.error('Error sending reset email:', error);
       toast.error(`Gagal menghantar: ${error.message}`, { id: tId });
+    }
+  };
+
+  const handleSendWelcomeEmail = async (member: StaffMember) => {
+    const tId = toast.loading('Menghantar semula e-mel pendaftaran...');
+    try {
+      const today = new Date();
+      const formattedDate = today.toLocaleDateString('ms-MY', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      const notifySubject = `Pendaftaran Akaun Kakitangan Sistem SMARTLOG PEROLEHAN Berjaya`;
+      const notifyBody = `Assalamualaikum / Salam Sejahtera,
+
+Pemberitahuan Maklumat Akaun Kakitangan untuk Sistem SMARTLOG PEROLEHAN.
+
+Maklumat Akaun:
+
+Nama: ${member.displayName}
+
+Email: ${member.email}
+
+No. ID Kakitangan : ${member.staffId || 'TIADA ID'}
+
+Kata Laluan : ${member.password || '(Telah ditetap semasa pendaftaran mula-mula)'}
+
+Tarikh Hantar Notifikasi: ${formattedDate}
+
+Sila gunakan maklumat di atas untuk log masuk ke dalam aplikasi perolehan.
+
+Sekiranya terdapat sebarang masalah, sila hubungi Pentadbir Sistem.
+Terima kasih.
+
+Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
+
+      const mailRes = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: member.email.trim(),
+          subject: notifySubject,
+          text: notifyBody
+        })
+      });
+
+      if (mailRes.ok) {
+        // Enqueue database logs for audit
+        const docPromises = [
+          addDoc(collection(db, 'sent_emails'), {
+            to: member.email.trim(),
+            toName: member.displayName,
+            subject: notifySubject,
+            body: notifyBody,
+            sentAt: new Date().toISOString()
+          }),
+          addDoc(collection(db, 'mail'), {
+            to: member.email.trim(),
+            message: {
+              subject: notifySubject,
+              text: notifyBody
+            },
+            sentAt: new Date().toISOString()
+          }).catch(() => null)
+        ];
+        await Promise.all(docPromises);
+        toast.success(`E-mel notifikasi pendaftaran fizikal telah dihantar ke ${member.email}!`, { id: tId });
+      } else {
+        const errData = await mailRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'SMTP request returned an error code.');
+      }
+    } catch (error: any) {
+      console.error('Error sending welcome email:', error);
+      toast.error(`Gagal menghantar semula e-mel: ${error.message || error}`, { id: tId });
     }
   };
 
@@ -958,6 +1037,14 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                             title="Hantar Reset Email"
                                                           >
                                                             <RefreshCcw size={16} className="rotate-180" />
+                                                          </button>
+                                                          <button 
+                                                            type="button"
+                                                            onClick={() => handleSendWelcomeEmail(member)}
+                                                            className="p-2 text-white/30 hover:text-green-400 hover:bg-green-400/10 rounded-xl transition-all cursor-pointer"
+                                                            title="Hantar Semula E-mel Pendaftaran"
+                                                          >
+                                                            <Mail size={16} />
                                                           </button>
                                                           <button 
                                                             type="button"

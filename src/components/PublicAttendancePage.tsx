@@ -428,34 +428,73 @@ Pejabat RISDA Daerah Beaufort, Sabah.`;
 </div>
 `;
 
-        await addDoc(collection(db, 'sent_emails'), {
-          to: formData.email.trim(),
-          toName: formData.ownerName.trim(),
-          subject: emailSubject,
-          body: emailBody,
-          html: emailHtml,
-          sentAt: new Date().toISOString()
-        });
+         // Generate Format 2: Borang_Tawaran_Harga PDF
+         const virtualInv = {
+           adId: adId,
+           adTitle: ad.title || '',
+           tenderNo: ad.tenderNo || '-',
+           referenceNo: ad.referenceNo || '',
+           invitationDate: ad.publishedDate || '',
+           closingDate: ad.closingDate || '',
+           closingTime: ad.closingTime || '',
+           briefingDate: ad.briefingDate || '',
+           briefingTime: ad.briefingTime || '',
+           briefingVenue: ad.briefingVenue || '',
+           submissionVenue: ad.visitVenue || ad.briefingVenue || 'PEJABAT RISDA DAERAH BEAUFORT',
+           officerName: ad.officerName || 'PEGAWAI PEROLEHAN RISDA',
+           state: ad.state || 'Sabah',
+           office: ad.office || 'PEJABAT RISDA DAERAH BEAUFORT'
+         };
 
-        // Send email directly through secure backend SMTP proxy
-        fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: formData.email.trim(),
-            subject: emailSubject,
-            text: emailBody,
-            html: emailHtml
-          })
-        }).then(res => {
-          if (res.ok) {
-            console.log('Direct SMTP email triggered successfully for online registration.');
-          } else {
-            console.warn('Direct SMTP is not fully configured, fall back to Firestore queue.');
-          }
-        }).catch(err => {
-          console.error('SMTP fetch failed:', err);
-        });
+         const virtualSupplier = {
+           companyName: formData.companyName.toUpperCase().trim(),
+           address: formData.companyAddress || 'Kawasan Beaufort'
+         };
+
+         const attachments: any[] = [];
+         try {
+           const borangHargaB64 = '';
+           if (borangHargaB64) {
+             attachments.push({
+               filename: `Surat_Tawaran_Pelawaan_${formData.companyName.replace(/\s+/g, '_')}.pdf`,
+               content: borangHargaB64,
+               contentType: 'application/pdf'
+             });
+           }
+         } catch (pdfErr) {
+           console.error('Failed to generate Surat Tawaran PDF in PublicAttendancePage:', pdfErr);
+         }
+
+         // Send email directly through secure backend SMTP proxy
+         try {
+           const sendRes = await fetch('/api/send-email', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+               to: formData.email.trim(),
+               subject: emailSubject,
+               text: emailBody,
+               html: emailHtml,
+               attachments
+             })
+           });
+           if (sendRes.ok) {
+             console.log('Direct SMTP email triggered successfully for online registration.');
+           } else {
+             console.warn('Direct SMTP is not fully configured, fall back to Firestore queue.');
+           }
+         } catch (err) {
+           console.error('SMTP fetch failed:', err);
+         }
+
+         await addDoc(collection(db, 'sent_emails'), {
+           to: formData.email.trim(),
+           toName: formData.ownerName.trim(),
+           subject: emailSubject,
+           body: emailBody,
+           html: emailHtml,
+           sentAt: new Date().toISOString()
+         });
       }
       
       setRegisteredSeriesNo(nextNo);

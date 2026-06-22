@@ -24,7 +24,7 @@ import {
   Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { exportToPDF, exportOfficialLetterToPDF, exportTenderOfferToPDF } from '../lib/exportUtils';
+import { exportToPDF, exportOfficialLetterToPDF, exportInvitationLetterToPDF } from '../lib/exportUtils';
 
 interface Supplier {
   id?: string;
@@ -43,6 +43,7 @@ interface Invitation {
   tenderNo: string;
   referenceNo: string;
   invitationDate: string;
+  hijriDate?: string;
   closingDate: string;
   closingTime?: string;
   briefingDate?: string;
@@ -202,6 +203,7 @@ export default function SupplierInvitation() {
   const [selectedAdId, setSelectedAdId] = useState('');
   const [referenceNo, setReferenceNo] = useState('');
   const [invitationDate, setInvitationDate] = useState(new Date().toISOString().split('T')[0]);
+  const [hijriDate, setHijriDate] = useState('');
   const [officerName, setOfficerName] = useState(user?.displayName || '');
   const [selectedSuppliers, setSelectedSuppliers] = useState<Supplier[]>([]);
   
@@ -338,16 +340,16 @@ b.p : Pegawai RISDA Daerah Beaufort, Sabah.`;
       }
 
       try {
-        const borangHargaB64 = await exportTenderOfferToPDF(inv, supplier, true);
-        if (borangHargaB64) {
+        const suratTawaranB64 = await exportInvitationLetterToPDF(inv, supplier, true);
+        if (suratTawaranB64) {
           attachments.push({
-            filename: `Borang_Tawaran_Harga_${supplier.companyName.replace(/\s+/g, '_')}.pdf`,
-            content: borangHargaB64,
+            filename: `Surat_Tawaran_Pelawaan_${supplier.companyName.replace(/\s+/g, '_')}.pdf`,
+            content: suratTawaranB64,
             contentType: 'application/pdf'
           });
         }
       } catch (pdfErr) {
-        console.error('Failed to generate Borang Tawaran Harga PDF:', pdfErr);
+        console.error('Failed to generate Surat Tawaran PDF:', pdfErr);
       }
 
       if (matchingAd) {
@@ -524,16 +526,16 @@ b.p : Pegawai RISDA Daerah Beaufort, Sabah.`;
         }
 
         try {
-          const borangHargaB64 = await exportTenderOfferToPDF(inv, s, true);
-          if (borangHargaB64) {
+          const suratTawaranB64 = await exportInvitationLetterToPDF(inv, s, true);
+          if (suratTawaranB64) {
             attachments.push({
-              filename: `Borang_Tawaran_Harga_${s.companyName.replace(/\s+/g, '_')}.pdf`,
-              content: borangHargaB64,
+              filename: `Surat_Tawaran_Pelawaan_${s.companyName.replace(/\s+/g, '_')}.pdf`,
+              content: suratTawaranB64,
               contentType: 'application/pdf'
             });
           }
         } catch (pdfErr) {
-          console.error('Failed to generate Borang Tawaran Harga PDF:', pdfErr);
+          console.error('Failed to generate Surat Tawaran PDF:', pdfErr);
         }
 
         if (matchingAd) {
@@ -596,6 +598,8 @@ b.p : Pegawai RISDA Daerah Beaufort, Sabah.`;
   const [editBriefingDate, setEditBriefingDate] = useState('');
   const [editBriefingTime, setEditBriefingTime] = useState('');
   const [editBriefingVenue, setEditBriefingVenue] = useState('');
+  const [editInvitationDate, setEditInvitationDate] = useState('');
+  const [editHijriDate, setEditHijriDate] = useState('');
 
   useEffect(() => {
     if (selectedInvitation) {
@@ -606,6 +610,8 @@ b.p : Pegawai RISDA Daerah Beaufort, Sabah.`;
       setEditBriefingDate(selectedInvitation.briefingDate || '');
       setEditBriefingTime(selectedInvitation.briefingTime || '');
       setEditBriefingVenue(selectedInvitation.briefingVenue || def.office);
+      setEditInvitationDate(selectedInvitation.invitationDate || '');
+      setEditHijriDate(selectedInvitation.hijriDate || (selectedInvitation.invitationDate ? getHijriDate(selectedInvitation.invitationDate) : ''));
       setSelectedPrintSupplierId('ALL');
       setIsEditingInvFields(false);
     }
@@ -617,6 +623,18 @@ b.p : Pegawai RISDA Daerah Beaufort, Sabah.`;
     fetchSuppliers();
     fetchLocations();
   }, []);
+
+  useEffect(() => {
+    if (invitationDate) {
+      setHijriDate(getHijriDate(invitationDate));
+    }
+  }, [invitationDate]);
+
+  useEffect(() => {
+    if (editInvitationDate) {
+      setEditHijriDate(getHijriDate(editInvitationDate));
+    }
+  }, [editInvitationDate]);
 
   useEffect(() => {
     if (locations.length > 0) {
@@ -873,6 +891,7 @@ b.p : Pegawai RISDA Daerah Beaufort, Sabah.`;
         tenderNo: selectedAd.tenderNo,
         referenceNo: referenceNo.trim(),
         invitationDate: invitationDate,
+        hijriDate: hijriDate || getHijriDate(invitationDate),
         closingDate: closingDate,
         closingTime: closingTime,
         briefingDate: briefingDate,
@@ -1190,7 +1209,34 @@ Pejabat RISDA Daerah Beaufort, Sabah.
     return `mailto:${supplier.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  const handlePrintDraft = (inv: Invitation | any, formatType: 'rasmi' | 'tawaran' = 'rasmi') => {
+  const handlePrintDraft = async (inv: Invitation | any, formatType: 'rasmi' | 'tawaran' = 'rasmi') => {
+    if (formatType === 'rasmi') {
+      try {
+        // If printing specified supplier or all
+        const suppliersToPrint = selectedPrintSupplierId === 'ALL'
+          ? inv.suppliers
+          : inv.suppliers.filter((s: Supplier) => s.id === selectedPrintSupplierId || s.companyName === selectedPrintSupplierId);
+
+        if (!suppliersToPrint || suppliersToPrint.length === 0) {
+          toast.error('Tiada kontraktor terpilih untuk dimuat turun PDF.');
+          return;
+        }
+
+        const tId = toast.loading('Menjana dan memuat turun PDF Surat Rasmi...');
+
+        // Loop and download each PDF directly using exportOfficialLetterToPDF
+        for (const s of suppliersToPrint) {
+          await exportOfficialLetterToPDF(inv, s, false);
+        }
+
+        toast.success('Muat turun PDF Surat Rasmi Berjaya!', { id: tId });
+      } catch (err: any) {
+        console.error('Gagal menjana PDF Surat Rasmi:', err);
+        toast.error('Gagal menjana PDF Surat Rasmi. Sila cuba lagi.');
+      }
+      return;
+    }
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       toast.error('Sila benarkan pop-up browser untuk mencetakan surat.');
@@ -1490,7 +1536,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
 
             <!-- Page 1 Footer -->
-            <div class="page-footer" style="position: absolute; bottom: 0.75in; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
+            <div class="page-footer" style="position: absolute; bottom: 2cm; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
               <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 8pt; line-height: 1.35; margin-bottom: 2px;">
                 MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
                 BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
@@ -1534,7 +1580,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
 
             <!-- Page 2 Footer -->
-            <div class="page-footer" style="position: absolute; bottom: 0.75in; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
+            <div class="page-footer" style="position: absolute; bottom: 2cm; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
               <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 8pt; line-height: 1.35; margin-bottom: 2px;">
                 MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
                 BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
@@ -1576,7 +1622,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
 
             <!-- Page 3 Footer -->
-            <div class="page-footer" style="position: absolute; bottom: 0.75in; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
+            <div class="page-footer" style="position: absolute; bottom: 2cm; left: 0.8in; right: 0.8in; font-family: 'Times New Roman', Times, serif; color: #000; text-align: center;">
               <div style="border-top: 1px solid #000; padding-top: 6px; font-size: 8pt; line-height: 1.35; margin-bottom: 2px;">
                 MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br/>
                 BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
@@ -2018,9 +2064,9 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                       <button 
                         onClick={(e) => { e.stopPropagation(); handlePrintDraft(inv); }}
                         className="p-2 bg-white/5 hover:bg-risda-orange hover:text-black rounded-lg transition-all text-white/70"
-                        title="Cetak Surat Rasmi"
+                        title="Muat Turun PDF Surat Rasmi"
                       >
-                        <Printer size={13} />
+                        <FileText size={13} />
                       </button>
                       <button 
                         onClick={(e) => handleDeleteInvitation(inv.id, e)}
@@ -2115,11 +2161,23 @@ Pejabat RISDA Daerah Beaufort, Sabah.
 
                 {/* Tarikh surat */}
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-risda-orange uppercase tracking-[2px] px-1 block">TARIKH SURAT BELANJA</label>
+                  <label className="text-[9px] font-black text-risda-orange uppercase tracking-[2px] px-1 block">TARIKH SURAT DI JANA</label>
                   <input 
                     type="date"
                     value={invitationDate}
                     onChange={(e) => setInvitationDate(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-xs text-white focus:border-risda-orange/50 outline-none"
+                  />
+                </div>
+
+                {/* Tarikh Hijri */}
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-risda-orange uppercase tracking-[2px] px-1 block">TARIKH HIJRI (BOLEH DIEDIT)</label>
+                  <input 
+                    type="text"
+                    value={hijriDate}
+                    onChange={(e) => setHijriDate(e.target.value)}
+                    placeholder="cth: 7 Muharam 1448 H"
                     className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-xs text-white focus:border-risda-orange/50 outline-none"
                   />
                 </div>
@@ -2366,7 +2424,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                             <span className="mx-2">:</span>
                             <div className="flex flex-col">
                               <span className="font-bold">{invitationDate ? formatBeautifulDate(invitationDate) : "15 JUN 2026"}</span>
-                              <span className="font-bold text-slate-800">{invitationDate ? getHijriDate(invitationDate) : "11 Syaaban 1446H"}</span>
+                              <span className="font-bold text-slate-800">{hijriDate || (invitationDate ? getHijriDate(invitationDate) : "11 Syaaban 1446H")}</span>
                             </div>
                           </div>
                         </div>
@@ -2456,7 +2514,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                     </div>
 
                     {/* Real page footer representation */}
-                    <div className="absolute left-[0.8in] right-[0.8in] bottom-[0.75in] border-t border-black text-[10px] sm:text-[11px] font-sans tracking-tight leading-snug text-black select-none uppercase text-center pt-2" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                    <div className="absolute left-[0.8in] right-[0.8in] border-t border-black text-[10px] sm:text-[11px] font-sans tracking-tight leading-snug text-black select-none uppercase text-center pt-2" style={{ fontFamily: "'Times New Roman', Times, serif", bottom: '2cm' }}>
                       MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br />
                       BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
                       <div className="text-center font-bold text-black text-[11px] mt-1 font-serif">
@@ -2521,7 +2579,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                     </div>
 
                     {/* Real page footer representation */}
-                    <div className="absolute left-[0.8in] right-[0.8in] bottom-[0.75in] border-t border-black text-[10px] sm:text-[11px] font-sans tracking-tight leading-snug text-black select-none uppercase text-center pt-2" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                    <div className="absolute left-[0.8in] right-[0.8in] border-t border-black text-[10px] sm:text-[11px] font-sans tracking-tight leading-snug text-black select-none uppercase text-center pt-2" style={{ fontFamily: "'Times New Roman', Times, serif", bottom: '2cm' }}>
                       MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br />
                       BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
                       <div className="text-center font-bold text-black text-[11px] mt-1 font-serif">
@@ -2600,7 +2658,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                     </div>
 
                     {/* Real page footer representation */}
-                    <div className="absolute left-[0.8in] right-[0.8in] bottom-[0.75in] border-t border-black text-[10px] sm:text-[11px] font-sans tracking-tight leading-snug text-black select-none uppercase text-center pt-2" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                    <div className="absolute left-[0.8in] right-[0.8in] border-t border-black text-[10px] sm:text-[11px] font-sans tracking-tight leading-snug text-black select-none uppercase text-center pt-2" style={{ fontFamily: "'Times New Roman', Times, serif", bottom: '2cm' }}>
                       MEMACU MASYARAKAT PEKEBUN KECIL MAKMUR DARIPADA SUMBER KOMODITI DAN HASIL<br />
                       BAHARU BERLANDASKAN REVOLUSI PERINDUSTRIAN DIGITAL SERTA TEKNOLOGI HIJAU
                       <div className="text-center font-bold text-black text-[11px] mt-1 font-serif">
@@ -2930,6 +2988,27 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                           </div>
                         </div>
 
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
+                          <div>
+                            <label className="text-risda-muted font-black block uppercase mb-1">Tarikh Surat Di Jana</label>
+                            <input 
+                              type="date"
+                              value={editInvitationDate}
+                              onChange={e => setEditInvitationDate(e.target.value)}
+                              className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white text-xs outline-none font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-risda-muted font-black block uppercase mb-1">Tarikh Hijri (Surat)</label>
+                            <input 
+                              type="text"
+                              value={editHijriDate}
+                              onChange={e => setEditHijriDate(e.target.value)}
+                              className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white text-xs outline-none"
+                            />
+                          </div>
+                        </div>
+
                         {/* Briefing settings */}
                         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
                           <div>
@@ -2973,7 +3052,9 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                                   closingTime: editClosingTime,
                                   briefingDate: editBriefingDate,
                                   briefingTime: editBriefingTime,
-                                  briefingVenue: editBriefingVenue
+                                  briefingVenue: editBriefingVenue,
+                                  invitationDate: editInvitationDate,
+                                  hijriDate: editHijriDate
                                 }, { merge: true });
                                 if (selectedInvitation) {
                                   setSelectedInvitation({
@@ -2983,7 +3064,9 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                                     closingTime: editClosingTime,
                                     briefingDate: editBriefingDate,
                                     briefingTime: editBriefingTime,
-                                    briefingVenue: editBriefingVenue
+                                    briefingVenue: editBriefingVenue,
+                                    invitationDate: editInvitationDate,
+                                    hijriDate: editHijriDate
                                   });
                                 }
                                 fetchInvitations();
@@ -3113,7 +3196,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                     onClick={() => handlePrintDraft(selectedInvitation, 'rasmi')}
                     className="flex-1 min-w-[140px] py-3.5 bg-risda-orange hover:bg-opacity-90 text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
                   >
-                    <Printer size={13} /> Cetak Surat Rasmi
+                    <FileText size={13} /> PDF Surat Rasmi
                   </button>
                   <button 
                     type="button"
@@ -3153,7 +3236,10 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                   </div>
                   <div className="flex justify-between text-[9px]">
                     <span>Ruj: <strong className="font-sans font-bold">{selectedInvitation.referenceNo}</strong></span>
-                    <span>Tarikh: {formatBeautifulDate(selectedInvitation.invitationDate)}</span>
+                    <div className="flex flex-col text-right">
+                      <span>Tarikh: {formatBeautifulDate(selectedInvitation.invitationDate)}</span>
+                      <span className="text-gray-600 font-medium">{selectedInvitation.hijriDate || (selectedInvitation.invitationDate ? getHijriDate(selectedInvitation.invitationDate) : '')}</span>
+                    </div>
                   </div>
                   <div>
                     <strong>PELAWAAN PEROLEHAN SEBUT HARGA BAGI:</strong><br />

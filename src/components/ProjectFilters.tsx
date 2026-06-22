@@ -320,17 +320,40 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                 </div>
               </div>
             ) : initialStatus === 'AKTIF' ? (
-              <div className="grid grid-cols-1 gap-4 sm:gap-6 shrink-0 lg:w-48">
-                <div 
-                  onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
-                  className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
-                    filters.status === 'AKTIF' ? 'border-risda-orange/50 shadow-[0_0_15px_rgba(255,176,0,0.1)]' : 'border-white/5'
-                  }`}
-                >
-                  <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-risda-orange transition-colors">{activeCount}</div>
-                  <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Iklan Aktif Terbit</div>
-                </div>
-              </div>
+              (() => {
+                let countValue = activeCount;
+                let labelText = "Iklan Aktif Terbit";
+                let borderColor = "border-risda-orange/50 shadow-[0_0_15px_rgba(255,176,0,0.1)]";
+                let textColor = "text-white group-hover:text-risda-orange";
+                
+                if (filters.status === 'SELESAI (KEPUTUSAN)') {
+                  countValue = resolvedCount;
+                  labelText = "Iklan Selesai";
+                  borderColor = "border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]";
+                  textColor = "text-white group-hover:text-blue-400";
+                } else if (filters.status === 'BATAL') {
+                  countValue = batalCount;
+                  labelText = "Iklan Batal";
+                  borderColor = "border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.1)]";
+                  textColor = "text-white group-hover:text-red-400";
+                } else if (filters.status === 'SEMUA') {
+                  countValue = totalCount;
+                  labelText = "Semua Iklan";
+                  borderColor = "border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.05)]";
+                  textColor = "text-white";
+                }
+
+                return (
+                  <div className="grid grid-cols-1 gap-4 sm:gap-6 shrink-0 lg:w-48">
+                    <div 
+                      className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-default group ${borderColor}`}
+                    >
+                      <div className={`text-2xl sm:text-3xl font-black transition-colors ${textColor}`}>{countValue}</div>
+                      <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">{labelText}</div>
+                    </div>
+                  </div>
+                );
+              })()
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:gap-6 shrink-0 lg:w-96">
                 <div 
