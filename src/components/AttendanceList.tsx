@@ -126,14 +126,14 @@ export default function AttendanceList() {
       const normalizedCompanyName = record.companyName.toUpperCase().trim();
       const seriesNo = record.docSeriesNo || '001';
 
-      const formatBeautifulDateResend = (dateStr: string) => {
+      const formatAbbreviatedDateResend = (dateStr: string) => {
         if (!dateStr) return '';
         try {
           const d = new Date(dateStr);
           if (isNaN(d.getTime())) return dateStr;
           const months = [
-            'JANUARI', 'FEBRUARI', 'MAC', 'APRIL', 'MEI', 'JUN',
-            'JULAI', 'OGOS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DISEMBER'
+            'JAN', 'FEB', 'MAC', 'APR', 'MEI', 'JUN',
+            'JUL', 'OGS', 'SEP', 'OKT', 'NOV', 'DIS'
           ];
           return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
         } catch (e) {
@@ -152,7 +152,7 @@ export default function AttendanceList() {
         }
       };
 
-      const formattedBriefingDate = briefingDate ? `${dayNameResend(briefingDate)} / ${formatBeautifulDateResend(briefingDate)}` : 'Seperti diiklankan';
+      const formattedBriefingDateEmail = briefingDate ? `${formatAbbreviatedDateResend(briefingDate)} (${dayNameResend(briefingDate).toUpperCase()})` : 'Seperti diiklankan';
 
       // 4. Create email templates
       const emailSubject = `PENDAFTARAN TAKLIMAT TAPAK BAGI SEBUTHARGA ${adTitle.toUpperCase()} TELAH BERJAYA - No. Siri: ${seriesNo}`;
@@ -162,8 +162,8 @@ Tuan/Puan,
 
 PENGESAHAN PENDAFTARAN KEHADIRAN TAKLIMAT / LAWATAN TAPAK SECARA ONLINE
 
-Syarikat: ${normalizedCompanyName}
-Pemilik/Penama: ${record.ownerName.trim()}
+Syarikat: ${normalizedCompanyName.toUpperCase()}
+Pemilik/Penama: ${record.ownerName.trim().toUpperCase()}
 Emel: ${record.email ? record.email.trim() : '-'}
 Telefon: ${record.phoneNumber ? record.phoneNumber.trim() : '-'}
 
@@ -174,143 +174,15 @@ No. Sebut Harga: ${tenderNo.toUpperCase()}
 
 Sila ambil maklum maklumat penting bagi lawatan tapak yang bakal dijalankan seperti berikut:
 
-1. NO. SIRI PENDAFTARAN  : ${seriesNo}
+1. NO. SIRI PENDAFTARAN : ${seriesNo}
 2. TEMPAT LAWATAN TAPAK : ${visitVenue}
-3. HARI & TARIKH LAWATAN: ${formattedBriefingDate}
-4. MASA LAWATAN TAPAK   : ${briefingTime}
+3. HARI & TARIKH LAWATAN : ${formattedBriefingDateEmail}
+4. MASA LAWATAN TAPAK : ${briefingTime}
 
-Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang berkaitan) beserta satu salinan dan dokumen-dokumen yang diperlukan semasa mengemukakan tawaran.
-
-Sekian, terima kasih.
-
-"MALAYSIA MADANI"
-"BERKHIDMAT UNTUK NEGARA"
-
-Pejabat RISDA Daerah Beaufort, Sabah.`;
+Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang berkaitan) beserta satu salinan dan dokumen-dokumen yang diperlukan semasa mengemukakan tawaran.`;
 
       const emailHtml = `
-<div style="font-family: 'Times New Roman', Times, serif; max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #cbd5e1; color: #0b1329; background-color: #ffffff; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-  <!-- Letterhead -->
-  <table style="width: 100%; border-collapse: collapse; border-bottom: 3px double #000000; padding-bottom: 12px; margin-bottom: 20px;">
-    <tr>
-      <td style="width: 80px; vertical-align: middle;">
-        <img src="https://upload.wikimedia.org/wikipedia/ms/7/7b/Logo_RISDA.png" alt="RISDA Logo" style="width: 70px; height: auto;" />
-      </td>
-      <td style="padding-left: 15px; text-align: left; vertical-align: middle;">
-        <strong style="font-size: 13px; display: block; text-transform: uppercase; color: #1e3a1e;">PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)</strong>
-        <strong style="font-size: 12px; display: block; text-transform: uppercase; margin-top: 2px; color: #000000;">PEJABAT RISDA DAERAH BEAUFORT, NEGERI SABAH</strong>
-        <span style="font-size: 9px; display: block; color: #475569; margin-top: 4px; line-height: 1.3;">
-          K77 & K78, Block K, Beaufort Square Avenue 1, Jalan Binunuk, 89800 Beaufort, Sabah<br/>
-          Tel: 087-224335/336 | E-Mel: prdbeaufort@risda.gov.my
-        </span>
-      </td>
-    </tr>
-  </table>
-
-  <!-- Meta Info -->
-  <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 15px;">
-    <tr>
-      <td style="width: 50%; font-weight: bold;">NO. SIRI RUJUKAN: <span style="font-family: monospace; font-size: 13px; color: #b45309;">${seriesNo}</span></td>
-      <td style="width: 50%; text-align: right; font-weight: bold;">TARIKH: ${new Date().toLocaleDateString('ms-MY')}</td>
-    </tr>
-  </table>
-
-  <!-- Main Body Content -->
-  <div style="font-size: 12.5px; line-height: 1.6; text-align: justify; margin-bottom: 25px;">
-    <p>Tuan / Puan,</p>
-    
-    <p style="font-weight: bold; font-size: 13.5px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 15px; color: #0f172a;">
-      PENGESAHAN PENDAFTARAN ATAS TALIAN KEHADIRAN TAKLIMAT & LAWATAN TAPAK WAJIB
-    </p>
-
-    <p>Sukacita perkara di atas serta proses pengesahan pendaftaran kehadiran digital bagi syarikat tuan/puan dirujuk dengan hormatnya.</p>
-    
-    <p>2. Adalah disah dan dimaklumkan bahawa pendaftaran kehadiran bagi sebut harga di bawah telah <strong>BERJAYA DIDOKUMENKAN</strong> ke dalam sistem pangkalan perolehan RISDA:</p>
-
-    <!-- Tender Details Callout Card -->
-    <div style="background-color: #f8fafc; border-left: 4px solid #0284c7; padding: 12px 16px; border-radius: 4px; margin: 15px 0;">
-      <table style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
-        <tr>
-          <td style="width: 30%; font-weight: bold; padding: 3px 0; color: #475569;">NO. SEBUT HARGA</td>
-          <td style="width: 3%; font-weight: bold; padding: 3px 0; color: #475569;">:</td>
-          <td style="font-weight: bold; color: #1d4ed8; padding: 3px 0; text-transform: uppercase; font-family: monospace;">${(virtualInv.tenderNo || '').toUpperCase()}</td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; padding: 3px 0; color: #475569; vertical-align: top;">TAJUK PROJEK</td>
-          <td style="font-weight: bold; padding: 3px 0; color: #475569; vertical-align: top;">:</td>
-          <td style="font-weight: bold; padding: 3px 0; text-transform: uppercase; line-height: 1.4; color: #0f172a;">${virtualInv.adTitle.toUpperCase()}</td>
-        </tr>
-      </table>
-    </div>
-
-    <p>3. Berikut adalah butiran penuh rekod perolehan dan jadual taklimat lawatan tapak fizikal yang wajib dihadiri oleh syarikat:</p>
-
-    <!-- Contractor Details Table -->
-    <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin: 15px 0; border: 1px solid #cbd5e1;">
-      <thead>
-        <tr style="background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
-          <th colspan="2" style="padding: 8px; text-align: left; text-transform: uppercase; color: #0284c7; font-weight: bold;">A) RINGKASAN PENDAFTARAN KONTRAKTOR</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="width: 35%; border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">NAMA SYARIKAT</td>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; text-transform: uppercase; color: #0f172a;">${normalizedCompanyName}</td>
-        </tr>
-        <tr>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">WAKIL / PENAMA SIJIL</td>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; text-transform: uppercase;">${record.ownerName.trim()}</td>
-        </tr>
-        <tr>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">NO. KAD PENGENALAN</td>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; font-family: monospace;">${record.icNumber ? record.icNumber.trim() : '-'}</td>
-        </tr>
-        <tr>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">NO. TELEFON BERHUBUNG</td>
-          <td style="border: 1px solid #cbd5e1; padding: 8px;">${record.phoneNumber ? record.phoneNumber.trim() : '-'}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- Site Visit Details Table -->
-    <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin: 15px 0; border: 1px solid #cbd5e1;">
-      <thead>
-        <tr style="background-color: #fdf2f8; border-bottom: 1px solid #cbd5e1;">
-          <th colspan="2" style="padding: 8px; text-align: left; text-transform: uppercase; color: #db2777; font-weight: bold;">B) JADUAL & LOKASI LAWATAN TAPAK FIZIKAL</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="width: 35%; border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">HARI & TARIKH LAWATAN</td>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #db2777;">${formattedBriefingDate}</td>
-        </tr>
-        <tr>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">MASA TAKLIMAT</td>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold;">${briefingTime}</td>
-        </tr>
-        <tr>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #475569;">TEMPAT BERKUMPUL</td>
-          <td style="border: 1px solid #cbd5e1; padding: 8px; text-transform: uppercase; line-height: 1.4;">${visitVenue}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div style="font-weight: bold; background-color: #fffbeb; border: 1px solid #fef3c7; padding: 12px; border-radius: 6px; font-size: 11px; margin-top: 15px; color: #92400e; line-height: 1.4;">
-      PERINGATAN MANDATORI: Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang berkaitan) beserta satu salinan semasa taklimat dijalankan untuk ditentusahkan secara fizikal oleh Pegawai Pengendali RISDA.
-    </div>
-  </div>
-
-  <!-- Signoff block -->
-  <div style="font-size: 12px; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 25px;">
-    <strong>"MALAYSIA MADANI"</strong><br/>
-    <strong>"BERKHIDMAT UNTUK NEGARA"</strong>
-    <p style="margin-top: 20px; font-weight: bold;">Saya yang menjalankan amanah,</p>
-    <div style="height: 35px;"></div>
-    <strong>JABATAN PEROLEHAN DAERAH BEAUFORT</strong><br/>
-    <span style="color: #475569;">b.p. Pegawai RISDA Daerah Beaufort</span><br/>
-    <span style="color: #64748b; font-size: 10px;">Kementerian Kemajuan Desa dan Wilayah, Sabah</span>
-  </div>
-</div>
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000; white-space: pre-wrap; word-break: break-word;">${emailBody}</div>
 `;
 
       const attachments = [];
