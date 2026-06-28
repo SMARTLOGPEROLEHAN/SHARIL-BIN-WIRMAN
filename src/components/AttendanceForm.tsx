@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { addDoc, collection, doc, updateDoc, getDocs, query, where, setDoc, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { motion } from 'motion/react';
-import { UserCheck, CheckCircle, Shield, X, Upload, FileText as FileIcon } from 'lucide-react';
+import { UserCheck, CheckCircle, Shield, X, Upload, FileText as FileIcon, Search, Database, UserPlus, ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { optimizeImage } from '../lib/imageOptimizer';
 
@@ -50,6 +50,68 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
   const [submitted, setSubmitted] = useState(false);
   const [registeredSeriesNo, setRegisteredSeriesNo] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
+  // Registration check state
+  const [hasRegisteredBefore, setHasRegisteredBefore] = useState<boolean | null>(editingRecord ? false : null);
+  const [searchIc, setSearchIc] = useState('');
+  const [searchingIcLoading, setSearchingIcLoading] = useState(false);
+  const [searchIcError, setSearchIcError] = useState<string | null>(null);
+
+  const handleSearchAndAutofill = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanIc = searchIc.replace(/\D/g, '').trim();
+    if (!cleanIc || cleanIc.length !== 12) {
+      setSearchIcError('Sila masukkan 12 digit Nombor Kad Pengenalan (IC) yang sah tanpa tanda sempang.');
+      return;
+    }
+    
+    setSearchingIcLoading(true);
+    setSearchIcError(null);
+    
+    try {
+      const q = query(
+        collection(db, 'attendance'),
+        where('icNumber', '==', cleanIc)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        setSearchIcError('Maaf, rekod pendaftaran terdahulu tidak dijumpai dengan No. IC ini. Sila daftar sebagai kontraktor baharu (Isi Manual) atau cuba lagi.');
+        setSearchingIcLoading(false);
+        return;
+      }
+      
+      const records = querySnapshot.docs.map(docSnap => docSnap.data());
+      // Sort desc by timestamp
+      records.sort((a: any, b: any) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeB - timeA;
+      });
+      
+      const newestRecord = records[0];
+      
+      // Auto-fill form data
+      setFormData({
+        companyName: newestRecord.companyName || '',
+        ownerName: newestRecord.ownerName || '',
+        companyAddress: newestRecord.companyAddress || '',
+        icNumber: newestRecord.icNumber || cleanIc,
+        phoneNumber: newestRecord.phoneNumber || '',
+        email: newestRecord.email || '',
+      });
+      
+      toast.success('Pendaftaran terdahulu ditemui! Maklumat anda telah diisi secara automatik.');
+      
+      // Navigate to the form
+      setHasRegisteredBefore(false);
+    } catch (err: any) {
+      console.error('Error querying previous registration:', err);
+      setSearchIcError('Ralat sistem semasa menyemak rekod. Sila cuba lagi atau pilih Isi Manual.');
+    } finally {
+      setSearchingIcLoading(false);
+    }
+  };
 
   // Sijil Kelayakan Wajib list computed based on ad configuration
   const requiredLicenses = [];
@@ -623,7 +685,190 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pb-32 md:pb-0">
+      {hasRegisteredBefore === null ? (
+        /* STEP 1: Question Box */
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-risda-card border border-risda-border rounded-[28px] p-8 md:p-12 text-center space-y-8 shadow-2xl max-w-3xl mx-auto relative overflow-hidden"
+        >
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#ff9c3a] to-[#ff7c00]" />
+          <div className="w-16 h-16 bg-risda-orange/10 border border-risda-orange/20 text-risda-orange rounded-2xl flex items-center justify-center mx-auto shadow-md">
+            <Database size={28} />
+          </div>
+          
+          <div className="space-y-3 max-w-xl mx-auto">
+            <h3 className="text-lg md:text-xl font-black text-white uppercase tracking-tight">
+              Semakan Rekod Pendaftaran Pintar
+            </h3>
+            <p className="text-xs text-risda-muted leading-relaxed uppercase">
+              Adakah syarikat anda pernah mendaftar untuk mana-mana taklimat sebut harga di portal ini sebelum ini?
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto pt-2">
+            {/* BUTTON YA */}
+            <button
+              type="button"
+              onClick={() => setHasRegisteredBefore(true)}
+              className="group flex flex-col items-center justify-center p-6 bg-black/40 hover:bg-risda-orange/10 border border-risda-border hover:border-risda-orange/40 rounded-2xl transition-all duration-300 text-center gap-3 cursor-pointer"
+            >
+              <div className="w-12 h-12 bg-risda-orange/10 text-risda-orange rounded-xl flex items-center justify-center group-hover:scale-110 transition-all duration-300">
+                <Search size={22} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-white uppercase tracking-wider">Ya, Pernah Mendaftar</p>
+                <p className="text-[10px] text-risda-muted uppercase tracking-tight mt-1">Sistem akan mencari &amp; auto-isi maklumat syarikat anda</p>
+              </div>
+            </button>
+
+            {/* BUTTON TIDAK */}
+            <button
+              type="button"
+              onClick={() => setHasRegisteredBefore(false)}
+              className="group flex flex-col items-center justify-center p-6 bg-black/40 hover:bg-white/5 border border-risda-border hover:border-white/20 rounded-2xl transition-all duration-300 text-center gap-3 cursor-pointer"
+            >
+              <div className="w-12 h-12 bg-white/5 text-slate-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition-all duration-300">
+                <UserPlus size={22} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-white uppercase tracking-wider">Tidak, Ini Kali Pertama</p>
+                <p className="text-[10px] text-risda-muted uppercase tracking-tight mt-1">Sila isi borang pendaftaran baharu secara manual</p>
+              </div>
+            </button>
+          </div>
+        </motion.div>
+      ) : hasRegisteredBefore === true ? (
+        /* STEP 2: IC Entry and Verification */
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-risda-card border border-risda-border rounded-[28px] p-8 md:p-12 text-center space-y-8 shadow-2xl max-w-xl mx-auto relative overflow-hidden"
+        >
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#ff9c3a] to-[#ff7c00]" />
+          
+          <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <button
+              type="button"
+              onClick={() => {
+                setHasRegisteredBefore(null);
+                setSearchIcError(null);
+                setSearchIc('');
+              }}
+              className="text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+            >
+              <ArrowLeft size={12} /> Kembali
+            </button>
+            <span className="text-[9px] font-black text-[#ff9c3a] uppercase tracking-widest bg-risda-orange/10 px-2.5 py-1 rounded-md">
+              Semakan Sistem
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="w-12 h-12 bg-risda-orange/10 text-risda-orange rounded-xl flex items-center justify-center mx-auto">
+              <Search size={22} />
+            </div>
+            <h3 className="text-base font-black text-white uppercase tracking-tight">
+              Cari Maklumat Kontraktor
+            </h3>
+            <p className="text-[11px] text-risda-muted leading-relaxed uppercase max-w-sm mx-auto">
+              Sila masukkan Nombor Kad Pengenalan (IC) Pemilik/Wakil Syarikat untuk carian pendaftaran terdahulu.
+            </p>
+          </div>
+
+          <form onSubmit={handleSearchAndAutofill} className="space-y-5 text-left max-w-sm mx-auto">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block px-1">
+                Nombor Kad Pengenalan (Tanpa '-')
+              </label>
+              <input 
+                type="text"
+                required
+                maxLength={12}
+                value={searchIc}
+                onChange={(e) => setSearchIc(e.target.value.replace(/\D/g, ''))}
+                placeholder="cth: 880101125555"
+                className="w-full bg-black/40 border border-risda-border rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-risda-orange outline-none transition-all placeholder:text-white/10 text-center font-mono tracking-[3px]"
+              />
+            </div>
+
+            {searchIcError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-[10px] font-black uppercase tracking-wider leading-relaxed">
+                {searchIcError}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={searchingIcLoading}
+                className="w-full py-4 bg-risda-orange hover:bg-risda-orange/80 text-black font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {searchingIcLoading ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" /> MENYEMAK DATA...
+                  </>
+                ) : (
+                  <>
+                    <Search size={14} /> CARI &amp; AUTO-ISI
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setHasRegisteredBefore(false);
+                  setFormData({
+                    companyName: '',
+                    ownerName: '',
+                    companyAddress: '',
+                    icNumber: '',
+                    phoneNumber: '',
+                    email: '',
+                  });
+                }}
+                className="w-full py-3 hover:bg-white/5 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-transparent hover:border-risda-border"
+              >
+                Daftar Baharu (Isi Manual)
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      ) : (
+        /* STEP 3: The standard/autofilled form */
+        <>
+          {formData.companyName && !editingRecord && (
+            <div className="max-w-6xl mx-auto bg-risda-orange/5 border border-risda-orange/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 bg-risda-orange/15 rounded-xl flex items-center justify-center text-[#ff9c3a] shrink-0">
+                  <CheckCircle size={18} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-white uppercase">Maklumat Berjaya Diisi Secara Automatik!</p>
+                  <p className="text-[10px] text-risda-muted uppercase">Sila semak maklumat di bawah sebelum meneruskan pendaftaran.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData({
+                    companyName: '',
+                    ownerName: '',
+                    companyAddress: '',
+                    icNumber: '',
+                    phoneNumber: '',
+                    email: '',
+                  });
+                  setHasRegisteredBefore(null);
+                }}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-[9px] font-black uppercase tracking-wider rounded-xl transition-all border border-risda-border"
+              >
+                Set Semula &amp; Kosongkan Borang
+              </button>
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pb-32 md:pb-0">
         <div className="space-y-6 md:space-y-8">
           <div className="space-y-3">
             <label className="text-[9px] md:text-[10px] font-black text-risda-orange uppercase tracking-[3px] md:tracking-[4px] px-1">Maklumat Syarikat</label>
@@ -801,6 +1046,8 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
           </div>
         </div>
       </form>
+        </>
+      )}
     </div>
   );
 }

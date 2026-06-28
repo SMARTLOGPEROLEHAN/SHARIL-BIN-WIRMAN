@@ -426,138 +426,126 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="py-20 text-center text-risda-muted animate-pulse font-black uppercase tracking-[4px]">Menyelaras Data...</div>
-        ) : Object.keys(groupedAttendance).length === 0 ? (
-          <div className="py-20 text-center text-risda-muted font-black uppercase tracking-[4px] bg-risda-card rounded-[40px] border border-risda-border border-dashed">
+          <div className="col-span-full py-20 text-center text-risda-muted animate-pulse font-black uppercase tracking-[4px]">Menyelaras Data...</div>
+        ) : filteredAttendance.length === 0 ? (
+          <div className="col-span-full py-20 text-center text-risda-muted font-black uppercase tracking-[4px] bg-risda-card rounded-[40px] border border-risda-border border-dashed">
             {searchTerm ? 'Tiada Padanan Carian' : 'Tiada Rekod Kehadiran'}
           </div>
-        ) : Object.keys(groupedAttendance).sort().map((projectTitle, idx) => {
-          const projectRecords = groupedAttendance[projectTitle];
-          const isExpanded = expandedProject === projectTitle;
-          
-          return (
-            <motion.div 
-              key={projectTitle}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: idx * 0.05 }}
-              className={`bg-risda-card border transition-all duration-500 overflow-hidden ${
-                isExpanded ? 'border-risda-orange/40 ring-1 ring-risda-orange/20 rounded-[40px]' : 'border-risda-border hover:border-white/20 rounded-[30px]'
-              }`}
-            >
-              <div 
-                className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer group"
-                onClick={() => setExpandedProject(isExpanded ? null : projectTitle)}
-              >
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-risda-orange rounded-full animate-pulse" />
-                    <span className="text-[10px] font-black text-risda-orange uppercase tracking-[3px]">Ringkasan Projek</span>
-                  </div>
-                  <h3 className="text-sm md:text-lg font-black text-white uppercase leading-tight tracking-tight group-hover:text-risda-gold transition-colors">
-                    {projectTitle}
-                  </h3>
+        ) : filteredAttendance.map((record, idx) => (
+          <motion.div 
+            key={record.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.02, duration: 0.3 }}
+            className="bg-risda-card border border-white/5 hover:border-white/10 rounded-3xl p-6 flex flex-col justify-between space-y-4 shadow-lg relative overflow-hidden transition-all duration-300 group"
+          >
+            <div className="space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="p-3 bg-white/5 rounded-2xl text-risda-gold border border-white/5 group-hover:bg-risda-gold/10 group-hover:text-risda-orange transition-all duration-300">
+                  <Building2 size={20} />
                 </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="bg-black/40 px-6 py-3 rounded-2xl border border-white/5 flex items-center gap-3">
-                    <Users size={16} className="text-risda-gold" />
-                    <div className="flex flex-col">
-                      <span className="text-xl font-black text-white leading-none">{projectRecords.length}</span>
-                      <span className="text-[8px] font-black text-risda-muted uppercase tracking-widest mt-1">Kehadiran</span>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
-                    isExpanded ? 'bg-risda-orange text-black rotate-180' : 'bg-white/5 text-risda-muted group-hover:bg-white/10 group-hover:text-white'
-                  }`}>
-                    <ChevronDown size={20} strokeWidth={3} />
-                  </div>
+                <div className="flex flex-col items-end gap-1.5">
+                  <span className="px-2.5 py-1 bg-risda-orange/15 border border-risda-orange/30 text-[9px] font-black text-risda-orange rounded-md uppercase tracking-wider font-mono">
+                    SIRI NO: {record.docSeriesNo || '-'}
+                  </span>
                 </div>
               </div>
 
-              <AnimatePresence>
-                {isExpanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.5, ease: 'circOut' }}
-                    className="border-t border-white/5 bg-black/40"
-                  >
-                    <div className="p-2 md:p-8 overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="text-[9px] font-black text-risda-muted uppercase tracking-[3px] border-b border-white/10">
-                            <th className="px-6 py-4">No.</th>
-                            <th className="px-6 py-4">Syarikat / Alamat</th>
-                            <th className="px-6 py-4">Pemilik / No. Tel</th>
-                            <th className="px-6 py-4">Siri No.</th>
-                            <th className="px-6 py-4">Tindakan</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                          {projectRecords.map((record: any, pIdx: number) => (
-                            <tr key={record.id} className="text-[11px] text-white/70 hover:bg-white/[0.03] transition-colors group/row">
-                              <td className="px-6 py-5 font-mono text-risda-orange">{pIdx + 1}</td>
-                              <td className="px-6 py-5">
-                                <span className="font-black text-white uppercase tracking-wide group-hover/row:text-risda-gold transition-colors">{record.companyName}</span>
-                                {record.companyAddress && <div className="text-[9px] text-risda-muted mt-0.5 line-clamp-1">{record.companyAddress}</div>}
-                                <div className="text-[8px] text-risda-muted mt-0.5">{formatDate(record.timestamp)}</div>
-                              </td>
-                              <td className="px-6 py-5">
-                                <div className="font-bold uppercase text-white/90">{record.ownerName}</div>
-                                <div className="text-[9px] font-mono text-risda-muted">{record.phoneNumber}</div>
-                              </td>
-                              <td className="px-6 py-5 font-mono font-bold text-risda-gold">
-                                {record.docSeriesNo || '-'}
-                              </td>
-                              <td className="px-6 py-5">
-                                <div className="flex gap-2">
-                                  <button 
-                                    onClick={() => setPreviewRecord(record)}
-                                    className="p-2 bg-white/5 hover:bg-risda-gold/20 text-risda-muted hover:text-risda-gold rounded-lg transition-all"
-                                    title="Lihat Butiran Syarikat"
-                                  >
-                                    <Eye size={14} />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleResendEmail(record)}
-                                    disabled={resendingId === record.id}
-                                    className={`p-2 bg-white/5 rounded-lg transition-all ${
-                                      resendingId === record.id 
-                                        ? 'opacity-50 cursor-not-allowed text-white/30' 
-                                        : 'hover:bg-blue-500/20 text-risda-muted hover:text-blue-400'
-                                    }`}
-                                    title="Hantar Semula E-mel Pendaftaran"
-                                  >
-                                    {resendingId === record.id ? (
-                                      <span className="inline-block animate-spin border-2 border-current border-t-transparent rounded-full h-3.5 w-3.5" />
-                                    ) : (
-                                      <Mail size={14} />
-                                    )}
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDelete(record.id)}
-                                    className="p-2 bg-white/5 hover:bg-red-500/20 text-risda-muted hover:text-red-500 rounded-lg transition-all"
-                                    title="Padam Rekod Kehadiran"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          );
-        })}
+              <div className="space-y-2">
+                <h3 className="text-sm font-black text-white uppercase tracking-tight leading-snug group-hover:text-risda-gold transition-colors duration-300">
+                  {record.companyName}
+                </h3>
+                
+                <div className="space-y-1.5 pt-1">
+                  <p className="text-[10px] text-white/80 font-bold uppercase flex items-center gap-2">
+                    <User size={12} className="text-risda-gold shrink-0" />
+                    <span>{record.ownerName}</span>
+                  </p>
+                  
+                  {record.icNumber && (
+                    <p className="text-[10px] text-white/50 font-bold flex items-center gap-2">
+                      <span className="text-[9px] font-black text-risda-muted font-mono shrink-0">KP:</span>
+                      <span className="font-mono">{record.icNumber}</span>
+                    </p>
+                  )}
+
+                  <p className="text-[10px] text-white/60 font-bold flex items-center gap-2">
+                    <Phone size={12} className="text-risda-orange shrink-0" />
+                    <span className="font-mono">{record.phoneNumber}</span>
+                  </p>
+                  
+                  {record.email && record.email !== '-' && (
+                    <p className="text-[10px] text-white/60 font-bold flex items-center gap-2 truncate">
+                      <Mail size={12} className="text-risda-orange shrink-0" />
+                      <span className="truncate select-all">{record.email}</span>
+                    </p>
+                  )}
+                  
+                  <p className="text-[9px] text-risda-muted font-semibold flex items-center gap-2 pt-1">
+                    <Calendar size={11} className="text-risda-muted shrink-0" />
+                    <span>DAFTAR: {formatDate(record.timestamp)}</span>
+                  </p>
+                </div>
+              </div>
+
+              {record.companyAddress && record.companyAddress !== '-' && (
+                <div className="pt-2 border-t border-white/5">
+                  <p className="text-[10px] text-risda-muted italic leading-relaxed line-clamp-2">
+                    {record.companyAddress}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3 pt-3 border-t border-white/5">
+              {record.adTitle && (
+                <div className="bg-black/30 px-3 py-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
+                  <span className="text-[7px] font-black text-risda-orange uppercase tracking-widest">Sebut Harga</span>
+                  <span className="text-[9px] font-black text-white uppercase tracking-tight line-clamp-1">{record.adTitle}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2">
+                <button 
+                  onClick={() => setPreviewRecord(record)}
+                  className="px-3 py-2 bg-white/5 hover:bg-risda-gold/20 text-risda-muted hover:text-risda-gold rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                  title="Lihat Butiran Syarikat"
+                >
+                  <Eye size={13} /> Detail
+                </button>
+                <button 
+                  onClick={() => handleResendEmail(record)}
+                  disabled={resendingId === record.id}
+                  className={`px-3 py-2 bg-white/5 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                    resendingId === record.id 
+                      ? 'opacity-50 cursor-not-allowed text-white/30' 
+                      : 'hover:bg-blue-500/20 text-risda-muted hover:text-blue-400'
+                  }`}
+                  title="Hantar Semula E-mel Pendaftaran"
+                >
+                  {resendingId === record.id ? (
+                    <>
+                      <span className="inline-block animate-spin border-2 border-current border-t-transparent rounded-full h-3 w-3" /> Sending
+                    </>
+                  ) : (
+                    <>
+                      <Mail size={13} /> Email
+                    </>
+                  )}
+                </button>
+                <button 
+                  onClick={() => handleDelete(record.id)}
+                  className="px-3 py-2 bg-white/5 hover:bg-red-500/20 text-risda-muted hover:text-red-500 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                  title="Padam Rekod Kehadiran"
+                >
+                  <Trash2 size={13} /> Padam
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
       <AnimatePresence>
