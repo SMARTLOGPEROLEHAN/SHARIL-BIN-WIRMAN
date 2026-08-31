@@ -5,23 +5,28 @@ import { logOut, db, handleFirestoreError, OperationType } from '../lib/firebase
 import { collection, query, where, onSnapshot, orderBy, updateDoc, doc, Timestamp, getDoc } from 'firebase/firestore';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { isOfficeMatch } from './AttendanceNotificationModal';
 
 interface AppNotification {
   id: string;
-  type: 'reset_password' | 'technical_support';
-  userId: string;
-  userName: string;
-  userEmail: string;
+  type: 'reset_password' | 'technical_support' | 'ATTENDANCE_SUBMITTED';
+  userId?: string;
+  userName?: string;
+  companyName?: string;
+  ownerName?: string;
+  adTitle?: string;
+  userEmail?: string;
   message: string;
   status: 'pending' | 'resolved';
   createdAt: any;
 }
 
 export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
-  const { user, role, district } = useAuth();
+  const { user, role, office: userOffice, district } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [userData, setUserData] = useState<any>(null);
   const isAdmin = role === 'admin' || role === 'pentadbir';
   const isStaff = role === 'penginput' || role === 'pelulus' || isAdmin;
@@ -70,7 +75,7 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   }, [user]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isStaff) return;
 
     const q = query(
       collection(db, 'notifications'),
@@ -80,8 +85,15 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notifs: AppNotification[] = [];
-      snapshot.forEach((doc) => {
-        notifs.push({ id: doc.id, ...doc.data() } as AppNotification);
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as AppNotification;
+        if (data.type === 'ATTENDANCE_SUBMITTED') {
+          if (isAdmin || isOfficeMatch(userOffice, (data as any).office)) {
+            notifs.push({ id: docSnap.id, ...data });
+          }
+        } else {
+          notifs.push({ id: docSnap.id, ...data });
+        }
       });
       setNotifications(notifs);
     }, (error) => {
@@ -89,7 +101,7 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
     });
 
     return () => unsubscribe();
-  }, [isAdmin]);
+  }, [isStaff, isAdmin, userOffice]);
 
   const resolveNotification = async (id: string) => {
     const path = `notifications/${id}`;
@@ -178,8 +190,8 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
             />
           </div>
 
-          {/* Technical Support Notification Icon */}
-          {isAdmin && (
+          {/* Staff System Notifications Icon */}
+          {isStaff && (
             <div className="flex items-center gap-3">
               <div className="relative">
                 <button 
@@ -189,11 +201,11 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                     ? 'bg-risda-orange/10 text-risda-orange border border-risda-orange/20' 
                     : 'bg-white/5 border border-white/5 hover:text-white hover:border-white/10'
                   }`}
-                  title="Bantuan & Sokongan"
+                  title="Pemberitahuan Sistem"
                 >
-                  <LifeBuoy size={20} className={notifications.length > 0 ? "animate-pulse" : ""} />
+                  <Bell size={20} className={notifications.length > 0 ? "animate-bounce text-amber-400" : ""} />
                   {notifications.length > 0 && (
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-risda-sidebar" />
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-risda-sidebar animate-pulse" />
                   )}
                 </button>
 
@@ -203,57 +215,70 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-4 w-[320px] bg-risda-card border border-risda-border rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-50 p-2"
+                    className="absolute right-0 mt-4 w-[340px] bg-risda-card border border-risda-border rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-50 p-2"
                   >
                     <div className="p-4 border-b border-risda-border flex items-center justify-between">
-                      <p className="text-[10px] font-black text-white uppercase tracking-[2px]">Bantuan & Sokongan</p>
-                      <span className="bg-risda-orange/20 text-risda-orange px-2 py-0.5 rounded text-[8px] font-black uppercase">
+                      <p className="text-[10px] font-black text-white uppercase tracking-[2px]">Pemberitahuan Kakitangan</p>
+                      <span className="bg-amber-500/20 text-amber-400 px-2.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
                         {notifications.length} Menunggu
                       </span>
                     </div>
 
-                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
                       {notifications.length === 0 ? (
                         <div className="p-10 text-center space-y-3">
                           <CheckCircle2 className="mx-auto text-risda-muted opacity-20" size={32} />
-                          <p className="text-[10px] text-risda-muted font-bold uppercase tracking-widest leading-relaxed">Semua urusan telah selesai.</p>
+                          <p className="text-[10px] text-risda-muted font-bold uppercase tracking-widest leading-relaxed">Tiada pemberitahuan baharu.</p>
                         </div>
                       ) : (
                         notifications.map((notif) => (
-                          <div key={notif.id} className="p-4 hover:bg-white/[0.03] transition-colors rounded-2xl group flex gap-3">
-                            <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
-                              notif.type === 'reset_password' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
+                          <div key={notif.id} className="p-3.5 hover:bg-white/[0.03] transition-colors rounded-2xl group flex gap-3 border-b border-white/5 last:border-b-0">
+                            <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${
+                              notif.type === 'ATTENDANCE_SUBMITTED' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : notif.type === 'reset_password' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
                             }`}>
-                              {notif.type === 'reset_password' ? <AlertCircle size={18} /> : <LifeBuoy size={18} />}
+                              {notif.type === 'ATTENDANCE_SUBMITTED' ? <UserCheck size={18} /> : notif.type === 'reset_password' ? <AlertCircle size={18} /> : <LifeBuoy size={18} />}
                             </div>
                             <div className="flex-1 space-y-1">
                               <div className="flex justify-between items-start">
-                                <p className="text-[10px] font-black text-white leading-none uppercase">{notif.userName}</p>
+                                <p className="text-[10px] font-black text-white leading-none uppercase">{notif.companyName || notif.userName || 'PEMBERITAHUAN'}</p>
                                 <div className="flex items-center gap-1 text-[8px] text-risda-muted font-bold">
                                   <Clock size={8} />
-                                  <span>Baru Sahaja</span>
+                                  <span>Terkini</span>
                                 </div>
                               </div>
                               <p className="text-[9px] text-risda-muted leading-relaxed line-clamp-2">{notif.message}</p>
-                              <div className="flex items-center gap-4 pt-2">
-                                <button 
-                                  onClick={() => {
-                                    // Navigate to Staff Management with email context
-                                    const searchParams = new URLSearchParams();
-                                    if (notif.userEmail) searchParams.set('email', notif.userEmail);
-                                    window.history.pushState({}, '', `/urus-staff?${searchParams.toString()}`);
-                                    window.dispatchEvent(new PopStateEvent('popstate'));
-                                    setShowNotifications(false);
-                                  }}
-                                  className="text-[8px] font-black text-blue-400 uppercase tracking-[1.5px] hover:text-white transition-colors"
-                                >
-                                  Uruskan
-                                </button>
+                              <div className="flex items-center gap-4 pt-1.5">
+                                {notif.type === 'ATTENDANCE_SUBMITTED' ? (
+                                  <button 
+                                    onClick={() => {
+                                      window.history.pushState({}, '', '/rekod-kehadiran');
+                                      window.dispatchEvent(new PopStateEvent('popstate'));
+                                      setShowNotifications(false);
+                                      resolveNotification(notif.id);
+                                    }}
+                                    className="text-[8px] font-black text-amber-400 uppercase tracking-[1.5px] hover:text-white transition-colors"
+                                  >
+                                    Lihat Kehadiran
+                                  </button>
+                                ) : (
+                                  <button 
+                                    onClick={() => {
+                                      const searchParams = new URLSearchParams();
+                                      if (notif.userEmail) searchParams.set('email', notif.userEmail);
+                                      window.history.pushState({}, '', `/urus-staff?${searchParams.toString()}`);
+                                      window.dispatchEvent(new PopStateEvent('popstate'));
+                                      setShowNotifications(false);
+                                    }}
+                                    className="text-[8px] font-black text-blue-400 uppercase tracking-[1.5px] hover:text-white transition-colors"
+                                  >
+                                    Uruskan
+                                  </button>
+                                )}
                                 <button 
                                   onClick={() => resolveNotification(notif.id)}
-                                  className="text-[8px] font-black text-risda-orange uppercase tracking-[1.5px] hover:text-white transition-colors"
+                                  className="text-[8px] font-black text-slate-400 uppercase tracking-[1.5px] hover:text-white transition-colors ml-auto"
                                 >
-                                  Tandakan Selesai
+                                  Selesai
                                 </button>
                               </div>
                             </div>
@@ -268,23 +293,70 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           </div>
         )}
 
-        {/* Theme Switcher */}
-          <div className="flex items-center gap-1 bg-white/5 border border-white/5 rounded-2xl p-1 shrink-0">
-            <button 
-              onClick={() => setTheme('dark')}
-              className={`p-2 rounded-xl transition-all ${theme === 'dark' ? 'bg-risda-orange shadow-[0_0_15px_rgba(var(--risda-orange-rgb),0.4)] text-white' : 'text-risda-muted hover:text-risda-orange'}`}
-              title="Modern"
-            >
-              <Moon size={14} />
-            </button>
-            <button 
-              onClick={() => setTheme('custom')}
-              className={`p-2 rounded-xl transition-all ${theme === 'custom' ? 'bg-risda-orange shadow-[0_0_15px_rgba(var(--risda-orange-rgb),0.4)] text-white' : 'text-risda-muted hover:text-risda-orange'}`}
-              title="Klasik"
-            >
-              <Palette size={14} />
-            </button>
-          </div>
+        {/* Theme Switcher with Expanded Options */}
+        <div className="relative shrink-0">
+          <button 
+            onClick={() => setShowThemeMenu(!showThemeMenu)}
+            className="p-2.5 bg-white/5 border border-white/5 rounded-xl hover:text-white hover:border-white/10 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider text-risda-muted"
+            title="Pilihan Tema Sistem"
+          >
+            <Palette size={16} className="text-risda-orange" />
+            <span className="hidden md:inline">Tema: </span>
+            <span className="text-white">
+              {theme === 'dark' ? 'Siber Biru' : theme === 'custom' ? 'Diraja Emas' : theme === 'emerald' ? 'Hijau RISDA' : theme === 'sunset' ? 'Suria Jingga' : 'Hitam Solid'}
+            </span>
+          </button>
+
+          <AnimatePresence>
+            {showThemeMenu && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowThemeMenu(false)}
+                />
+                <motion.div 
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute right-0 mt-2 w-56 bg-risda-card border border-risda-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-50 p-2 space-y-1"
+                >
+                  <div className="px-3 py-2 border-b border-white/5">
+                    <span className="text-[9px] font-black text-risda-gold uppercase tracking-[2px]">Tukar Tema Sistem</span>
+                  </div>
+                  {[
+                    { id: 'dark' as const, name: 'Siber Biru', desc: 'Luxury Royal Blue', colors: ['bg-[#2563eb]', 'bg-[#38bdf8]'] },
+                    { id: 'custom' as const, name: 'Diraja Emas', desc: 'Gold Blue Elegant', colors: ['bg-[#d4af37]', 'bg-[#f3d060]'] },
+                    { id: 'emerald' as const, name: 'Hijau RISDA', desc: 'Corporate & Gold', colors: ['bg-[#10b981]', 'bg-[#f59e0b]'] },
+                    { id: 'sunset' as const, name: 'Suria Jingga', desc: 'Sunset Crimson', colors: ['bg-[#ef4444]', 'bg-[#f97316]'] },
+                    { id: 'black' as const, name: 'Hitam Solid', desc: 'Solid Black & White Text', colors: ['bg-[#000000]', 'bg-[#ffffff]'] },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        setTheme(t.id);
+                        setShowThemeMenu(false);
+                      }}
+                      className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all text-left ${
+                        theme === t.id 
+                          ? 'bg-white/5 text-white border border-risda-border/30' 
+                          : 'text-risda-muted hover:text-white hover:bg-white/[0.02]'
+                      }`}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-black tracking-wide leading-none">{t.name}</span>
+                        <span className="text-[8px] text-risda-muted mt-1 truncate">{t.desc}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <div className={`w-3 h-3 rounded-full ${t.colors[0]} border border-white/10`} />
+                        <div className={`w-3 h-3 rounded-full ${t.colors[1]} border border-white/10`} />
+                      </div>
+                    </button>
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
 
           <button className="relative p-2 hover:text-white transition-colors">
             <Bell size={20} />

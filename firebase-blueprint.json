@@ -84,7 +84,8 @@
         "representativeName": { "type": "string" },
         "icNumber": { "type": "string" },
         "phoneNumber": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
+        "timestamp": { "type": "string", "format": "date-time" },
+        "certificateExpiries": { "type": "object", "description": "Expiry dates of uploaded certificates" }
       },
       "required": ["adId", "companyName", "representativeName"]
     },
@@ -164,6 +165,10 @@
     "/supplier_invitations/{invitationId}": {
       "schema": "SupplierInvitation",
       "description": "Official bidding invitations sent to suppliers"
+    },
+    "/annual_rows/{rowId}": {
+      "schema": "AnnualRow",
+      "description": "Annual report custom rows and saved overrides"
     }
   }
 }

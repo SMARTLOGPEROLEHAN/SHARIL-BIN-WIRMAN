@@ -34,74 +34,88 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           let userDoc = await getDoc(userDocRef);
           
-          if (!userDoc.exists() && firebaseUser.email) {
-            // Find pre-registered document that matches the email and doesn't have a real synced UID yet
-            const q = query(collection(db, 'users'), where('email', '==', firebaseUser.email));
-            const querySnapshot = await getDocs(q);
+          // Find any registered staff document matching email (case-insensitive), uid, or staffId
+          const querySnapshot = await getDocs(collection(db, 'users'));
+          let matchedDocRef: any = null;
+          let matchedDocData: any = null;
+          
+          const fEmail = (firebaseUser.email || '').trim().toLowerCase();
+          
+          querySnapshot.forEach((d) => {
+            const data = d.data();
+            const dEmail = (data.email || '').trim().toLowerCase();
+            const dStaffId = (data.staffId || '').trim();
+            const dUid = (data.uid || '').trim();
             
-            let emailDocRef = null;
-            let emailDocData = null;
-            
-            querySnapshot.forEach((d) => {
-              const data = d.data();
-              // A pre-registered user has either no UID, or their UID is equal to their document ID
-              if (!data.uid || data.uid === d.id || data.uid === firebaseUser.email.replace(/[^a-zA-Z0-9]/g, '_')) {
-                emailDocRef = d.ref;
-                emailDocData = data;
+            if (
+              d.id === firebaseUser.uid ||
+              (fEmail && dEmail === fEmail) ||
+              (dUid && dUid === firebaseUser.uid) ||
+              (dStaffId && dStaffId === firebaseUser.uid)
+            ) {
+              // Prefer document that has explicit admin-assigned details (role, displayName, office)
+              if (!matchedDocData || data.role || data.office || data.displayName) {
+                matchedDocRef = d.ref;
+                matchedDocData = data;
               }
-            });
-            
-            if (emailDocRef && emailDocData) {
-              await setDoc(userDocRef, {
-                ...emailDocData,
-                uid: firebaseUser.uid,
-                updatedAt: serverTimestamp()
-              });
-              await deleteDoc(emailDocRef);
-              
-              setRole(emailDocData.role as UserRole);
-              setOffice(emailDocData.office || null);
-              setState(emailDocData.state || null);
-              setDistrict(emailDocData.district || null);
-              setLoading(false);
-              return;
             }
-          }
+          });
 
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            let activeRole = (data.role as UserRole) || 'pelawat';
-            
-            // DATA CORRECTION: SHARIL WIRMAN (Pelulus -> Penginput)
-            if (activeRole === 'pelulus' && data.displayName?.toUpperCase().includes('SHARIL WIRMAN')) {
-              activeRole = 'penginput';
-              // Update database to persist this change
-              updateDoc(userDocRef, { 
-                role: 'penginput',
-                updatedAt: serverTimestamp()
-              }).catch(e => console.error("Self-correction failed:", e));
+          if (matchedDocData) {
+            // Determine exact role, name, office, state, and district registered by admin
+            const assignedRole: UserRole = (matchedDocData.role as UserRole) || (fEmail === 'innogranite@gmail.com' ? 'admin' : 'pelawat');
+            const assignedOffice = matchedDocData.office || null;
+            const assignedState = matchedDocData.state || null;
+            const assignedDistrict = matchedDocData.district || null;
+            const assignedName = matchedDocData.displayName || firebaseUser.displayName || 'Kakitangan';
+
+            // Sync/Merge into primary document at users/${firebaseUser.uid}
+            await setDoc(userDocRef, {
+              ...matchedDocData,
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || matchedDocData.email,
+              displayName: assignedName,
+              role: assignedRole,
+              office: assignedOffice,
+              state: assignedState,
+              district: assignedDistrict,
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+
+            // If matched document was at a different document ID (e.g. pre-registered slug), remove old duplicate
+            if (matchedDocRef && matchedDocRef.id !== firebaseUser.uid) {
+              await deleteDoc(matchedDocRef).catch(() => null);
             }
 
-            setRole(activeRole);
-            setOffice(data.office || null);
-            setState(data.state || null);
-            setDistrict(data.district || null);
+            // Set state in AuthContext
+            setRole(assignedRole);
+            setOffice(assignedOffice);
+            setState(assignedState);
+            setDistrict(assignedDistrict);
           } else {
-            const newRole = firebaseUser.email === 'innogranite@gmail.com' ? 'admin' : 'pelawat';
-            if (newRole === 'admin') {
+            // No registered document found anywhere, create default document
+            const userDoc = await getDoc(userDocRef);
+            if (!userDoc.exists()) {
+              const defaultRole: UserRole = fEmail === 'innogranite@gmail.com' ? 'admin' : 'pelawat';
               await setDoc(userDocRef, {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
-                role: newRole,
+                displayName: firebaseUser.displayName || 'Kakitangan',
+                role: defaultRole,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
               });
+              setRole(defaultRole);
+              setOffice(null);
+              setState(null);
+              setDistrict(null);
+            } else {
+              const d = userDoc.data();
+              setRole((d.role as UserRole) || 'pelawat');
+              setOffice(d.office || null);
+              setState(d.state || null);
+              setDistrict(d.district || null);
             }
-            setRole(newRole);
-            setOffice(null);
-            setState(null);
-            setDistrict(null);
           }
         } catch (error) {
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);

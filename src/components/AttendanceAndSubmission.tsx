@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy, where } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, doc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
+import AttendanceForm from './AttendanceForm';
+import { isWithinUserScope, isAdWinnerFinalized } from '../lib/scopeUtils';
 
 const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
@@ -25,6 +27,29 @@ const formatDate = (dateStr: string | undefined): string => {
     return dateStr;
   }
 };
+
+const formatDateTime = (dateStr: string | undefined): string => {
+  if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
+  
+  try {
+    const standardized = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
+    const d = new Date(standardized);
+    if (isNaN(d.getTime())) return dateStr;
+    
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    
+    const days = ['AHAD', 'ISNIN', 'SELASA', 'RABU', 'KHAMIS', 'JUMAAT', 'SABTU'];
+    const dayName = days[d.getDay()];
+    
+    return `${day}/${month}/${year} (${dayName}) ${hours}:${minutes}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
 import { 
   FileText, 
   Download, 
@@ -37,7 +62,12 @@ import {
   Eye,
   X,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  UserPlus,
+  Edit,
+  Trash2,
+  Plus,
+  AlertCircle
 } from 'lucide-react';
 import { 
   exportAttendanceListToPDF, 
@@ -57,7 +87,7 @@ const RisdaLogoSVG = ({ size = 48 }: { size?: number }) => (
 );
 
 export default function AttendanceAndSubmission() {
-  const { role, office: userOffice } = useAuth();
+  const { role, office: userOffice, state: userState, district: userDistrict } = useAuth();
   const isAdmin = role === 'admin' || role === 'pentadbir';
   const isStaff = role === 'penginput' || role === 'pelulus' || isAdmin;
   const currentYearStr = new Date().getFullYear().toString();
@@ -78,9 +108,14 @@ export default function AttendanceAndSubmission() {
   const [previewSerialNo, setPreviewSerialNo] = useState<string>('');
   const [previewZoom, setPreviewZoom] = useState<number>(100);
 
+  // Manual attendance entry states
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualAdTarget, setManualAdTarget] = useState<any>(null);
+  const [editingRecord, setEditingRecord] = useState<any | null>(null);
+
   useEffect(() => {
     fetchAds();
-  }, [role, userOffice]);
+  }, [role, userOffice, userState, userDistrict]);
 
   useEffect(() => {
     if (selectedAd?.title) {
@@ -135,12 +170,13 @@ export default function AttendanceAndSubmission() {
   };
 
   const filteredAds = ads.filter(ad => {
+    const matchesScope = isWithinUserScope(ad, { role, state: userState, district: userDistrict, office: userOffice });
     const matchesSearch = ad.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           ad.tenderNo.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesOffice = !officeFilter || ad.office === officeFilter;
     const adDate = ad.visitDate || ad.closingDate || ad.createdAt;
     const matchesYear = yearFilter === 'ALL' || (adDate ? new Date(adDate).getFullYear().toString() : '') === yearFilter;
-    return matchesSearch && matchesOffice && matchesYear;
+    return matchesScope && matchesSearch && matchesOffice && matchesYear;
   });
 
   const years = Array.from(new Set([
@@ -345,7 +381,39 @@ export default function AttendanceAndSubmission() {
                 <p className="text-risda-muted font-black uppercase tracking-[4px] text-[10px] italic">Tiada rekod kehadiran dijumpai</p>
               </div>
             ) : (
-              <div className="space-y-12">
+              <div className="space-y-8">
+                {/* Status Notice Banner if Ad is Finalized / Sebutharga Semula / Tamat */}
+                {isAdWinnerFinalized(selectedAd) && (
+                  <div className="p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-amber-300 shadow-xl">
+                    <div className="flex items-start md:items-center gap-3">
+                      <AlertCircle size={22} className="shrink-0 text-amber-400 mt-0.5 md:mt-0" />
+                      <div>
+                        <h5 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                          IKLAN TELAH TAMAT — KEPUTUSAN RASMI: {
+                            selectedAd?.winner?.isReTender || 
+                            selectedAd?.winner?.companyName === 'SEBUTHARGA SEMULA' || 
+                            selectedAd?.winnerName === 'SEBUTHARGA SEMULA' || 
+                            selectedAd?.statusPelaksanaan === 'SEBUTHARGA SEMULA' 
+                              ? 'SEBUTHARGA SEMULA' 
+                              : 'SELESAI'
+                          }
+                        </h5>
+                        <p className="text-[10px] text-amber-200/90 uppercase font-medium mt-1 leading-relaxed">
+                          {selectedAd?.winner?.isReTender || 
+                           selectedAd?.winner?.companyName === 'SEBUTHARGA SEMULA' || 
+                           selectedAd?.winnerName === 'SEBUTHARGA SEMULA' || 
+                           selectedAd?.statusPelaksanaan === 'SEBUTHARGA SEMULA' 
+                            ? 'Tiada pemenang dipilih bagi iklan sebut harga ini. Keputusan rasmi direkodkan sebagai SEBUTHARGA SEMULA. Pengisian manual dan pendaftaran borang kehadiran & serahan telah TAMAT secara rasmi.'
+                            : 'Keputusan rasmi iklan sebut harga ini telah disahkan. Pendaftaran kehadiran dan penyerahan borang manual telah ditutup.'}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-3.5 py-1.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase rounded-full tracking-widest shrink-0 self-start md:self-auto">
+                      PROJEK TAMAT
+                    </span>
+                  </div>
+                )}
+
                 {/* Tab Switcher */}
                 <div className="flex p-1 bg-white/5 rounded-2xl w-fit">
                   <button 
@@ -389,6 +457,19 @@ export default function AttendanceAndSubmission() {
                         </div>
                            {isStaff && (
                              <div className="w-full sm:w-auto flex flex-wrap gap-3">
+                               {!isAdWinnerFinalized(selectedAd) && (
+                                 <button 
+                                   onClick={() => {
+                                     setManualAdTarget(selectedAd);
+                                     setEditingRecord(null);
+                                     setShowManualModal(true);
+                                   }}
+                                   className="w-full sm:w-auto px-5 py-3 bg-risda-orange hover:bg-risda-gold text-black rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-risda-orange/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                   title="Daftar Pembekal/Kontraktor Secara Manual bagi Iklan Ini"
+                                 >
+                                   <UserPlus size={14} /> DAFTAR KEHADIRAN MANUAL
+                                 </button>
+                               )}
                                <button 
                                  onClick={() => {
                                    setPreviewType('attendance');
@@ -444,11 +525,46 @@ export default function AttendanceAndSubmission() {
                                   <td className="px-8 py-5">
                                     <div className="text-white font-medium">{rec.email || '-'}</div>
                                   </td>
-                                  <td className="px-8 py-5 font-mono text-risda-muted">
-                                    {rec.timestamp ? formatDate(rec.timestamp) : '-'}
+                                  <td className="px-8 py-5 font-mono text-risda-muted text-[11px]">
+                                    {rec.timestamp ? formatDateTime(rec.timestamp) : '-'}
                                   </td>
                                    <td className="px-8 py-5 text-right">
-                                    <div className="flex justify-end gap-2">
+                                    <div className="flex justify-end gap-2 flex-wrap">
+                                      {isStaff && (
+                                        <>
+                                          {!isAdWinnerFinalized(selectedAd) && (
+                                            <button 
+                                              onClick={() => {
+                                                setManualAdTarget(selectedAd);
+                                                setEditingRecord(rec);
+                                                setShowManualModal(true);
+                                              }}
+                                              className="inline-flex items-center gap-1.5 px-3 py-2 border border-risda-orange/30 hover:bg-risda-orange/10 text-risda-orange rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-90 transition-all whitespace-nowrap"
+                                              title="Kemaskini Rekod Pendaftaran Pembekal"
+                                            >
+                                              <Edit size={12} /> KEMASKINI
+                                            </button>
+                                          )}
+                                          <button 
+                                            onClick={async () => {
+                                              if (!window.confirm(`Adakah anda pasti untuk padam rekod kehadiran ${rec.companyName}?`)) return;
+                                              try {
+                                                await deleteDoc(doc(db, 'attendance', rec.id));
+                                                toast.success('Rekod kehadiran berjaya dipadam.');
+                                                if (selectedAd?.title) {
+                                                  fetchAttendance(selectedAd.title);
+                                                }
+                                              } catch (err: any) {
+                                                toast.error('Gagal memadam rekod: ' + (err.message || err));
+                                              }
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-500/30 hover:bg-red-500/10 text-red-400 rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-90 transition-all whitespace-nowrap"
+                                            title="Padam Rekod Kehadiran Ini"
+                                          >
+                                            <Trash2 size={12} /> PADAM
+                                          </button>
+                                        </>
+                                      )}
                                       <button 
                                         onClick={() => {
                                           const serialNo = (idx + 1).toString().padStart(3, '0');
@@ -928,7 +1044,22 @@ export default function AttendanceAndSubmission() {
                 </p>
               </div>
 
-              <div className="shrink-0 relative z-10">
+              <div className="shrink-0 relative z-10 flex items-center gap-3">
+                {isStaff && !isAdWinnerFinalized(ad) && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedAd(ad);
+                      setManualAdTarget(ad);
+                      setEditingRecord(null);
+                      setShowManualModal(true);
+                    }}
+                    className="px-4 py-2.5 bg-risda-orange/15 border border-risda-orange/40 hover:bg-risda-orange hover:text-black text-risda-orange rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                    title="Daftar Pembekal Secara Manual untuk Iklan Ini"
+                  >
+                    <UserPlus size={14} /> Daftar Manual
+                  </button>
+                )}
                 <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-risda-muted group-hover:bg-risda-orange group-hover:text-black transition-all duration-500">
                   <ChevronRight size={18} />
                 </div>
@@ -938,6 +1069,61 @@ export default function AttendanceAndSubmission() {
           </div>
         </div>
       )}
+
+      {/* Modal Manual Attendance Entry */}
+      <AnimatePresence>
+        {showManualModal && manualAdTarget && (
+          <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-risda-card border border-white/10 rounded-3xl max-w-4xl w-full p-6 sm:p-8 space-y-6 relative my-8 max-h-[90vh] overflow-y-auto shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-risda-orange/20 rounded-xl flex items-center justify-center text-risda-orange">
+                    <UserPlus size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                      {editingRecord ? 'Kemaskini Pendaftaran Pembekal' : 'Pendaftaran Kehadiran Manual Pembekal'}
+                    </h3>
+                    <p className="text-[10px] text-risda-muted uppercase font-bold tracking-widest mt-0.5">
+                      {manualAdTarget.title} ({manualAdTarget.tenderNo})
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => { setShowManualModal(false); setEditingRecord(null); setManualAdTarget(null); }}
+                  className="p-2 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <AttendanceForm
+                adId={manualAdTarget.id}
+                adTitle={manualAdTarget.title}
+                tenderNo={manualAdTarget.tenderNo}
+                office={manualAdTarget.office || userOffice || 'PEJABAT RISDA DAERAH BEAUFORT'}
+                licenseRequirements={manualAdTarget.licenseRequirements}
+                licenses={manualAdTarget.licenses}
+                editingRecord={editingRecord}
+                isManualMode={true}
+                onSuccess={() => {
+                  setShowManualModal(false);
+                  setEditingRecord(null);
+                  if (selectedAd?.title) {
+                    fetchAttendance(selectedAd.title);
+                  }
+                  toast.success('Pendaftaran kehadiran pembekal berjaya disimpan!');
+                }}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -20,38 +20,166 @@
 }
 
 :root {
-  /* Default (Deep Blue/Azure - Comfort Mode) */
-  --risda-dark: #020617;
-  --risda-sidebar: #010413;
-  --risda-card: rgba(8, 14, 28, 0.95);
-  --risda-orange: #0091EA;
-  --risda-gold: #00B0FF;
-  --risda-gold-light: #E0F2F1;
-  --risda-accent: #0284c7;
-  --risda-orange-glow: rgba(0, 145, 234, 0.15);
-  --risda-border: rgba(0, 145, 234, 0.1);
-  --risda-text: #e2e8f0;
-  --risda-text-secondary: #94A3B8;
-  --risda-muted: #64748B;
-  --risda-glow-color: rgba(0, 145, 234, 0.1);
-  --risda-gradient-color: rgba(0, 145, 234, 0.05);
+  /* Modern Theme: Luxury Royal Blue (High-Contrast, Solid & Sleek) */
+  --risda-dark: #070d1e;
+  --risda-sidebar: #030611;
+  --risda-card: #0d162d;
+  --risda-orange: #2563eb;
+  --risda-gold: #38bdf8;
+  --risda-gold-light: #eff6ff;
+  --risda-accent: #1d4ed8;
+  --risda-orange-glow: rgba(37, 99, 235, 0.25);
+  --risda-border: rgba(37, 99, 235, 0.25);
+  --risda-text: #ffffff;
+  --risda-text-secondary: #e2e8f0;
+  --risda-muted: #94a3b8;
+  --risda-glow-color: rgba(37, 99, 235, 0.12);
+  --risda-gradient-color: rgba(37, 99, 235, 0.06);
 }
 
 .custom-theme {
-  --risda-dark: #0f0a05;
-  --risda-sidebar: #0a0703;
-  --risda-card: rgba(20, 15, 10, 0.95);
-  --risda-orange: #A48418;
-  --risda-gold: #C5A021;
-  --risda-gold-light: #F4E4BC;
-  --risda-accent: #735911;
-  --risda-orange-glow: rgba(164, 132, 24, 0.15);
-  --risda-border: rgba(164, 132, 24, 0.1);
-  --risda-text: #f1f5f9;
-  --risda-text-secondary: #a8a29e;
-  --risda-muted: #78716c;
-  --risda-glow-color: rgba(164, 132, 24, 0.08);
-  --risda-gradient-color: rgba(197, 160, 33, 0.03);
+  /* Classic Theme: Elegant Gold Blue (Timeless Deep Navy-Blue & Pure Gold) */
+  --risda-dark: #040916;
+  --risda-sidebar: #010308;
+  --risda-card: #091124;
+  --risda-orange: #d4af37;
+  --risda-gold: #f3d060;
+  --risda-gold-light: #fdf6e2;
+  --risda-accent: #b8901c;
+  --risda-orange-glow: rgba(212, 175, 55, 0.25);
+  --risda-border: rgba(212, 175, 55, 0.25);
+  --risda-text: #ffffff;
+  --risda-text-secondary: #f1f5f9;
+  --risda-muted: #cbd5e1;
+  --risda-glow-color: rgba(212, 175, 55, 0.12);
+  --risda-gradient-color: rgba(212, 175, 55, 0.06);
+}
+
+.emerald-theme {
+  /* Corporate RISDA Theme: Emerald Green & Gold */
+  --risda-dark: #04140e;
+  --risda-sidebar: #010805;
+  --risda-card: #081e15;
+  --risda-orange: #10b981;
+  --risda-gold: #f59e0b;
+  --risda-gold-light: #fef3c7;
+  --risda-accent: #059669;
+  --risda-orange-glow: rgba(16, 185, 129, 0.25);
+  --risda-border: rgba(16, 185, 129, 0.25);
+  --risda-text: #ffffff;
+  --risda-text-secondary: #e6f4ea;
+  --risda-muted: #a7f3d0;
+  --risda-glow-color: rgba(16, 185, 129, 0.12);
+  --risda-gradient-color: rgba(16, 185, 129, 0.06);
+}
+
+.sunset-theme {
+  /* Sunset Theme: Deep Charcoal & Warm Orange/Red */
+  --risda-dark: #120909;
+  --risda-sidebar: #090303;
+  --risda-card: #1d1010;
+  --risda-orange: #ef4444;
+  --risda-gold: #f97316;
+  --risda-gold-light: #ffedd5;
+  --risda-accent: #b91c1c;
+  --risda-orange-glow: rgba(239, 68, 68, 0.25);
+  --risda-border: rgba(239, 68, 68, 0.25);
+  --risda-text: #ffffff;
+  --risda-text-secondary: #fee2e2;
+  --risda-muted: #fca5a5;
+  --risda-glow-color: rgba(239, 68, 68, 0.12);
+  --risda-gradient-color: rgba(239, 68, 68, 0.06);
+}
+
+.black-theme {
+  /* Hitam Solid & Tulisan Putih (Solid Black & Pure White Text Theme) */
+  --risda-dark: #000000;
+  --risda-sidebar: #050505;
+  --risda-card: #0a0a0c;
+  --risda-orange: #3b82f6;
+  --risda-gold: #f59e0b;
+  --risda-gold-light: #fef3c7;
+  --risda-accent: #60a5fa;
+  --risda-orange-glow: rgba(59, 130, 246, 0.25);
+  --risda-border: #27272a;
+  --risda-text: #ffffff;
+  --risda-text-secondary: #f8fafc;
+  --risda-muted: #cbd5e1;
+  --risda-glow-color: rgba(255, 255, 255, 0.05);
+  --risda-gradient-color: rgba(255, 255, 255, 0.02);
+  color-scheme: dark;
+}
+
+.black-theme body {
+  background-color: #000000 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+}
+
+/* Black theme card and panel overrides */
+.black-theme .glass-card {
+  background-color: #0a0a0c !important;
+  border-color: #27272a !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.9) !important;
+}
+
+.black-theme .technical-grid {
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+/* Contrast rules for Black Theme text - strictly white & crisp light tones */
+.black-theme .text-white,
+.black-theme .text-slate-100,
+.black-theme .text-slate-200,
+.black-theme .text-slate-300,
+.black-theme .text-gray-100,
+.black-theme .text-gray-200,
+.black-theme .text-gray-300 {
+  color: #ffffff !important;
+}
+
+.black-theme .text-slate-400,
+.black-theme .text-slate-500,
+.black-theme .text-gray-400,
+.black-theme .text-gray-500 {
+  color: #cbd5e1 !important;
+}
+
+/* Dark background element overrides in Black Theme */
+.black-theme .bg-slate-900,
+.black-theme .bg-slate-950,
+.black-theme .bg-black\/40,
+.black-theme .bg-black\/50,
+.black-theme .bg-black\/60,
+.black-theme .bg-black\/80,
+.black-theme .bg-white\/5,
+.black-theme .bg-white\/10 {
+  background-color: #0d0d10 !important;
+  border-color: #27272a !important;
+}
+
+.black-theme .border-white\/5,
+.black-theme .border-white\/10,
+.black-theme .border-white\/20,
+.black-theme .border-slate-800,
+.black-theme .border-slate-700 {
+  border-color: #27272a !important;
+}
+
+/* Inputs, Selects & Textareas in Black Theme */
+.black-theme input,
+.black-theme select,
+.black-theme textarea {
+  background-color: #050507 !important;
+  color: #ffffff !important;
+  border-color: #3f3f46 !important;
+}
+
+.black-theme input::placeholder,
+.black-theme textarea::placeholder {
+  color: #9ca3af !important;
 }
 
 @layer base {

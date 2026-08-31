@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, Mail, Lock, ShieldCheck, ArrowRight, Chrome, AlertCircle, Eye, EyeOff, X, User } from 'lucide-react';
 import { signInWithGoogle, auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { collection, addDoc, Timestamp, query, where, getDocs, limit, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, query, where, getDocs, limit, updateDoc, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -141,10 +141,23 @@ export default function LoginPage() {
       } else {
         // It is an email, let's fetch the Firestore document to compare passwords
         const qEmail = query(usersRef, where('email', '==', targetEmail.trim()), limit(1));
-        const snapshot = await getDocs(qEmail);
+        let snapshot = await getDocs(qEmail);
         if (!snapshot.empty) {
           dbUserDoc = snapshot.docs[0].data();
           dbUserDocId = snapshot.docs[0].id;
+        } else {
+          // Fallback to case-insensitive client-side search across first 100 documents
+          const qAll = query(usersRef, limit(100));
+          const allSnap = await getDocs(qAll);
+          const foundDoc = allSnap.docs.find(d => {
+            const data = d.data();
+            return (data.email || '').toLowerCase() === targetEmail.trim().toLowerCase();
+          });
+          if (foundDoc) {
+            targetEmail = foundDoc.data().email;
+            dbUserDoc = foundDoc.data();
+            dbUserDocId = foundDoc.id;
+          }
         }
       }
 
@@ -163,12 +176,18 @@ export default function LoginPage() {
             try {
               const res = await createUserWithEmailAndPassword(auth, targetEmail.trim(), password);
               
-              if (dbUserDocId) {
-                await updateDoc(doc(db, 'users', dbUserDocId), {
-                  uid: res.user.uid,
-                  updatedAt: Timestamp.now()
-                });
+              // Ensure primary document at users/${res.user.uid} contains all staff profile details
+              await setDoc(doc(db, 'users', res.user.uid), {
+                ...dbUserDoc,
+                uid: res.user.uid,
+                updatedAt: Timestamp.now()
+              }, { merge: true });
+
+              // Clean up duplicate old document ID if different
+              if (dbUserDocId && dbUserDocId !== res.user.uid) {
+                await deleteDoc(doc(db, 'users', dbUserDocId)).catch(() => null);
               }
+
               toast.success('Penyelarasan kata laluan & akaun berjaya! Selamat datang.');
               return;
             } catch (createErr: any) {

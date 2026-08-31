@@ -27,6 +27,54 @@ const formatDate = (dateStr: string | undefined): string => {
   }
 };
 
+export const formatMofText = (desc?: string): string => {
+  if (!desc || !desc.trim()) return 'KEMENTERIAN KEWANGAN MALAYSIA (MOF)';
+  const d = desc.trim();
+  if (d === 'SIJIL AKUAN PENDAFTARAN SYARIKAT (MOF)') return d;
+  if (d.toUpperCase().startsWith('MOF')) return d;
+  if (d.toUpperCase().startsWith('KOD BIDANG')) return `MOF ${d}`;
+  return `MOF KOD BIDANG : ${d}`;
+};
+
+export const getLicenseNamesForTerms = (ad: any): string => {
+  const lic = ad?.licenses || {};
+  const names: string[] = [];
+
+  if (lic.cidbSpkk || lic.cidbPkk) {
+    names.push('CIDB');
+  }
+  if (lic.stb) {
+    names.push('STB');
+  }
+  if (lic.mof) {
+    names.push('MOF');
+  }
+  if (lic.pukonsa) {
+    names.push('PUKONSA');
+  }
+  if (lic.kuhean) {
+    names.push('KUHEAN');
+  }
+  if (lic.tcc && names.length === 0) {
+    names.push('TCC');
+  }
+  if (lic.others && typeof lic.others === 'string' && lic.others.trim() && names.length === 0) {
+    names.push(lic.others.trim());
+  }
+
+  if (names.length === 0) {
+    return 'CIDB, PUKONSA & STB';
+  }
+
+  if (names.length === 1) {
+    return names[0];
+  }
+  if (names.length === 2) {
+    return `${names[0]} & ${names[1]}`;
+  }
+  return `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
+};
+
 interface AdData {
   id?: string;
   tenderNo: string;
@@ -337,23 +385,22 @@ export const exportToPDF = async (ad: AdData, returnBase64 = false): Promise<str
   // Main Info Section with 3 Sub-Tables structure
   const getLicenseList = () => {
     const lines: string[] = [];
-    const desc = ad.licenseDescriptions;
-    const lic = ad.licenses;
-    if (!lic || !desc) return '';
+    const desc = (ad.licenseDescriptions || {}) as Record<string, string>;
+    const lic = (ad.licenses || {}) as Record<string, any>;
 
     lines.push('RISDA');
-    if (lic.cidbSpkk) lines.push(`• ${desc.cidbSpkk}`);
-    if (lic.stb) lines.push(`• ${desc.stb}`);
-    if (lic.tcc) lines.push(`• ${desc.tcc}`);
-    
-    if (lic.pukonsa || lic.kuhean || lic.cidbPkk) {
+    if (lic.cidbSpkk) lines.push(`• ${desc.cidbSpkk || 'CIDB (SPKK) G1 CE01'}`);
+    if (lic.cidbPkk) lines.push(`• ${desc.cidbPkk || 'CIDB (PKK) G1'}`);
+    if (lic.stb) lines.push(`• ${desc.stb || 'SIJIL TARAF BUMIPUTERA (STB)'}`);
+    if (lic.mof) lines.push(`• ${formatMofText(desc.mof)}`);
+    if (lic.tcc) lines.push(`• ${desc.tcc || 'SIJIL PEMATUHAN CUKAI (TCC)'}`);
+
+    if (lic.pukonsa || lic.kuhean) {
       lines.push('');
       lines.push('            ATAU');
       lines.push('');
-      if (lic.pukonsa) lines.push(`• ${desc.pukonsa}`);
-      if (lic.kuhean) lines.push(`• ${desc.kuhean}`);
-      if (lic.cidbPkk) lines.push(`• ${desc.cidbPkk}`);
-      if (lic.tcc && (lic.pukonsa || lic.kuhean || lic.cidbPkk)) lines.push(`• ${desc.tcc}`);
+      if (lic.pukonsa) lines.push(`• ${desc.pukonsa || 'PUKONSA'}`);
+      if (lic.kuhean) lines.push(`• ${desc.kuhean || 'KUHEAN'}`);
     }
 
     if (lic.others) {
@@ -410,10 +457,12 @@ export const exportToPDF = async (ad: AdData, returnBase64 = false): Promise<str
   const bulletX = 15;
   let textY = tableFinalY + 4;
   
+  const licenseNameStr = getLicenseNamesForTerms(ad);
+
   const terms = [
-    { label: 'a.', text: 'Hanya Penama didalam Sijil Asal CIDB, PUKONSA & STB yang masih SAH tempoh pendaftaran sahaja yang boleh hadir mendengar taklimat tapak dan tidak boleh mewakilkan pegawai selain penama;' },
+    { label: 'a.', text: `Hanya Penama didalam Sijil Asal ${licenseNameStr} yang masih SAH tempoh pendaftaran sahaja yang boleh hadir mendengar taklimat tapak dan tidak boleh mewakilkan pegawai selain penama;` },
     { label: 'b.', text: 'Hadir taklimat tapak dan membawa SLIP KEHADIRAN ASAL taklimat tapak.' },
-    { label: 'c.', text: 'Membawa Sijil Asal CIDB, PUKONSA & STB yang sah tempoh lakunya berserta SATU salinan fotostat.' },
+    { label: 'c.', text: `Membawa Sijil Asal ${licenseNameStr} yang sah tempoh lakunya berserta SATU salinan fotostat.` },
     { label: 'd.', text: 'Kontraktor diminta untuk mengimbas QR Code yang tertera di atas dan mengisi Borang Hadir Taklimat Tapak secara atas talian untuk pengesahan kehadiran selewatnya satu hari sebelum tarikh taklimat tapak dijalankan.' },
     { label: 'e.', text: 'Sijil TCC (Tax Compliance Certificate) berstatus "PATUH"' },
   ];
@@ -1292,11 +1341,12 @@ export const exportIndividualSiteVisitForm = async (ad: AdData, rec: AttendanceR
       const lines: string[] = [];
       const lic = ad.licenses;
       const desc = ad.licenseDescriptions;
-      if (!lic || !desc) return '';
+      if (!lic) return '';
 
       const group1 = [];
-      if (lic.cidbSpkk) group1.push(desc.cidbSpkk);
-      if (lic.stb) group1.push(desc.stb);
+      if (lic.cidbSpkk) group1.push(desc?.cidbSpkk || 'CIDB (SPKK)');
+      if (lic.stb) group1.push(desc?.stb || 'STB');
+      if (lic.mof) group1.push(formatMofText(desc?.mof));
       
       const group2 = [];
       if (lic.pukonsa) group2.push(desc.pukonsa);
@@ -1518,11 +1568,12 @@ export const exportIndividualSiteVisitFormToWord = async (ad: AdData, rec: Atten
                 const lines: Paragraph[] = [];
                 const lic = ad.licenses;
                 const desc = ad.licenseDescriptions;
-                if (!lic || !desc) return [];
+                if (!lic) return [];
 
                 const group1 = [];
-                if (lic.cidbSpkk) group1.push(desc.cidbSpkk);
-                if (lic.stb) group1.push(desc.stb);
+                if (lic.cidbSpkk) group1.push(desc?.cidbSpkk || 'CIDB (SPKK)');
+                if (lic.stb) group1.push(desc?.stb || 'STB');
+                if (lic.mof) group1.push(formatMofText(desc?.mof));
                 
                 const group2 = [];
                 if (lic.pukonsa) group2.push(desc.pukonsa);
@@ -1621,14 +1672,15 @@ export const exportIndividualSiteVisitFormToExcel = (ad: AdData, rec: Attendance
     ['No. Kad Pengenalan', `: ${rec.icNumber || ''}`, 'KELAS :', (() => {
       const lic = ad.licenses;
       const desc = ad.licenseDescriptions;
-      if (!lic || !desc) return '';
+      if (!lic) return '';
       const group1 = [];
-      if (lic.cidbSpkk) group1.push(desc.cidbSpkk);
-      if (lic.stb) group1.push(desc.stb);
+      if (lic.cidbSpkk) group1.push(desc?.cidbSpkk || 'CIDB (SPKK)');
+      if (lic.stb) group1.push(desc?.stb || 'STB');
+      if (lic.mof) group1.push(formatMofText(desc?.mof));
       const group2 = [];
-      if (lic.pukonsa) group2.push(desc.pukonsa);
-      if (lic.kuhean) group2.push(desc.kuhean);
-      if (lic.cidbPkk) group2.push(desc.cidbPkk);
+      if (lic.pukonsa) group2.push(desc?.pukonsa || 'PUKONSA');
+      if (lic.kuhean) group2.push(desc?.kuhean || 'KUHEAN');
+      if (lic.cidbPkk) group2.push(desc?.cidbPkk || 'CIDB (PKK)');
 
       let text = '';
       if (group1.length > 0) text += group1.join(' & ');
@@ -1662,14 +1714,15 @@ export const exportIndividualSiteVisitFormToExcel = (ad: AdData, rec: Attendance
     ['No. Kad Pengenalan', `: ${rec.icNumber || ''}`, 'KELAS :', (() => {
       const lic = ad.licenses;
       const desc = ad.licenseDescriptions;
-      if (!lic || !desc) return '';
+      if (!lic) return '';
       const group1 = [];
-      if (lic.cidbSpkk) group1.push(desc.cidbSpkk);
-      if (lic.stb) group1.push(desc.stb);
+      if (lic.cidbSpkk) group1.push(desc?.cidbSpkk || 'CIDB (SPKK)');
+      if (lic.stb) group1.push(desc?.stb || 'STB');
+      if (lic.mof) group1.push(formatMofText(desc?.mof));
       const group2 = [];
-      if (lic.pukonsa) group2.push(desc.pukonsa);
-      if (lic.kuhean) group2.push(desc.kuhean);
-      if (lic.cidbPkk) group2.push(desc.cidbPkk);
+      if (lic.pukonsa) group2.push(desc?.pukonsa || 'PUKONSA');
+      if (lic.kuhean) group2.push(desc?.kuhean || 'KUHEAN');
+      if (lic.cidbPkk) group2.push(desc?.cidbPkk || 'CIDB (PKK)');
 
       let text = '';
       if (group1.length > 0) text += group1.join(' & ');

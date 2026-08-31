@@ -5,17 +5,17 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-import { FileText, Download, UserCheck, X, Shield, Search, AlertCircle, FileSpreadsheet, FileArchive, File as FileIcon, Send, MessageCircle, Mail } from 'lucide-react';
+import { FileText, Download, UserCheck, X, Shield, Search, AlertCircle, FileSpreadsheet, FileArchive, File as FileIcon, Send, MessageCircle, Mail, RotateCcw } from 'lucide-react';
 import AttendanceForm from './AttendanceForm';
-import { exportToPDF, exportToWord, exportResultToPDF, exportResultToWord } from '../lib/exportUtils';
+import { exportToPDF, exportToWord, exportResultToPDF, exportResultToWord, formatMofText, getLicenseNamesForTerms } from '../lib/exportUtils';
+import { isWithinUserScope, calculateTempohSiapKerja, parseAnyDate } from '../lib/scopeUtils';
 
 const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
   
   try {
-    const standardized = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
-    const d = new Date(standardized);
-    if (isNaN(d.getTime())) return dateStr;
+    const d = parseAnyDate(dateStr);
+    if (!d || isNaN(d.getTime())) return dateStr;
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
@@ -27,11 +27,29 @@ const formatDate = (dateStr: string | undefined): string => {
   }
 };
 
-export default function ProjectFilters({ showRegistration = true, initialStatus }: { showRegistration?: boolean, initialStatus?: string }) {
-  const { role, office: userOffice } = useAuth();
+export default function ProjectFilters({ 
+  showRegistration = true, 
+  initialStatus,
+  sourceContext 
+}: { 
+  showRegistration?: boolean; 
+  initialStatus?: string;
+  sourceContext?: 'dashboard' | 'projek' | 'keputusan';
+}) {
+  const { role, office: userOffice, state: userState, district: userDistrict } = useAuth();
   const isStaff = role === 'penginput' || role === 'pelulus' || role === 'admin' || role === 'pentadbir';
-  const isAdmin = role === 'admin';
-  
+  const isAdmin = role === 'admin' || role === 'pentadbir';
+
+  const effectiveContext = sourceContext || (
+    initialStatus === 'SELESAI (KEPUTUSAN)' 
+      ? 'keputusan' 
+      : showRegistration 
+        ? 'dashboard' 
+        : 'projek'
+  );
+
+  const [dashboardModalView, setDashboardModalView] = useState<'iklan' | 'keputusan'>('iklan');
+
   const [ads, setAds] = useState<any[]>([]);
   const [showHelpTip, setShowHelpTip] = useState(true);
   const [adViewFormat, setAdViewFormat] = useState<'preview' | 'data'>('preview');
@@ -48,6 +66,16 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
   });
 
   const [selectedAd, setSelectedAd] = useState<any>(null);
+
+  useEffect(() => {
+    if (selectedAd) {
+      if (selectedAd.status === 'SELESAI (KEPUTUSAN)' && effectiveContext === 'dashboard') {
+        setDashboardModalView('keputusan');
+      } else {
+        setDashboardModalView('iklan');
+      }
+    }
+  }, [selectedAd, effectiveContext]);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [isViewOnlyList, setIsViewOnlyList] = useState(false);
   const [modalSearch, setModalSearch] = useState('');
@@ -270,6 +298,9 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
     .filter(ad => {
       if (!filters.office) return true;
       return ad.office === filters.office;
+    })
+    .filter(ad => {
+      return isWithinUserScope(ad, { role, state: userState, district: userDistrict, office: userOffice });
     })
     .filter(ad => {
       if (!searchQuery) return true;
@@ -652,11 +683,21 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                     {(filters.status === 'SELESAI (KEPUTUSAN)' || filters.status === 'SEMUA') && (
                       <td className="px-6 py-6 text-center">
                         {item.winner ? (
-                          <div className="flex flex-col items-center">
-                            <span className="w-2 h-2 inline-block rounded-full bg-blue-400 animate-pulse mb-1" />
-                            <div className="text-[11px] font-black text-blue-400 uppercase leading-tight">{item.winner.companyName}</div>
-                            <div className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{item.winner.ownerName || item.winner.representativeName}</div>
-                          </div>
+                          item.winner.isReTender || item.winner.companyName === 'SEBUTHARGA SEMULA' ? (
+                            <div className="flex flex-col items-center">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wider mb-0.5">
+                                <RotateCcw size={10} />
+                                SEBUTHARGA SEMULA
+                              </span>
+                              <div className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">Keputusan Rasmi</div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              <span className="w-2 h-2 inline-block rounded-full bg-blue-400 animate-pulse mb-1" />
+                              <div className="text-[11px] font-black text-blue-400 uppercase leading-tight">{item.winner.companyName}</div>
+                              <div className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{item.winner.ownerName || item.winner.representativeName}</div>
+                            </div>
+                          )
                         ) : (
                           <div className="flex flex-col items-center">
                             <span className="text-[10px] text-risda-muted font-black uppercase italic opacity-40">Menunggu Pelantikan</span>
@@ -719,11 +760,23 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                 </div>
                 <h4 className="text-sm font-black text-white leading-relaxed uppercase break-words whitespace-normal">{item.title}</h4>
                 {item.displayStatus === 'SELESAI (KEPUTUSAN)' && item.winner && (
-                  <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
-                    <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Pembekal Terpilih:</p>
-                    <p className="text-[10px] font-black text-white uppercase">{item.winner.companyName}</p>
-                    <p className="text-[8px] text-risda-muted uppercase font-semibold">{item.winner.ownerName || item.winner.representativeName}</p>
-                  </div>
+                  item.winner.isReTender || item.winner.companyName === 'SEBUTHARGA SEMULA' ? (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                        <RotateCcw size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Keputusan Rasmi:</p>
+                        <p className="text-[10px] font-black text-amber-300 uppercase">SEBUTHARGA SEMULA</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
+                      <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Pembekal Terpilih:</p>
+                      <p className="text-[10px] font-black text-white uppercase">{item.winner.companyName}</p>
+                      <p className="text-[8px] text-risda-muted uppercase font-semibold">{item.winner.ownerName || item.winner.representativeName}</p>
+                    </div>
+                  )
                 )}
                 {showRegistration && 
                   (item.displayStatus === 'AKTIF') && 
@@ -826,7 +879,8 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                               const currentYearInt = new Date().getFullYear();
                               const isOld = itemYear > 0 && itemYear < currentYearInt;
                               const status = isOld ? 'SELESAI (KEPUTUSAN)' : a.status;
-                              return status === 'AKTIF';
+                              const isReTender = a.winner?.isReTender || a.winner?.companyName === 'SEBUTHARGA SEMULA' || a.winnerName === 'SEBUTHARGA SEMULA' || a.statusPelaksanaan === 'SEBUTHARGA SEMULA';
+                              return status === 'AKTIF' && !isReTender;
                             })
                             .filter(a => a.title.toLowerCase().includes(modalSearch.toLowerCase()) || a.tenderNo.toLowerCase().includes(modalSearch.toLowerCase()))
                             .map((ad) => (
@@ -851,7 +905,8 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                               const currentYearInt = new Date().getFullYear();
                               const isOld = itemYear > 0 && itemYear < currentYearInt;
                               const status = isOld ? 'SELESAI (KEPUTUSAN)' : a.status;
-                              return status === 'AKTIF';
+                              const isReTender = a.winner?.isReTender || a.winner?.companyName === 'SEBUTHARGA SEMULA' || a.winnerName === 'SEBUTHARGA SEMULA' || a.statusPelaksanaan === 'SEBUTHARGA SEMULA';
+                              return status === 'AKTIF' && !isReTender;
                             })
                             .filter(a => a.title.toLowerCase().includes(modalSearch.toLowerCase()) || a.tenderNo.toLowerCase().includes(modalSearch.toLowerCase())).length === 0 && (
                             <div className="col-span-full text-center py-20 text-risda-muted font-bold uppercase tracking-widest bg-white/5 rounded-3xl border border-dashed border-white/10">
@@ -891,15 +946,21 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg ${
-                              (selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'bg-blue-500 shadow-blue-500/20' : 'bg-risda-orange shadow-risda-orange/20'
+                              (effectiveContext === 'keputusan' || (effectiveContext === 'dashboard' && dashboardModalView === 'keputusan')) ? 'bg-blue-500 shadow-blue-500/20' : 'bg-risda-orange shadow-risda-orange/20'
                             }`}>
-                              <FileText size={24} className={(selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'text-white' : 'text-black'} />
+                              <FileText size={24} className={(effectiveContext === 'keputusan' || (effectiveContext === 'dashboard' && dashboardModalView === 'keputusan')) ? 'text-white' : 'text-black'} />
                             </div>
                             <div className="flex flex-col">
                               <div className={`text-[10px] font-black uppercase tracking-[4px] ${
-                                (selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'text-blue-400' : 'text-risda-orange'
+                                (effectiveContext === 'keputusan' || (effectiveContext === 'dashboard' && dashboardModalView === 'keputusan')) ? 'text-blue-400' : 'text-risda-orange'
                               }`}>
-                                {(selectedAd.status === 'SELESAI (KEPUTUSAN)' && (!isStaff || showRegistration || initialStatus === 'SELESAI (KEPUTUSAN)')) ? 'Keputusan Rasmi Perolehan' : 'Maklumat Iklan'}
+                                {effectiveContext === 'keputusan'
+                                  ? 'Keputusan Rasmi Perolehan'
+                                  : effectiveContext === 'projek'
+                                    ? 'Maklumat Iklan Sebut Harga'
+                                    : dashboardModalView === 'keputusan'
+                                      ? 'Keputusan Rasmi Perolehan (Pusat Dashboard)'
+                                      : 'Maklumat Iklan Sebut Harga (Pusat Dashboard)'}
                               </div>
                             </div>
                           </div>
@@ -907,77 +968,174 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                         <h2 className="text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{selectedAd.title}</h2>
                       </div>
 
-                      {/* Beautiful Unified Download Bar exactly matching the image layout */}
-                      <div className={`${isStaff ? 'flex' : 'hidden'} flex-col sm:flex-row items-center justify-between gap-4 bg-[#0a0f1d] p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-2xl text-left`}>
+                      {/* Beautiful Unified Download Bar with Contextual Buttons */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#0a0f1d] p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-2xl text-left">
                         <div className="flex items-center gap-4 w-full sm:w-auto">
                           <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
                             <Download size={20} className="stroke-[3]" />
                           </div>
                           <div className="text-left">
                             <p className="text-xs sm:text-sm font-black text-white uppercase tracking-widest leading-none mb-1.5">
-                              {selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'MUAT TURUN KEPUTUSAN' : 'MUAT TURUN IKLAN SEBUT HARGA'}
+                              {effectiveContext === 'dashboard' 
+                                ? 'MUAT TURUN DOKUMEN (IKLAN & KEPUTUSAN)' 
+                                : effectiveContext === 'keputusan' 
+                                  ? 'MUAT TURUN KEPUTUSAN RASMI' 
+                                  : 'MUAT TURUN IKLAN SEBUT HARGA'}
                             </p>
-                            <p className="text-[9px] text-slate-400 font-semibold tracking-wide">Pilih format untuk simpanan rasmi atau perkongsian.</p>
+                            <p className="text-[9px] text-slate-400 font-semibold tracking-wide">
+                              {effectiveContext === 'dashboard'
+                                ? 'Sila pilih PDF Iklan Sebut Harga atau PDF Keputusan Rasmi.'
+                                : 'Pilih format untuk simpanan rasmi atau perkongsian.'}
+                            </p>
                           </div>
                         </div>
                         
-                        <div className="flex gap-3 w-full sm:w-auto self-stretch sm:self-auto">
-                          <button 
-                            onClick={async () => {
-                              const t = toast.loading('Menjana PDF...');
-                              try {
-                                if (selectedAd.status === 'SELESAI (KEPUTUSAN)') {
-                                  await exportResultToPDF({
-                                    tenderNo: selectedAd.tenderNo,
-                                    title: selectedAd.title,
-                                    office: selectedAd.office,
-                                    winnerName: selectedAd.winner?.companyName || '-',
-                                    startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
-                                    endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
-                                    location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
-                                  });
-                                } else {
-                                  await exportToPDF(selectedAd);
-                                }
-                                toast.success('PDF berjaya dijana', { id: t });
-                              } catch (err) {
-                                toast.error('Gagal menjana PDF', { id: t });
-                              }
-                            }}
-                            className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
-                          >
-                            <Download size={14} className="stroke-[3]" /> PDF
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              try {
-                                if (selectedAd.status === 'SELESAI (KEPUTUSAN)') {
-                                  await exportResultToWord({
-                                    tenderNo: selectedAd.tenderNo,
-                                    title: selectedAd.title,
-                                    office: selectedAd.office,
-                                    winnerName: selectedAd.winner?.companyName || '-',
-                                    startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
-                                    endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
-                                    location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
-                                  });
-                                } else {
-                                  await exportToWord(selectedAd);
-                                }
-                              } catch (err) {
-                                console.error(err);
-                                toast.error('Gagal menjana Word file');
-                              }
-                            }}
-                            className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
-                          >
-                            <FileText size={14} className="stroke-[3]" /> WORD
-                          </button>
+                        <div className="flex flex-wrap gap-2.5 w-full sm:w-auto self-stretch sm:self-auto justify-end">
+                          {effectiveContext === 'dashboard' ? (
+                            <>
+                              {/* DUA PDF BUTTONS FOR PUSAT DASHBOARD */}
+                              <button 
+                                onClick={async () => {
+                                  const t = toast.loading('Menjana PDF Iklan...');
+                                  try {
+                                    await exportToPDF(selectedAd);
+                                    toast.success('PDF Iklan berjaya dijana', { id: t });
+                                  } catch (err) {
+                                    toast.error('Gagal menjana PDF Iklan', { id: t });
+                                  }
+                                }}
+                                className="flex-1 sm:flex-initial px-5 py-3.5 bg-risda-orange hover:bg-risda-orange/80 text-black rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                              >
+                                <Download size={14} className="stroke-[3]" /> PDF IKLAN
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  const t = toast.loading('Menjana PDF Keputusan...');
+                                  try {
+                                    await exportResultToPDF({
+                                      tenderNo: selectedAd.tenderNo,
+                                      title: selectedAd.title,
+                                      office: selectedAd.office || 'MALAYSIA',
+                                      winnerName: selectedAd.winnerName || selectedAd.winner?.companyName || (selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'TIADA' : 'DALAM PROSES PENILAIAN'),
+                                      startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
+                                      endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
+                                      location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
+                                    });
+                                    toast.success('PDF Keputusan berjaya dijana', { id: t });
+                                  } catch (err) {
+                                    toast.error('Gagal menjana PDF Keputusan', { id: t });
+                                  }
+                                }}
+                                className="flex-1 sm:flex-initial px-5 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                              >
+                                <Download size={14} className="stroke-[3]" /> PDF KEPUTUSAN
+                              </button>
+                            </>
+                          ) : effectiveContext === 'keputusan' ? (
+                            <>
+                              {/* KEPUTUSAN RASMI PORTAL: PDF KEPUTUSAN SAHAJA */}
+                              <button 
+                                onClick={async () => {
+                                  const t = toast.loading('Menjana PDF Keputusan...');
+                                  try {
+                                    await exportResultToPDF({
+                                      tenderNo: selectedAd.tenderNo,
+                                      title: selectedAd.title,
+                                      office: selectedAd.office || 'MALAYSIA',
+                                      winnerName: selectedAd.winnerName || selectedAd.winner?.companyName || (selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'TIADA' : 'DALAM PROSES PENILAIAN'),
+                                      startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
+                                      endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
+                                      location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
+                                    });
+                                    toast.success('PDF Keputusan berjaya dijana', { id: t });
+                                  } catch (err) {
+                                    toast.error('Gagal menjana PDF Keputusan', { id: t });
+                                  }
+                                }}
+                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                              >
+                                <Download size={14} className="stroke-[3]" /> PDF KEPUTUSAN
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    await exportResultToWord({
+                                      tenderNo: selectedAd.tenderNo,
+                                      title: selectedAd.title,
+                                      office: selectedAd.office || 'MALAYSIA',
+                                      winnerName: selectedAd.winnerName || selectedAd.winner?.companyName || (selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'TIADA' : 'DALAM PROSES PENILAIAN'),
+                                      startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
+                                      endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
+                                      location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
+                                    });
+                                  } catch (err) {
+                                    console.error(err);
+                                    toast.error('Gagal menjana Word file');
+                                  }
+                                }}
+                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                              >
+                                <FileText size={14} className="stroke-[3]" /> WORD
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {/* IKLAN SEBUTHARGA PORTAL: PDF IKLAN SAHAJA */}
+                              <button 
+                                onClick={async () => {
+                                  const t = toast.loading('Menjana PDF Iklan...');
+                                  try {
+                                    await exportToPDF(selectedAd);
+                                    toast.success('PDF Iklan berjaya dijana', { id: t });
+                                  } catch (err) {
+                                    toast.error('Gagal menjana PDF Iklan', { id: t });
+                                  }
+                                }}
+                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                              >
+                                <Download size={14} className="stroke-[3]" /> PDF IKLAN
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    await exportToWord(selectedAd);
+                                  } catch (err) {
+                                    console.error(err);
+                                    toast.error('Gagal menjana Word file');
+                                  }
+                                }}
+                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                              >
+                                <FileText size={14} className="stroke-[3]" /> WORD
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
 
-                      {/* View Format Selector for Active Ads to switch between Document Preview and Structured Data */}
-                      {selectedAd.status !== 'SELESAI (KEPUTUSAN)' && (
+                      {/* View Selector for Dashboard or Active Ads */}
+                      {effectiveContext === 'dashboard' ? (
+                        <div className="flex justify-start border-b border-white/5 pb-2">
+                          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 gap-1">
+                            <button 
+                              onClick={() => setDashboardModalView('iklan')} 
+                              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
+                                dashboardModalView === 'iklan' ? 'bg-[#ff9c3a] text-black shadow-md font-black' : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              📄 Papar Iklan Sebut Harga
+                            </button>
+                            <button 
+                              onClick={() => setDashboardModalView('keputusan')} 
+                              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
+                                dashboardModalView === 'keputusan' ? 'bg-blue-500 text-white shadow-md font-black' : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              🏆 Papar Keputusan Rasmi
+                            </button>
+                          </div>
+                        </div>
+                      ) : effectiveContext === 'projek' ? (
                         <div className="flex justify-start border-b border-white/5 pb-2">
                           <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
                             <button 
@@ -986,7 +1144,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                                 adViewFormat === 'preview' ? 'bg-[#ff9c3a] text-black shadow-md font-black' : 'text-slate-400 hover:text-white'
                               }`}
                             >
-                              Papar Format PDF
+                              Papar Format PDF Iklan
                             </button>
                             <button 
                               onClick={() => setAdViewFormat('data')} 
@@ -998,10 +1156,10 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                             </button>
                           </div>
                         </div>
-                      )}
+                      ) : null}
 
-                      {/* Display Contents depending on status & active toggles */}
-                      {selectedAd.status !== 'SELESAI (KEPUTUSAN)' ? (
+                      {/* Display Contents depending on context & active view selection */}
+                      {(effectiveContext === 'projek' || (effectiveContext === 'dashboard' && dashboardModalView === 'iklan')) ? (
                         /* Active Ad Display */
                         adViewFormat === 'preview' ? (
                           /* High Fidelity KENYATAAN SEBUT HARGA A4 PDF View */
@@ -1065,7 +1223,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                                     {selectedAd.licenses?.cidbSpkk && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.cidbSpkk || 'CIDB (SPKK) G1 CE01'}</div>}
                                     {selectedAd.licenses?.cidbPkk && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.cidbPkk || 'CIDB (PKK) G1'}</div>}
                                     {selectedAd.licenses?.stb && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.stb || 'Sijil Taraf Bumiputera'}</div>}
-                                    {selectedAd.licenses?.mof && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.mof || 'MOF'}</div>}
+                                    {selectedAd.licenses?.mof && <div className="text-[9px]">• {formatMofText(selectedAd.licenseDescriptions?.mof)}</div>}
                                     {selectedAd.licenses?.pukonsa && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.pukonsa || 'PUKONSA'}</div>}
                                     {selectedAd.licenses?.kuhean && <div className="text-[9px]">• {selectedAd.licenseDescriptions?.kuhean || 'KUHEAN'}</div>}
                                     {selectedAd.licenses?.others && <div className="text-[9px]">• {selectedAd.licenses.others}</div>}
@@ -1106,7 +1264,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                                 <div className="pl-3.5 space-y-1">
                                   <p className="flex gap-1.5">
                                     <span className="text-slate-950">a.</span> 
-                                    <span>Hanya Penama di dalam Sijil Asal CIDB, PUKONSA & STB yang masih SAH tempoh pendaftaran sahaja yang boleh hadir mendengar taklimat tapak dan tidak boleh mewakilkan pegawai selain penama;</span>
+                                    <span>Hanya Penama di dalam Sijil Asal {getLicenseNamesForTerms(selectedAd)} yang masih SAH tempoh pendaftaran sahaja yang boleh hadir mendengar taklimat tapak dan tidak boleh mewakilkan pegawai selain penama;</span>
                                   </p>
                                   <p className="flex gap-1.5">
                                     <span className="text-slate-950">b.</span> 
@@ -1114,7 +1272,7 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                                   </p>
                                   <p className="flex gap-1.5">
                                     <span className="text-slate-950">c.</span> 
-                                    <span>Membawa Sijil Asal CIDB, PUKONSA & STB yang sah tempoh lakunya berserta SATU salinan fotostat.</span>
+                                    <span>Membawa Sijil Asal {getLicenseNamesForTerms(selectedAd)} yang sah tempoh lakunya berserta SATU salinan fotostat.</span>
                                   </p>
                                   <p className="flex gap-1.5">
                                     <span className="text-slate-950">d.</span> 
@@ -1237,7 +1395,11 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                                   </div>
                                   <h1 className="text-xl sm:text-2xl md:text-5xl font-black border-b-4 border-black pb-1 mb-4 md:mb-8 tracking-tight text-center">HEBAHAN</h1>
                                   <div className="text-center font-black text-[10px] sm:text-sm md:text-lg tracking-tight mb-4 md:mb-8 px-2">
-                                    <span className="border-b-[1px] md:border-b-2 border-black pb-0.5 inline-block uppercase font-black">PEMBIDA YANG BERJAYA BAGI SEBUTHARGA</span><br />
+                                    <span className="border-b-[1px] md:border-b-2 border-black pb-0.5 inline-block uppercase font-black">
+                                      {selectedAd.winner?.isReTender || selectedAd.winner?.companyName === 'SEBUTHARGA SEMULA' 
+                                        ? 'KEPUTUSAN RASMI SEBUTHARGA SEMULA' 
+                                        : 'PEMBIDA YANG BERJAYA BAGI SEBUTHARGA'}
+                                    </span><br />
                                     <span className="border-b-[1px] md:border-b-2 border-black pb-0.5 inline-block uppercase font-black mt-1 text-center">PEJABAT RISDA DAERAH {selectedAd.office?.toUpperCase()}</span>
                                   </div>
                                 </div>
@@ -1252,13 +1414,25 @@ export default function ProjectFilters({ showRegistration = true, initialStatus 
                                     <div className="font-black text-center">:</div>
                                     <div className="uppercase font-black leading-tight text-[10px] sm:text-base md:text-lg">{selectedAd.title}</div>
 
-                                    <div className="font-black uppercase">KONTRAKTOR</div>
+                                    <div className="font-black uppercase">KONTRAKTOR / KEPUTUSAN</div>
                                     <div className="font-black text-center">:</div>
-                                    <div className="uppercase font-black text-green-700">{selectedAd.winner?.companyName || '-'}</div>
+                                    <div className={`uppercase font-black ${
+                                      selectedAd.winner?.isReTender || selectedAd.winner?.companyName === 'SEBUTHARGA SEMULA' 
+                                        ? 'text-amber-600 font-extrabold' 
+                                        : 'text-green-700'
+                                    }`}>
+                                      {selectedAd.winner?.isReTender || selectedAd.winner?.companyName === 'SEBUTHARGA SEMULA' 
+                                        ? 'SEBUTHARGA SEMULA (TIADA PEMBEKAL TERPILIH)' 
+                                        : selectedAd.winner?.companyName || '-'}
+                                    </div>
 
                                     <div className="font-black uppercase">TEMPOH KERJA</div>
                                     <div className="font-black text-center">:</div>
-                                    <div className="uppercase font-black text-[8px] sm:text-base">{formatDate(selectedAd.winner?.contractStartDate || selectedAd.contractStartDate)} SEHINGGA {formatDate(selectedAd.winner?.contractEndDate || selectedAd.contractEndDate)}</div>
+                                    <div className="uppercase font-black text-[8px] sm:text-base">
+                                      {selectedAd.winner?.isReTender || selectedAd.winner?.companyName === 'SEBUTHARGA SEMULA' 
+                                        ? 'SEBUTHARGA SEMULA' 
+                                        : `${formatDate(selectedAd.winner?.contractStartDate || selectedAd.contractStartDate)} SEHINGGA ${formatDate(selectedAd.winner?.contractEndDate || selectedAd.contractEndDate)}${calculateTempohSiapKerja(selectedAd.winner?.contractStartDate || selectedAd.contractStartDate, selectedAd.winner?.contractEndDate || selectedAd.contractEndDate) ? ` (${calculateTempohSiapKerja(selectedAd.winner?.contractStartDate || selectedAd.contractStartDate, selectedAd.winner?.contractEndDate || selectedAd.contractEndDate)})` : ''}`}
+                                    </div>
 
                                     <div className="font-black uppercase">TEMPAT</div>
                                     <div className="font-black text-center">:</div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, orderBy, where, writeBatch, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { isWithinUserScope, isAdWinnerFinalized, calculateTempohSiapKerja, parseAnyDate } from '../lib/scopeUtils';
 import { toast } from 'react-hot-toast';
 import { 
   Plus, 
@@ -25,7 +26,8 @@ import {
   FileText,
   FileDown,
   FileUp,
-  Copy
+  Copy,
+  RotateCcw
 } from 'lucide-react';
 import { exportResultToPDF } from '../lib/exportUtils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -34,9 +36,8 @@ const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
   
   try {
-    const standardized = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
-    const d = new Date(standardized);
-    if (isNaN(d.getTime())) return dateStr;
+    const d = parseAnyDate(dateStr);
+    if (!d || isNaN(d.getTime())) return dateStr;
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
@@ -48,11 +49,46 @@ const formatDate = (dateStr: string | undefined): string => {
   }
 };
 
+const getNormalizedDecisionDate = (ad: any): string => {
+  if (!ad) return '';
+  const dDate = ad.winner?.decisionDate;
+  
+  let targetYear = '';
+  if (ad.winner?.contractStartDate && ad.winner.contractStartDate.length >= 4 && ad.winner.contractStartDate !== '-') {
+    targetYear = ad.winner.contractStartDate.substring(0, 4);
+  } else if (ad.contractStartDate && ad.contractStartDate.length >= 4 && ad.contractStartDate !== '-') {
+    targetYear = ad.contractStartDate.substring(0, 4);
+  } else if (ad.closingDate && ad.closingDate.length >= 4) {
+    targetYear = ad.closingDate.substring(0, 4);
+  } else if (ad.tenderNo) {
+    const match = ad.tenderNo.match(/20\d\d/);
+    if (match) targetYear = match[0];
+  }
+
+  if (dDate) {
+    if (targetYear && targetYear.length === 4 && dDate.startsWith('2026') && targetYear !== '2026') {
+      return dDate.replace(/^2026/, targetYear);
+    }
+    return dDate;
+  }
+
+  if (ad.closingDate && targetYear) {
+    if (ad.closingDate.includes('-')) {
+      const parts = ad.closingDate.split('-');
+      if (parts.length === 3) {
+        return `${targetYear}-${parts[1]}-25`;
+      }
+    }
+  }
+  return `${targetYear || '2025'}-02-25`;
+};
+
 interface Advertisement {
   id: string;
   tenderNo: string;
   title: string;
   category?: 'KERJA' | 'BEKALAN' | 'PERKHIDMATAN';
+  jenisPeruntukan?: 'BLK' | 'KWR';
   state: string;
   office: string;
   status: 'AKTIF' | 'BATAL' | 'SELESAI (KEPUTUSAN)';
@@ -81,6 +117,8 @@ interface Advertisement {
     location?: string;
     winningPrice?: number;
     decisionDate?: string;
+    remarks?: string;
+    allocationCode?: string;
   };
   licenses: {
     cidbSpkk: boolean;
@@ -114,9 +152,9 @@ interface LocationItem {
 }
 
 export default function TenderManagement() {
-  const { role, office: userOffice, state: userState } = useAuth();
+  const { role, office: userOffice, state: userState, district: userDistrict } = useAuth();
   const isStaff = role === 'penginput' || role === 'pelulus' || role === 'admin' || role === 'pentadbir';
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'pentadbir';
 
   const [ads, setAds] = useState<Advertisement[]>([]);
   const [locations, setLocations] = useState<LocationItem[]>([]);
@@ -132,6 +170,9 @@ export default function TenderManagement() {
     status: 'SEMUA'
   });
   
+  // Ad Detail Viewing Modal State
+  const [selectedAdDetail, setSelectedAdDetail] = useState<Advertisement | null>(null);
+
   // Winner Management
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [selectedAdForWinner, setSelectedAdForWinner] = useState<Advertisement | null>(null);
@@ -139,12 +180,15 @@ export default function TenderManagement() {
   const [loadingAttendees, setLoadingAttendees] = useState(false);
   const [showWinnerConfirm, setShowWinnerConfirm] = useState(false);
   const [pendingWinner, setPendingWinner] = useState<any>(null);
+  const [allocationCodesList, setAllocationCodesList] = useState<any[]>([]);
   const [winnerDates, setWinnerDates] = useState({
     startDate: '',
     endDate: '',
     winningPrice: '',
     location: '',
-    decisionDate: ''
+    decisionDate: '',
+    remarks: '',
+    allocationCode: ''
   });
   const [notifyPrefs, setNotifyPrefs] = useState({
     whatsapp: true,
@@ -158,6 +202,7 @@ export default function TenderManagement() {
     tenderNo: '',
     title: '',
     category: 'KERJA' as 'KERJA' | 'BEKALAN' | 'PERKHIDMATAN',
+    jenisPeruntukan: 'BLK' as 'BLK' | 'KWR',
     state: userState || '',
     office: userOffice || '',
     status: 'AKTIF' as const,
@@ -201,6 +246,7 @@ export default function TenderManagement() {
       tenderNo: '',
       title: '',
       category: 'KERJA',
+      jenisPeruntukan: 'BLK',
       state: userState || '',
       office: userOffice || '',
       status: 'AKTIF',
@@ -292,7 +338,22 @@ export default function TenderManagement() {
   useEffect(() => {
     fetchAds();
     fetchLocations();
+    fetchAllocationCodes();
   }, [role, userOffice]);
+
+  const fetchAllocationCodes = async () => {
+    try {
+      const q = query(collection(db, 'allocationCodes'));
+      const snapshot = await getDocs(q);
+      const list: any[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setAllocationCodesList(list);
+    } catch (err) {
+      console.error('Error fetching allocation codes in TenderManagement:', err);
+    }
+  };
 
   const fetchLocations = async () => {
     try {
@@ -350,20 +411,19 @@ export default function TenderManagement() {
 
   const fetchAds = async () => {
     try {
-      let q;
-      if (isAdmin || role === 'pentadbir') {
-        q = query(collection(db, 'ads'), orderBy('tenderNo', 'desc'));
-      } else if (role === 'penginput' || role === 'pelulus') {
-        q = query(collection(db, 'ads'), where('office', '==', userOffice || ''), orderBy('tenderNo', 'desc'));
-      } else {
-        q = query(collection(db, 'ads'), orderBy('tenderNo', 'desc'));
-      }
-      
+      const q = query(collection(db, 'ads'), orderBy('tenderNo', 'desc'));
       const querySnapshot = await getDocs(q);
       const adsData: Advertisement[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        adsData.push({ id: doc.id, ...(data as any) } as Advertisement);
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const item = { id: docSnap.id, ...(data as any) } as Advertisement;
+        if (item.winner) {
+          const norm = getNormalizedDecisionDate(item);
+          if (norm) {
+            item.winner.decisionDate = norm;
+          }
+        }
+        adsData.push(item);
       });
       setAds(adsData);
     } catch (error) {
@@ -382,8 +442,12 @@ export default function TenderManagement() {
       
       const payload: any = {
         ...formData,
-        office: finalOffice,
-        state: finalState,
+        title: (formData.title || '').toUpperCase().trim(),
+        tenderNo: (formData.tenderNo || '').toUpperCase().trim(),
+        jenisPeruntukan: (formData.jenisPeruntukan || 'BLK').toUpperCase().trim(),
+        category: (formData.category || 'KERJA').toUpperCase().trim(),
+        office: finalOffice.toUpperCase().trim(),
+        state: finalState.toUpperCase().trim(),
         updatedAt: new Date().toISOString(),
         ...(editingAd ? {} : { createdAt: new Date().toISOString() })
       };
@@ -426,6 +490,7 @@ export default function TenderManagement() {
       tenderNo: ad.tenderNo,
       title: ad.title,
       category: ad.category || 'KERJA',
+      jenisPeruntukan: ad.jenisPeruntukan || 'BLK',
       state: ad.state,
       office: ad.office || '',
       status: ad.status,
@@ -471,6 +536,8 @@ export default function TenderManagement() {
     setFormData({
       tenderNo: `${ad.tenderNo}-SALIN`,
       title: `${ad.title} (SALINAN)`,
+      category: ad.category || 'KERJA',
+      jenisPeruntukan: ad.jenisPeruntukan || 'BLK',
       state: ad.state,
       office: ad.office || '',
       status: 'AKTIF',
@@ -520,7 +587,8 @@ export default function TenderManagement() {
       endDate: '',
       winningPrice: '',
       location: selectedAdForWinner?.visitVenue || selectedAdForWinner?.docVenue || '-',
-      decisionDate: new Date().toISOString().split('T')[0]
+      decisionDate: getNormalizedDecisionDate(selectedAdForWinner),
+      remarks: ''
     });
     setNotifyPrefs({
       whatsapp: true,
@@ -528,43 +596,90 @@ export default function TenderManagement() {
     });
   };
 
+  const handleSelectReTender = () => {
+    const reTenderAttendee = {
+      id: 'RE_TENDER_DECISION',
+      companyName: 'SEBUTHARGA SEMULA',
+      ownerName: 'TIADA PEMBEKAL DIPILIH (SEBUTHARGA SEMULA)',
+      phoneNumber: '-',
+      email: '-',
+      isReTender: true
+    };
+    setPendingWinner(reTenderAttendee);
+    setShowWinnerConfirm(true);
+    setWinnerDates({
+      startDate: '-',
+      endDate: '-',
+      winningPrice: '0',
+      location: selectedAdForWinner?.visitVenue || selectedAdForWinner?.docVenue || '-',
+      decisionDate: getNormalizedDecisionDate(selectedAdForWinner),
+      remarks: 'Keputusan Rasmi: Sebutharga Semula'
+    });
+    setNotifyPrefs({
+      whatsapp: false,
+      email: false
+    });
+  };
+
   const handleConfirmWinner = async () => {
     if (!selectedAdForWinner || !pendingWinner) return;
     
-    if (!winnerDates.startDate || !winnerDates.endDate || !winnerDates.decisionDate) {
+    if (!winnerDates.decisionDate) {
+      toast.error('Sila masukkan tarikh keputusan sebut harga.');
+      return;
+    }
+
+    if (!pendingWinner.isReTender && (!winnerDates.startDate || !winnerDates.endDate)) {
       toast.error('Sila masukkan tarikh mula, tarikh akhir kerja, dan tarikh pemenang dipilih.');
       return;
     }
 
     const adId = selectedAdForWinner.id;
-    const loadingToast = toast.loading('Menetapkan pembekal terpilih...');
+    const loadingToast = toast.loading(
+      pendingWinner.isReTender ? 'Merekodkan keputusan sebutharga semula...' : 'Menetapkan pembekal terpilih...'
+    );
 
     try {
+      const autoTempoh = calculateTempohSiapKerja(winnerDates.startDate, winnerDates.endDate);
       const winnerData = {
+        isReTender: Boolean(pendingWinner.isReTender),
         companyName: pendingWinner.companyName,
         ownerName: pendingWinner.ownerName || pendingWinner.representativeName || '',
-        phoneNumber: pendingWinner.phoneNumber,
-        email: pendingWinner.email || '',
+        phoneNumber: pendingWinner.phoneNumber || '-',
+        email: pendingWinner.email || '-',
         timestamp: new Date().toISOString(),
         decisionDate: winnerDates.decisionDate,
-        contractStartDate: winnerDates.startDate,
-        contractEndDate: winnerDates.endDate,
+        contractStartDate: pendingWinner.isReTender ? '-' : winnerDates.startDate,
+        contractEndDate: pendingWinner.isReTender ? '-' : winnerDates.endDate,
+        tempohSiapKerja: autoTempoh,
         winningPrice: Number(winnerDates.winningPrice) || 0,
-        location: winnerDates.location || selectedAdForWinner.visitVenue || selectedAdForWinner.docVenue || '-'
+        remarks: winnerDates.remarks || (pendingWinner.isReTender ? 'Keputusan Rasmi: Sebutharga Semula' : ''),
+        location: winnerDates.location || selectedAdForWinner.visitVenue || selectedAdForWinner.docVenue || '-',
+        allocationCode: winnerDates.allocationCode || ''
       };
 
       await updateDoc(doc(db, 'ads', adId), {
         winner: winnerData,
+        winnerName: winnerData.companyName,
+        winningPrice: winnerData.winningPrice,
+        allocationCode: winnerDates.allocationCode || '',
+        tarikhSetujuTerima: winnerDates.startDate || '',
+        tarikhSiapKerja: winnerDates.endDate || '',
+        tempohSiapKerja: autoTempoh || '',
         status: 'SELESAI (KEPUTUSAN)',
+        statusPelaksanaan: pendingWinner.isReTender ? 'SEBUTHARGA SEMULA' : (selectedAdForWinner.statusPelaksanaan || 'ON TIME'),
         updatedAt: new Date().toISOString()
       });
 
-      toast.success(`Keputusan rasmi telah dikemaskini. ${pendingWinner.companyName} terpilih!`, { id: loadingToast });
+      if (pendingWinner.isReTender) {
+        toast.success('Keputusan rasmi: SEBUTHARGA SEMULA telah disahkan!', { id: loadingToast });
+      } else {
+        toast.success(`Keputusan rasmi telah dikemaskini. ${pendingWinner.companyName} terpilih!`, { id: loadingToast });
       
-      // Send background physical/automated email to selected winner (as requested)
-      if (winnerData.email && winnerData.email.trim() && winnerData.email.trim() !== '-') {
-        const notifySubject = `TAHNIAH KONTRAKTOR ANDA TELAH DIPILIH BAGI SEBUTHARGA NO: ${selectedAdForWinner.tenderNo.toUpperCase()}`;
-        const notifyBody = `Tahniah kontraktor anda telah terpilih bagi:
+        // Send background physical/automated email to selected winner (as requested)
+        if (winnerData.email && winnerData.email.trim() && winnerData.email.trim() !== '-') {
+          const notifySubject = `TAHNIAH KONTRAKTOR ANDA TELAH DIPILIH BAGI SEBUTHARGA NO: ${selectedAdForWinner.tenderNo.toUpperCase()}`;
+          const notifyBody = `Tahniah kontraktor anda telah terpilih bagi:
 
 No. Sebut Harga: ${selectedAdForWinner.tenderNo.toUpperCase()}
 Tajuk Sebut Harga: ${selectedAdForWinner.title.toUpperCase()}
@@ -576,85 +691,84 @@ Sekian terima kasih
 Daripada,
 Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
 
-        try {
-          // Direct SMTP route dispatch
-          fetch('/api/send-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: winnerData.email.trim(),
-              subject: notifySubject,
-              text: notifyBody
-            })
-          }).then(res => {
-            if (res.ok) {
-              console.log('Automated SMTP email for selected winner sent successfully.');
-            }
-          }).catch(err => {
-            console.error('Automated SMTP email route failed, relying on DB trigger queuing:', err);
-          });
-
-          // Queue in Firestore collections
-          const docPromises = [
-            addDoc(collection(db, 'sent_emails'), {
-              to: winnerData.email.trim(),
-              toName: winnerData.companyName,
-              subject: notifySubject,
-              body: notifyBody,
-              sentAt: new Date().toISOString()
-            }),
-            addDoc(collection(db, 'sent_emails'), {
-              to: winnerData.email.trim(),
-              message: {
+          try {
+            // Direct SMTP route dispatch
+            fetch('/api/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: winnerData.email.trim(),
                 subject: notifySubject,
                 text: notifyBody
-              },
-              sentAt: new Date().toISOString()
-            }).catch(() => null),
-            addDoc(collection(db, 'mail'), {
-              to: winnerData.email.trim(),
-              toName: winnerData.companyName,
-              subject: notifySubject,
-              body: notifyBody,
-              sentAt: new Date().toISOString()
-            }).catch(() => null),
-            addDoc(collection(db, 'mail'), {
-              to: winnerData.email.trim(),
-              message: {
-                subject: notifySubject,
-                text: notifyBody
-              },
-              sentAt: new Date().toISOString()
-            }).catch(() => null),
-            addDoc(collection(db, 'emails'), {
-              to: winnerData.email.trim(),
-              toName: winnerData.companyName,
-              subject: notifySubject,
-              body: notifyBody,
-              sentAt: new Date().toISOString()
-            }).catch(() => null)
-          ];
+              })
+            }).then(res => {
+              if (res.ok) {
+                console.log('Automated SMTP email for selected winner sent successfully.');
+              }
+            }).catch(err => {
+              console.error('Automated SMTP email route failed, relying on DB trigger queuing:', err);
+            });
 
-          await Promise.all(docPromises);
-          toast.success(`E-mel maklum balas keputusan rasmi telah dihantar ke ${winnerData.email}`);
-        } catch (emailErr) {
-          console.error('Gagal menghantar e-mel keputusan rasmi:', emailErr);
+            // Queue in Firestore collections
+            const docPromises = [
+              addDoc(collection(db, 'sent_emails'), {
+                to: winnerData.email.trim(),
+                toName: winnerData.companyName,
+                subject: notifySubject,
+                body: notifyBody,
+                sentAt: new Date().toISOString()
+              }),
+              addDoc(collection(db, 'sent_emails'), {
+                to: winnerData.email.trim(),
+                message: {
+                  subject: notifySubject,
+                  text: notifyBody
+                },
+                sentAt: new Date().toISOString()
+              }).catch(() => null),
+              addDoc(collection(db, 'mail'), {
+                to: winnerData.email.trim(),
+                toName: winnerData.companyName,
+                subject: notifySubject,
+                body: notifyBody,
+                sentAt: new Date().toISOString()
+              }).catch(() => null),
+              addDoc(collection(db, 'mail'), {
+                to: winnerData.email.trim(),
+                message: {
+                  subject: notifySubject,
+                  text: notifyBody
+                },
+                sentAt: new Date().toISOString()
+              }).catch(() => null),
+              addDoc(collection(db, 'emails'), {
+                to: winnerData.email.trim(),
+                toName: winnerData.companyName,
+                subject: notifySubject,
+                body: notifyBody,
+                sentAt: new Date().toISOString()
+              }).catch(() => null)
+            ];
+
+            await Promise.all(docPromises);
+            toast.success(`E-mel maklum balas keputusan rasmi telah dihantar ke ${winnerData.email}`);
+          } catch (emailErr) {
+            console.error('Gagal menghantar e-mel keputusan rasmi:', emailErr);
+          }
         }
-      }
 
-      // Auto-trigger notifications based on preferences
-      const fullAdData = {...selectedAdForWinner, winner: winnerData} as Advertisement;
-      
-      if (notifyPrefs.whatsapp) {
-        handleNotify(fullAdData, 'whatsapp');
-      }
-      
-      if (notifyPrefs.email) {
-        // Adding a slight delay if both are selected might help with browser popup blocks,
-        // although email is often a location.href change
-        setTimeout(() => {
-          handleNotify(fullAdData, 'email');
-        }, 300);
+        // Auto-trigger notifications based on preferences
+        const fullAdData = {...selectedAdForWinner, winner: winnerData} as Advertisement;
+        
+        if (notifyPrefs.whatsapp) {
+          handleNotify(fullAdData, 'whatsapp');
+        }
+        
+        if (notifyPrefs.email) {
+          setTimeout(() => {
+            handleNotify(fullAdData, 'email');
+          }, 300);
+        }
       }
       
       setShowWinnerConfirm(false);
@@ -692,7 +806,9 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
       endDate: ad.winner?.contractEndDate || '',
       winningPrice: ad.winner?.winningPrice ? String(ad.winner.winningPrice) : '',
       location: ad.winner?.location || ad.visitVenue || ad.docVenue || '',
-      decisionDate: ad.winner?.decisionDate || (ad.winner?.timestamp ? ad.winner.timestamp.split('T')[0] : new Date().toISOString().split('T')[0])
+      decisionDate: getNormalizedDecisionDate(ad),
+      remarks: ad.winner?.remarks || '',
+      allocationCode: (ad.winner as any)?.allocationCode || (ad as any).allocationCode || ''
     });
     fetchAttendees(ad);
     setShowWinnerModal(true);
@@ -737,6 +853,7 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
 
   const filteredAds = ads
     .filter(ad => {
+      const matchesUserScope = isWithinUserScope(ad, { role, state: userState, district: userDistrict, office: userOffice });
       const matchesSearch = ad.title.toLowerCase().includes(search.toLowerCase()) || 
                            ad.tenderNo.toLowerCase().includes(search.toLowerCase());
       const matchesState = !filters.state || ad.state === filters.state;
@@ -749,7 +866,7 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
         matchesYear = date ? new Date(date).getFullYear().toString() === filters.year : false;
       }
       
-      return matchesSearch && matchesState && matchesOffice && matchesStatus && matchesYear;
+      return matchesUserScope && matchesSearch && matchesState && matchesOffice && matchesStatus && matchesYear;
     });
 
   if (!isStaff) return <div className="p-20 text-center">Tiada Kebenaran.</div>;
@@ -901,16 +1018,31 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
               }`}>
                 {displayStatus === 'SELESAI (KEPUTUSAN)' ? (itemYear < currentYear ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : displayStatus}
               </span>
-              <div className="flex gap-2">
-                {ad.status !== 'BATAL' && (
-                  <button 
-                    onClick={() => openWinnerModal(ad)}
-                    className="p-2 text-white/40 hover:text-green-500"
-                    title="Pilih Pemenang"
-                  >
-                    <Users size={16} />
-                  </button>
+              <div className="flex gap-2 items-center flex-wrap">
+                <button 
+                  onClick={() => setSelectedAdDetail(ad)} 
+                  className="px-2.5 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-blue-500/20 transition-all flex items-center gap-1" 
+                  title="Papar Butiran Iklan"
+                >
+                  <Eye size={14} />
+                  <span>Papar</span>
+                </button>
+
+                {!isAdWinnerFinalized(ad) && (
+                  <>
+                    {ad.status !== 'BATAL' && (
+                      <button 
+                        onClick={() => openWinnerModal(ad)}
+                        className="p-2 text-white/40 hover:text-green-500"
+                        title="Pilih Pemenang"
+                      >
+                        <Users size={16} />
+                      </button>
+                    )}
+                    <button onClick={() => openEdit(ad)} className="p-2 text-white/40 hover:text-risda-orange" title="Kemaskini"><Edit3 size={16} /></button>
+                  </>
                 )}
+
                 {isStaff && (
                   <button 
                     onClick={() => handleCopy(ad)} 
@@ -920,7 +1052,6 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                     <Copy size={16} />
                   </button>
                 )}
-                <button onClick={() => openEdit(ad)} className="p-2 text-white/40 hover:text-risda-orange" title="Kemaskini"><Edit3 size={16} /></button>
                 <button onClick={() => handleDelete(ad.id)} className="p-2 text-white/40 hover:text-red-500" title="Padam"><Trash2 size={16} /></button>
               </div>
             </div>
@@ -1011,28 +1142,42 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                   <td className="px-8 py-8 text-right">
                     {isStaff && (
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                        {ad.status !== 'BATAL' && (
-                          <button 
-                            onClick={() => openWinnerModal(ad)}
-                            className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:border-green-500/50 hover:text-green-500 transition-all"
-                            title="Pilih Pemenang"
-                          >
-                            <Users size={16} />
-                          </button>
+                        <button 
+                          onClick={() => setSelectedAdDetail(ad)}
+                          className="px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 hover:bg-blue-500/20 transition-all flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider"
+                          title="Papar Butiran Iklan"
+                        >
+                          <Eye size={15} />
+                          <span>Papar</span>
+                        </button>
+
+                        {!isAdWinnerFinalized(ad) && (
+                          <>
+                            {ad.status !== 'BATAL' && (
+                              <button 
+                                onClick={() => openWinnerModal(ad)}
+                                className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:border-green-500/50 hover:text-green-500 transition-all"
+                                title="Pilih Pemenang"
+                              >
+                                <Users size={16} />
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => openEdit(ad)}
+                              className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:border-risda-orange/50 transition-all"
+                              title="Kemaskini"
+                            >
+                              <Edit3 size={16} />
+                            </button>
+                          </>
                         )}
+
                         <button 
                           onClick={() => handleCopy(ad)}
                           className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:border-green-500/50 hover:text-green-400 transition-all"
                           title="Salin Iklan Sebut Harga"
                         >
                           <Copy size={16} />
-                        </button>
-                        <button 
-                          onClick={() => openEdit(ad)}
-                          className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:border-risda-orange/50 transition-all"
-                          title="Kemaskini"
-                        >
-                          <Edit3 size={16} />
                         </button>
                         <button 
                           onClick={() => handleDelete(ad.id)}
@@ -1127,7 +1272,11 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                         <button
                           key={cat}
                           type="button"
-                          onClick={() => setFormData({ ...formData, category: cat })}
+                          onClick={() => setFormData({ 
+                            ...formData, 
+                            category: cat,
+                            jenisPeruntukan: formData.jenisPeruntukan || 'BLK'
+                          })}
                           className={`py-3.5 px-4 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 border flex items-center justify-center gap-2 ${
                             formData.category === cat
                               ? 'bg-risda-orange text-white border-risda-orange shadow-lg shadow-risda-orange/30 scale-[1.01]'
@@ -1138,6 +1287,30 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                             formData.category === cat ? 'bg-white' : 'bg-risda-muted'
                           }`} />
                           {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Jenis Peruntukan (BLK / KWR) */}
+                  <div className="col-span-2 space-y-2">
+                    <label className="text-[10px] font-black text-risda-muted uppercase tracking-[3px]">Jenis Peruntukan</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(['BLK', 'KWR'] as const).map((peruntukan) => (
+                        <button
+                          key={peruntukan}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, jenisPeruntukan: peruntukan })}
+                          className={`py-3.5 px-4 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 border flex items-center justify-center gap-2 ${
+                            formData.jenisPeruntukan === peruntukan
+                              ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-600/30 scale-[1.01]'
+                              : 'bg-black/40 text-risda-muted border-risda-border hover:bg-black/60 hover:text-white'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${
+                            formData.jenisPeruntukan === peruntukan ? 'bg-white' : 'bg-risda-muted'
+                          }`} />
+                          PERUNTUKAN {peruntukan}
                         </button>
                       ))}
                     </div>
@@ -1266,8 +1439,8 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                                     [license.id]: e.target.value
                                   }
                                 })}
-                                placeholder="Keterangan Penuh Lesen..."
-                                className="w-full bg-black/60 border border-risda-border/30 rounded-xl py-2 px-3 text-[10px] text-risda-gold italic outline-none focus:border-risda-orange/30"
+                                placeholder={license.id === 'mof' ? 'KOD BIDANG : 070101/070102/070201/070303' : 'Keterangan Penuh Lesen...'}
+                                className="w-full bg-black/60 border border-risda-border/30 rounded-xl py-2 px-3 text-[10px] text-risda-gold italic outline-none focus:border-risda-orange/30 font-mono"
                               />
                             </motion.div>
                           )}
@@ -1464,7 +1637,46 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-8 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
-                  <div className="flex items-center justify-between mb-2">
+                  {/* Dedicated Sebutharga Semula Option Card */}
+                  <div className={`p-5 rounded-2xl border transition-all ${
+                    pendingWinner?.isReTender 
+                      ? 'bg-amber-500/20 border-amber-500 border-2' 
+                      : 'bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-600/10 border-amber-500/30 hover:border-amber-400/50'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-xl flex items-center justify-center shrink-0 border border-amber-500/30">
+                          <RotateCcw size={20} className={pendingWinner?.isReTender ? "animate-spin" : ""} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h5 className="text-xs font-black text-amber-300 uppercase tracking-wide">Pilihan: Sebutharga Semula</h5>
+                            <span className="bg-amber-500/20 text-amber-300 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Keputusan Rasmi</span>
+                          </div>
+                          <p className="text-[10px] text-risda-muted font-medium mt-0.5">
+                            Gunakan pilihan ini sekiranya tiada pembekal terpilih/layak atau sebut harga perlu diproses semula.
+                          </p>
+                        </div>
+                      </div>
+                      {!pendingWinner && (
+                        <button 
+                          type="button"
+                          onClick={handleSelectReTender}
+                          className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 shrink-0 flex items-center justify-center gap-2"
+                        >
+                          <RotateCcw size={14} />
+                          <span>Pilih Sebutharga Semula</span>
+                        </button>
+                      )}
+                      {pendingWinner?.isReTender && (
+                        <div className="w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center text-slate-950 font-bold shrink-0">
+                          <CheckCircle size={18} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-2 pt-2 border-t border-white/5">
                     <h5 className="text-[10px] font-black text-risda-orange uppercase tracking-[3px]">Senarai Peserta Selesai Taklimat</h5>
                     <span className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{attendees.length} SYARIKAT</span>
                   </div>
@@ -1474,9 +1686,12 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                       <p className="text-risda-muted font-black uppercase tracking-[4px] text-[9px] animate-pulse">Menyelaras Senarai...</p>
                     </div>
                   ) : attendees.length === 0 ? (
-                    <div className="py-20 text-center border border-dashed border-white/5 rounded-3xl flex flex-col items-center gap-4">
-                      <AlertCircle size={32} className="text-white/10" />
-                      <p className="text-risda-muted font-black uppercase tracking-[4px] text-[9px]">Tiada rekod kehadiran dijumpai</p>
+                    <div className="py-12 text-center border border-dashed border-white/5 rounded-3xl flex flex-col items-center gap-4">
+                      <AlertCircle size={32} className="text-white/20" />
+                      <div className="space-y-1">
+                        <p className="text-risda-muted font-black uppercase tracking-[3px] text-[10px]">Tiada rekod kehadiran dijumpai</p>
+                        <p className="text-white/40 text-[9px]">Anda boleh menggunakan butang "Pilih Sebutharga Semula" di atas untuk menetapkan keputusan rasmi.</p>
+                      </div>
                     </div>
                   ) : (
                     attendees.map((attendee: any) => (
@@ -1526,99 +1741,146 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                   >
                     <div className="flex-1 overflow-y-auto space-y-8 pr-3 scrollbar-thin scrollbar-thumb-risda-orange/40 hover:scrollbar-thumb-risda-orange/60 scrollbar-track-white/5 scroll-smooth pb-12">
                       <div className="text-center space-y-2">
-                        <div className="inline-flex px-3 py-1 bg-risda-orange/10 border border-risda-orange/20 rounded-full text-[9px] font-black text-risda-orange uppercase tracking-widest">Langkah Pengesahan</div>
-                        <h3 className="text-xl font-black text-white uppercase">Maklumat Kontrak</h3>
-                        <p className="text-[10px] text-risda-muted font-bold uppercase tracking-widest italic">{pendingWinner.companyName}</p>
+                        <div className={`inline-flex px-3 py-1 border rounded-full text-[9px] font-black uppercase tracking-widest ${
+                          pendingWinner.isReTender 
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' 
+                            : 'bg-risda-orange/10 border-risda-orange/20 text-risda-orange'
+                        }`}>
+                          {pendingWinner.isReTender ? 'Keputusan Rasmi Sebutharga Semula' : 'Langkah Pengesahan'}
+                        </div>
+                        <h3 className="text-xl font-black text-white uppercase">
+                          {pendingWinner.isReTender ? 'Sebutharga Semula' : 'Maklumat Kontrak'}
+                        </h3>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest italic ${
+                          pendingWinner.isReTender ? 'text-amber-400' : 'text-risda-muted'
+                        }`}>{pendingWinner.companyName}</p>
                       </div>
 
                       <div className="space-y-6">
                         <div className="space-y-2">
-                          <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Pemenang Dipilih / Keputusan</label>
+                          <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Keputusan Rasmi</label>
                           <input 
                             type="date"
                             value={winnerDates.decisionDate}
                             onChange={(e) => setWinnerDates({...winnerDates, decisionDate: e.target.value})}
                             className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
                           />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Mula Kerja</label>
-                          <input 
-                            type="date"
-                            value={winnerDates.startDate}
-                            onChange={(e) => setWinnerDates({...winnerDates, startDate: e.target.value})}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Akhir Kerja</label>
-                          <input 
-                            type="date"
-                            value={winnerDates.endDate}
-                            onChange={(e) => setWinnerDates({...winnerDates, endDate: e.target.value})}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Harga Perolehan Terpilih / Nilai Keputusan (RM)</label>
-                          <input 
-                            type="number"
-                            placeholder="Contoh: 125000"
-                            value={winnerDates.winningPrice}
-                            onChange={(e) => setWinnerDates({...winnerDates, winningPrice: e.target.value})}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                        </div>
-                        <div className="p-5 bg-white/5 rounded-2xl border border-white/5">
-                          <p className="text-[9px] text-risda-muted font-bold uppercase tracking-[2px] mb-1">Tempat Kerja (Auto)</p>
-                          <p className="text-[11px] text-white font-black uppercase italic leading-tight">{selectedAdForWinner?.visitVenue || selectedAdForWinner?.docVenue || '-'}</p>
+                          <span className="text-[9px] text-risda-muted font-bold block px-1">Format: DD/MM/YYYY (Pilih atau isi tarikh keputusan rasmi)</span>
                         </div>
 
-                        <div className="pt-2 space-y-4">
-                          <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Pilihan Hebahan Autonotifikasi</label>
-                          <div className="flex flex-col gap-3">
-                            <button
-                              onClick={() => setNotifyPrefs(prev => ({ ...prev, whatsapp: !prev.whatsapp }))}
-                              className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
-                                notifyPrefs.whatsapp 
-                                  ? 'bg-green-500/20 border-green-500/50 text-green-400' 
-                                  : 'bg-white/5 border-white/10 text-white/30'
-                              }`}
-                            >
-                              <div className={`p-2 rounded-lg ${notifyPrefs.whatsapp ? 'bg-green-500 text-black' : 'bg-white/10 text-white/30'}`}>
-                                <MessageCircle size={16} />
+                        {pendingWinner.isReTender ? (
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-[9px] font-black text-amber-400 uppercase tracking-[3px] px-1">Catatan / Sebab Sebutharga Semula</label>
+                              <input 
+                                type="text"
+                                placeholder="Contoh: Tiada pembekal mematuhi spesifikasi / Syarikat tidak mencukupi"
+                                value={winnerDates.remarks}
+                                onChange={(e) => setWinnerDates({...winnerDates, remarks: e.target.value})}
+                                className="w-full bg-white/5 border border-amber-500/30 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-amber-400 transition-all"
+                              />
+                            </div>
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-300 font-bold uppercase tracking-wide leading-relaxed">
+                              ℹ️ Keputusan ini akan direkodkan secara rasmi sebagai SEBUTHARGA SEMULA bagi iklan sebut harga ini dan dipaparkan dalam laporan serta carian awam.
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Mula Kerja</label>
+                              <input 
+                                type="date"
+                                value={winnerDates.startDate}
+                                onChange={(e) => setWinnerDates({...winnerDates, startDate: e.target.value})}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Akhir Kerja</label>
+                              <input 
+                                type="date"
+                                value={winnerDates.endDate}
+                                onChange={(e) => setWinnerDates({...winnerDates, endDate: e.target.value})}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
+                              />
+                            </div>
+
+                            {winnerDates.startDate && winnerDates.endDate && (
+                              <div className="p-3.5 bg-risda-orange/10 border border-risda-orange/30 rounded-xl flex items-center justify-between">
+                                <span className="text-[10px] font-black text-risda-orange uppercase tracking-wider">Tempoh Siap Kerja (Auto-Kiraan)</span>
+                                <span className="text-xs font-black text-white bg-risda-orange/20 px-3 py-1 rounded-lg border border-risda-orange/40">
+                                  {calculateTempohSiapKerja(winnerDates.startDate, winnerDates.endDate) || '-'}
+                                </span>
                               </div>
-                              <span className="text-[11px] font-black uppercase tracking-[2px]">Hebahan WhatsApp</span>
-                            </button>
-                            <button
-                              onClick={() => setNotifyPrefs(prev => ({ ...prev, email: !prev.email }))}
-                              className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
-                                notifyPrefs.email 
-                                  ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' 
-                                  : 'bg-white/5 border-white/10 text-white/30'
-                              }`}
-                            >
-                              <div className={`p-2 rounded-lg ${notifyPrefs.email ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/30'}`}>
-                                <Mail size={16} />
+                            )}
+                            <div className="space-y-2">
+                              <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Harga Perolehan Terpilih / Nilai Keputusan (RM)</label>
+                              <input 
+                                type="number"
+                                placeholder="Contoh: 125000"
+                                value={winnerDates.winningPrice}
+                                onChange={(e) => setWinnerDates({...winnerDates, winningPrice: e.target.value})}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                            </div>
+
+
+                            <div className="p-5 bg-white/5 rounded-2xl border border-white/5">
+                              <p className="text-[9px] text-risda-muted font-bold uppercase tracking-[2px] mb-1">Tempat Kerja (Auto)</p>
+                              <p className="text-[11px] text-white font-black uppercase italic leading-tight">{selectedAdForWinner?.visitVenue || selectedAdForWinner?.docVenue || '-'}</p>
+                            </div>
+
+                            <div className="pt-2 space-y-4">
+                              <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Pilihan Hebahan Autonotifikasi</label>
+                              <div className="flex flex-col gap-3">
+                                <button
+                                  onClick={() => setNotifyPrefs(prev => ({ ...prev, whatsapp: !prev.whatsapp }))}
+                                  className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
+                                    notifyPrefs.whatsapp 
+                                      ? 'bg-green-500/20 border-green-500/50 text-green-400' 
+                                      : 'bg-white/5 border-white/10 text-white/30'
+                                  }`}
+                                >
+                                  <div className={`p-2 rounded-lg ${notifyPrefs.whatsapp ? 'bg-green-500 text-black' : 'bg-white/10 text-white/30'}`}>
+                                    <MessageCircle size={16} />
+                                  </div>
+                                  <span className="text-[11px] font-black uppercase tracking-[2px]">Hebahan WhatsApp</span>
+                                </button>
+                                <button
+                                  onClick={() => setNotifyPrefs(prev => ({ ...prev, email: !prev.email }))}
+                                  className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
+                                    notifyPrefs.email 
+                                      ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' 
+                                      : 'bg-white/5 border-white/10 text-white/30'
+                                  }`}
+                                >
+                                  <div className={`p-2 rounded-lg ${notifyPrefs.email ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/30'}`}>
+                                    <Mail size={16} />
+                                  </div>
+                                  <span className="text-[11px] font-black uppercase tracking-[2px]">Hebahan Emel</span>
+                                </button>
                               </div>
-                              <span className="text-[11px] font-black uppercase tracking-[2px]">Hebahan Emel</span>
-                            </button>
-                          </div>
-                        </div>
+                            </div>
+                          </>
+                        )}
 
                         {/* Action buttons inside scrolling container to ensure they are always visible and clickable */}
                         <div className="pt-6 flex flex-col gap-3 border-t border-white/5">
                           <button 
                             onClick={handleConfirmWinner}
-                            className="w-full py-5 bg-risda-orange text-black rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl shadow-risda-orange/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                            className={`w-full py-5 rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 ${
+                              pendingWinner.isReTender
+                                ? 'bg-amber-500 text-slate-950 shadow-amber-500/20'
+                                : 'bg-risda-orange text-black shadow-risda-orange/10'
+                            }`}
                           >
-                            <Send size={18} />
-                            Simpan & Hebah Keputusan
+                            {pendingWinner.isReTender ? <RotateCcw size={18} /> : <Send size={18} />}
+                            {pendingWinner.isReTender ? 'Simpan & Sahkan Sebutharga Semula' : 'Simpan & Hebah Keputusan'}
                           </button>
                           <button 
                             onClick={() => {
                               setPendingWinner(null);
-                              setWinnerDates({ startDate: '', endDate: '', winningPrice: '', location: '', decisionDate: '' });
+                              setWinnerDates({ startDate: '', endDate: '', winningPrice: '', location: '', decisionDate: '', remarks: '' });
                             }}
                             className="w-full py-4 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-risda-muted hover:text-white rounded-2xl transition-all"
                           >
@@ -1630,6 +1892,178 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                   </motion.div>
                 )}
               </AnimatePresence>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Papar Butiran Iklan */}
+      <AnimatePresence>
+        {selectedAdDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-3xl bg-[#0B132B] border border-white/10 rounded-2xl shadow-2xl overflow-hidden my-8"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-risda-orange/20 border border-risda-orange/30 rounded-xl text-risda-gold">
+                    <FileText size={22} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-mono font-bold text-risda-gold uppercase tracking-widest">{selectedAdDetail.tenderNo}</div>
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight">Butiran Iklan Sebut Harga</h3>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedAdDetail(null)}
+                  className="p-2.5 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Content Body */}
+              <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+                {/* Status Badge & Office */}
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+                  <div>
+                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block mb-1">Status Iklan</span>
+                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      isAdWinnerFinalized(selectedAdDetail) ? 'bg-blue-500/20 text-blue-400 border border-blue-400/30' :
+                      selectedAdDetail.status === 'AKTIF' ? 'bg-green-500/20 text-green-400 border border-green-400/30' :
+                      'bg-red-500/20 text-red-400 border border-red-500/30'
+                    }`}>
+                      {isAdWinnerFinalized(selectedAdDetail) ? 'KEPUTUSAN RASMI (SELESAI)' : selectedAdDetail.status}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block mb-1">Pejabat / Negeri</span>
+                    <span className="text-xs font-black text-white uppercase">{selectedAdDetail.office || 'SELURUH RISDA'} - {selectedAdDetail.state || 'MALAYSIA'}</span>
+                  </div>
+                  {selectedAdDetail.category && (
+                    <div>
+                      <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block mb-1">Kategori</span>
+                      <span className="inline-block px-2.5 py-1 text-[10px] font-black text-white bg-risda-orange/20 border border-risda-orange/30 rounded-lg uppercase">
+                        {selectedAdDetail.category}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Title */}
+                <div>
+                  <h4 className="text-[10px] font-black text-risda-muted uppercase tracking-widest mb-1">Tajuk Sebut Harga / Kerja</h4>
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-xl text-sm font-black text-white uppercase leading-relaxed">
+                    {selectedAdDetail.title}
+                  </div>
+                </div>
+
+                {/* Finalized Winner Details Section if applicable */}
+                {selectedAdDetail.winner && (
+                  <div className="p-5 bg-gradient-to-br from-blue-900/30 via-blue-950/20 to-transparent border border-blue-500/30 rounded-2xl space-y-4">
+                    <div className="flex items-center gap-2 border-b border-blue-500/20 pb-3">
+                      <CheckCircle className="text-blue-400" size={20} />
+                      <h5 className="text-sm font-black text-blue-400 uppercase tracking-wider">Keputusan Rasmi Pemenang Lantikan Kontraktor</h5>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Syarikat Pemenang</span>
+                        <span className="font-black text-white uppercase text-sm block">{selectedAdDetail.winner.companyName}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Nama Pemilik / Wakil</span>
+                        <span className="font-black text-white uppercase block">{selectedAdDetail.winner.ownerName || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Harga Lantikan / Tawaran</span>
+                        <span className="font-mono font-black text-amber-400 text-sm block">
+                          {selectedAdDetail.winner.winningPrice ? `RM ${Number(selectedAdDetail.winner.winningPrice).toLocaleString('ms-MY', { minimumFractionDigits: 2 })}` : '-'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Tempoh Kontrak / Pelaksanaan</span>
+                        <span className="font-black text-white uppercase block">
+                          {formatDate(selectedAdDetail.winner.contractStartDate)} SEHINGGA {formatDate(selectedAdDetail.winner.contractEndDate)}
+                        </span>
+                        {(calculateTempohSiapKerja(selectedAdDetail.winner.contractStartDate, selectedAdDetail.winner.contractEndDate) || selectedAdDetail.winner.tempohSiapKerja || selectedAdDetail.tempohSiapKerja) && (
+                          <span className="inline-block mt-1 px-2 py-0.5 bg-risda-orange/20 border border-risda-orange/40 rounded text-[10px] font-black text-risda-gold uppercase">
+                            TEMPOH: {calculateTempohSiapKerja(selectedAdDetail.winner.contractStartDate, selectedAdDetail.winner.contractEndDate) || selectedAdDetail.winner.tempohSiapKerja || selectedAdDetail.tempohSiapKerja}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Lokasi Kerja</span>
+                        <span className="font-black text-white uppercase block">{selectedAdDetail.winner.location || selectedAdDetail.visitVenue || selectedAdDetail.docVenue || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Tarikh Keputusan</span>
+                        <span className="font-black text-white uppercase block">{formatDate(getNormalizedDecisionDate(selectedAdDetail))}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Important Dates & Venues Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-1">
+                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block">Tarikh Tutup Iklan</span>
+                    <span className="font-black text-white uppercase block text-sm">{formatDate(selectedAdDetail.closingDate)}</span>
+                    <span className="text-[10px] text-risda-gold font-black uppercase block">Masa: 12:00 PM</span>
+                  </div>
+                  <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-1">
+                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block">Lokasi Lawatan Tapak / Dokumen</span>
+                    <span className="font-black text-white uppercase block">{selectedAdDetail.visitVenue || selectedAdDetail.docVenue || selectedAdDetail.briefingVenue || '-'}</span>
+                  </div>
+                </div>
+
+                {/* License Requirements */}
+                {selectedAdDetail.licenseRequirements && (
+                  <div>
+                    <h5 className="text-[10px] font-black text-risda-muted uppercase tracking-widest mb-1">Syarat Kelayakan / Kod Bidang</h5>
+                    <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl text-xs font-semibold text-white/80 uppercase">
+                      {selectedAdDetail.licenseRequirements}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-6 border-t border-white/10 bg-white/5 flex flex-wrap items-center justify-between gap-3">
+                {selectedAdDetail.winner && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await exportResultToPDF({
+                          tenderNo: selectedAdDetail.tenderNo,
+                          title: selectedAdDetail.title,
+                          office: selectedAdDetail.office,
+                          winnerName: selectedAdDetail.winner?.companyName || '-',
+                          startDate: selectedAdDetail.winner?.contractStartDate || '-',
+                          endDate: selectedAdDetail.winner?.contractEndDate || '-',
+                          location: selectedAdDetail.winner?.location || selectedAdDetail.visitVenue || selectedAdDetail.docVenue || '-'
+                        });
+                        toast.success('Dokumen PDF Keputusan Rasmi berjaya dimuat turun');
+                      } catch (err) {
+                        toast.error('Gagal memuat turun PDF');
+                      }
+                    }}
+                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider rounded-xl flex items-center gap-2 transition-all"
+                  >
+                    <Download size={14} /> Muat Turun PDF Keputusan
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedAdDetail(null)}
+                  className="ml-auto px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all"
+                >
+                  Tutup
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

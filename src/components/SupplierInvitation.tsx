@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, orderBy, where, Timestamp, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { isWithinUserScope } from '../lib/scopeUtils';
 import { toast } from 'react-hot-toast';
 import { 
   Plus, 
@@ -1837,7 +1838,12 @@ Pejabat RISDA Daerah Beaufort, Sabah.
       matchesOffice = invOffice === listFilters.office.toUpperCase();
     }
 
-    return matchesSearch && matchesYear && matchesState && matchesOffice;
+    const matchesUserScope = isWithinUserScope(
+      { state: invState, office: invOffice },
+      { role, state: userState, district: userDistrict, office: userOffice }
+    );
+
+    return matchesSearch && matchesYear && matchesState && matchesOffice && matchesUserScope;
   });
 
   // Dynamic header calculations for live preview

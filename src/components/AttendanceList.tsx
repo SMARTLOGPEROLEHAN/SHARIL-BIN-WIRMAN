@@ -6,6 +6,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import AttendanceForm from './AttendanceForm';
 import { toast } from 'react-hot-toast';
+import { isWithinUserScope } from '../lib/scopeUtils';
 
 const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
@@ -41,9 +42,9 @@ interface AttendanceRecord {
 }
 
 export default function AttendanceList() {
-  const { role, office: userOffice } = useAuth();
+  const { role, office: userOffice, state: userState, district: userDistrict } = useAuth();
   const isStaff = role === 'penginput' || role === 'pelulus' || role === 'admin' || role === 'pentadbir';
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'pentadbir';
   
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,7 +236,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
     if (isStaff) {
       fetchAttendance();
     }
-  }, [isStaff, userOffice, role]);
+  }, [isStaff, userOffice, userState, userDistrict, role]);
 
   const filteredAttendance = attendance.filter(record => {
     const searchLower = searchTerm.toLowerCase();
@@ -263,19 +264,16 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
   const fetchAttendance = async () => {
     const collName = 'attendance';
     try {
-      let q;
-      if (isAdmin) {
-        q = query(collection(db, collName), orderBy('timestamp', 'asc'));
-      } else {
-        q = query(collection(db, collName), where('office', '==', userOffice || ''), orderBy('timestamp', 'asc'));
-      }
-
+      const q = query(collection(db, collName), orderBy('timestamp', 'asc'));
       const querySnapshot = await getDocs(q);
       const attendanceData: AttendanceRecord[] = [];
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        attendanceData.push({ id: doc.id, ...(data as any) } as AttendanceRecord);
+        const item = { id: doc.id, ...(data as any) } as AttendanceRecord;
+        if (isWithinUserScope(item, { role, state: userState, district: userDistrict, office: userOffice })) {
+          attendanceData.push(item);
+        }
       });
       
       // Sort client-side to handle docSeriesNo as primary sort key
@@ -707,6 +705,12 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                                 <div className="flex flex-col">
                                   <span className="text-[8px] font-black text-risda-orange uppercase tracking-wider">{fileLabel}</span>
                                   <span className="text-white text-[11px] font-bold uppercase truncate max-w-[250px] sm:max-w-md">{fileName}</span>
+                                  {previewRecord.certificateExpiries?.[key] && (
+                                    <span className="text-emerald-400 text-[9px] font-mono font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
+                                      <Calendar size={10} className="text-risda-gold" />
+                                      TAMAT TEMPOH: {formatDate(previewRecord.certificateExpiries[key])}
+                                    </span>
+                                  )}
                                 </div>
                                 <button
                                   type="button"

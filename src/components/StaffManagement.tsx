@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, updateDoc, serverTimestamp, where, writeBatch, Timestamp, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { isWithinUserScope } from '../lib/scopeUtils';
 import { UserPlus, Trash2, Shield, User, RefreshCcw, Plus, X, Search, Folder, FolderOpen, ChevronDown, ChevronRight, MapPin, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
@@ -28,7 +29,7 @@ interface StaffMember {
 }
 
 export default function StaffManagement() {
-  const { role: currentUserRole, user: currentUser } = useAuth();
+  const { role: currentUserRole, user: currentUser, state: currentUserState, district: currentUserDistrict, office: currentUserOffice } = useAuth();
   const isAdmin = currentUserRole === 'admin' || currentUserRole === 'pentadbir';
   const isStaff = currentUserRole === 'penginput' || currentUserRole === 'pelulus' || isAdmin;
   
@@ -246,22 +247,28 @@ export default function StaffManagement() {
 
       let registrationEmailSent = false;
       const trimmedEmail = email.trim();
+      dataToSave.email = trimmedEmail;
+
       if (!editingId) {
-        // Create - search by staffId to prevent overwriting other users who share the same email address
-        const q = query(collection(db, 'users'), where('staffId', '==', staffId));
-        const emailSnapshot = await getDocs(q);
-        if (!emailSnapshot.empty) {
-          const existingDoc = emailSnapshot.docs[0];
-          await updateDoc(existingDoc.ref, dataToSave);
-        } else {
-          const emailSlug = trimmedEmail.replace(/[^a-zA-Z0-9]/g, '_');
-          const finalDocId = `${emailSlug}_${staffId}`;
-          await setDoc(doc(db, 'users', finalDocId), {
-            ...dataToSave,
-            email: trimmedEmail,
-            createdAt: serverTimestamp(),
-            uid: authUid || finalDocId
-          });
+        // Create - search by staffId and email to prevent duplicate or mismatched documents
+        const qStaff = query(collection(db, 'users'), where('staffId', '==', staffId));
+        const qEmail = query(collection(db, 'users'), where('email', '==', trimmedEmail));
+        const [staffSnap, emailSnap] = await Promise.all([getDocs(qStaff), getDocs(qEmail)]);
+
+        const existingDocs = [...staffSnap.docs, ...emailSnap.docs];
+        const primaryDocId = authUid || (existingDocs.length > 0 ? existingDocs[0].id : `${trimmedEmail.replace(/[^a-zA-Z0-9]/g, '_')}_${staffId}`);
+
+        await setDoc(doc(db, 'users', primaryDocId), {
+          ...dataToSave,
+          createdAt: serverTimestamp(),
+          uid: authUid || primaryDocId
+        }, { merge: true });
+
+        // Clean up or mirror secondary documents if any exist with a different ID
+        for (const existingDoc of existingDocs) {
+          if (existingDoc.id !== primaryDocId) {
+            await deleteDoc(existingDoc.ref).catch(() => null);
+          }
         }
 
         const today = new Date();
@@ -319,7 +326,6 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
           }
 
           const docPromises = [
-            // Format 1: Flat scheme in 'sent_emails'
             addDoc(collection(db, 'sent_emails'), {
               to: trimmedEmail,
               toName: displayName,
@@ -327,7 +333,6 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
               body: notifyBody,
               sentAt: new Date().toISOString()
             }),
-            // Format 2: Nested scheme in 'sent_emails'
             addDoc(collection(db, 'sent_emails'), {
               to: trimmedEmail,
               message: {
@@ -336,7 +341,6 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
               },
               sentAt: new Date().toISOString()
             }).catch(() => null),
-            // Format 3: Flat scheme in 'mail' for generic standard triggers
             addDoc(collection(db, 'mail'), {
               to: trimmedEmail,
               toName: displayName,
@@ -344,7 +348,6 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
               body: notifyBody,
               sentAt: new Date().toISOString()
             }).catch(() => null),
-            // Format 4: Nested scheme in 'mail' (Standard firestore-send-email extension)
             addDoc(collection(db, 'mail'), {
               to: trimmedEmail,
               message: {
@@ -353,7 +356,6 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
               },
               sentAt: new Date().toISOString()
             }).catch(() => null),
-            // Format 5: Flat scheme in 'emails'
             addDoc(collection(db, 'emails'), {
               to: trimmedEmail,
               toName: displayName,
@@ -361,7 +363,6 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
               body: notifyBody,
               sentAt: new Date().toISOString()
             }).catch(() => null),
-            // Format 6: Nested scheme in 'emails'
             addDoc(collection(db, 'emails'), {
               to: trimmedEmail,
               message: {
@@ -381,8 +382,16 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
           toast.error(`Ralat semasa cubaan menghantar e-mel: ${emailErr.message || emailErr}`);
         }
       } else {
-        // Update
+        // Update editingId document
         await updateDoc(doc(db, 'users', editingId), dataToSave);
+        // If authUid exists and editingId != authUid, also mirror to authUid document
+        if (authUid && editingId !== authUid) {
+          await setDoc(doc(db, 'users', authUid), {
+            ...dataToSave,
+            email: trimmedEmail,
+            uid: authUid
+          }, { merge: true });
+        }
       }
 
       // 3. Auto-resolve any pending notifications for this email
@@ -519,10 +528,30 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
     
     const loadingToast = toast.loading('Memadam data...');
     try {
-      // 1. Delete the primary document
+      // 1. Delete the Firebase Auth account first
+      try {
+        const deleteAuthResponse = await fetch('/api/delete-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            uid: staffMember.uid,
+            email: staffMember.email
+          })
+        });
+        if (!deleteAuthResponse.ok) {
+          const errData = await deleteAuthResponse.json().catch(() => ({}));
+          console.warn('Firebase Auth user deletion warning:', errData.error);
+        }
+      } catch (authDeleteErr) {
+        console.warn('Failed to connect to Auth deletion service:', authDeleteErr);
+      }
+
+      // 2. Delete the primary document
       await deleteDoc(doc(db, 'users', id));
       
-      // 2. Clear other documents that share the same staffId (e.g., pre-registration vs UID migrated documents)
+      // 3. Clear other documents that share the same staffId (e.g., pre-registration vs UID migrated documents)
       if (staffMember.staffId) {
         const q = query(collection(db, 'users'), where('staffId', '==', staffMember.staffId));
         const snapshot = await getDocs(q);
@@ -535,7 +564,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
         }
       }
 
-      // 3. Delete related system notifications associated with this staff's email completely
+      // 4. Delete related system notifications associated with this staff's email completely
       if (staffMember.email) {
         const notifQ = query(collection(db, 'notifications'), where('userEmail', '==', staffMember.email.trim()));
         const notifSnapshot = await getDocs(notifQ);
@@ -676,6 +705,13 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
       // Regular staff only see themselves
       return s.email === currentUser?.email;
     }
+
+    const matchesScope = isWithinUserScope(s, {
+      role: currentUserRole,
+      state: currentUserState,
+      district: currentUserDistrict,
+      office: currentUserOffice
+    });
     
     const matchesSearch = s.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -684,7 +720,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
       
     const matchesRole = roleFilter === 'all' || s.role === roleFilter;
     
-    return matchesSearch && matchesRole;
+    return matchesScope && matchesSearch && matchesRole;
   });
 
   // Auto-expand states & districts when searching or filtering is active

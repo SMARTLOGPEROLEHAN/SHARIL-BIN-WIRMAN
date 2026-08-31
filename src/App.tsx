@@ -22,14 +22,17 @@ import ReportPanel from './components/ReportPanel';
 import InfoPortal from './components/InfoPortal';
 import SessionGuard from './components/SessionGuard';
 import SupplierInvitation from './components/SupplierInvitation';
+import OrderRequestManagement from './components/OrderRequestManagement';
+import AllocationCodeManagement from './components/AllocationCodeManagement';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import PublicAttendancePage from './components/PublicAttendancePage';
 import PublicLetterPage from './components/PublicLetterPage';
+import AttendanceNotificationModal from './components/AttendanceNotificationModal';
 
 function AppContent() {
   const { user, role } = useAuth();
-  const [view, setView] = useState<'dashboard' | 'login' | 'staff' | 'tenders' | 'attendance' | 'laporan' | 'info' | 'locations' | 'userInfo' | 'projek' | 'keputusan' | 'attendance-records' | 'pelawaan'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'login' | 'staff' | 'tenders' | 'attendance' | 'laporan' | 'info' | 'locations' | 'userInfo' | 'projek' | 'keputusan' | 'attendance-records' | 'pelawaan' | 'permintaan' | 'peruntukan'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [adIdParam, setAdIdParam] = useState<string | null>(() => {
@@ -86,6 +89,10 @@ function AppContent() {
         setView('tenders');
       } else if (path === '/pelawaan-sebutharga') {
         setView('pelawaan');
+      } else if (path === '/urus-permintaan-pesanan') {
+        setView('permintaan');
+      } else if (path === '/kod-peruntukan') {
+        setView('peruntukan');
       } else if (path === '/data-kehadiran') {
         setView('attendance');
       } else if (path === '/laporan') {
@@ -180,6 +187,10 @@ function AppContent() {
         return <TenderManagement />;
       case 'pelawaan':
         return <SupplierInvitation />;
+      case 'permintaan':
+        return <OrderRequestManagement />;
+      case 'peruntukan':
+        return <AllocationCodeManagement />;
       case 'attendance':
         return <AttendanceList />;
       case 'laporan':
@@ -191,13 +202,13 @@ function AppContent() {
       case 'projek':
         return (
           <div className="w-full pt-10">
-            <ProjectFilters showRegistration={false} initialStatus="AKTIF" />
+            <ProjectFilters showRegistration={false} initialStatus="AKTIF" sourceContext="projek" />
           </div>
         );
       case 'keputusan':
         return (
           <div className="w-full pt-10">
-            <ProjectFilters showRegistration={false} initialStatus="SELESAI (KEPUTUSAN)" />
+            <ProjectFilters showRegistration={false} initialStatus="SELESAI (KEPUTUSAN)" sourceContext="keputusan" />
           </div>
         );
       case 'attendance-records':
@@ -219,7 +230,7 @@ function AppContent() {
           <div className="w-full space-y-8">
             <Hero />
             <div id="main-content" />
-            <ProjectFilters initialStatus="AKTIF" />
+            <ProjectFilters initialStatus="AKTIF" sourceContext="dashboard" />
           </div>
         );
     }
@@ -235,6 +246,7 @@ function AppContent() {
         isSidebarCollapsed={isSidebarCollapsed}
       />
       <SessionGuard />
+      <AttendanceNotificationModal />
       {isStaff && (
         <Sidebar 
           isOpen={isSidebarOpen} 

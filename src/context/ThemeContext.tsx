@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-type Theme = 'dark' | 'custom';
+type Theme = 'dark' | 'custom' | 'emerald' | 'sunset' | 'black';
 
 interface ThemeContextType {
   theme: Theme;
@@ -17,10 +17,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.classList.remove('custom-theme');
+    root.classList.remove('custom-theme', 'emerald-theme', 'sunset-theme', 'light-theme', 'black-theme');
     
     if (theme === 'custom') {
       root.classList.add('custom-theme');
+    } else if (theme === 'emerald') {
+      root.classList.add('emerald-theme');
+    } else if (theme === 'sunset') {
+      root.classList.add('sunset-theme');
+    } else if (theme === 'black') {
+      root.classList.add('black-theme');
     }
     
     localStorage.setItem('risda-theme', theme);

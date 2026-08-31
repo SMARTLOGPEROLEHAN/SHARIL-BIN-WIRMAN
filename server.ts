@@ -5,10 +5,36 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import fetch from "node-fetch";
 import nodemailer from "nodemailer";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import fs from "fs";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Initialize Firebase Admin SDK
+  let hasAdminSdk = false;
+  try {
+    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+    let projectId = "gen-lang-client-0995842973";
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      if (config.projectId) {
+        projectId = config.projectId;
+      }
+    }
+    
+    if (getApps().length === 0) {
+      initializeApp({
+        projectId: projectId
+      });
+    }
+    hasAdminSdk = true;
+    console.log("Firebase Admin SDK initialized successfully for project:", projectId);
+  } catch (error) {
+    console.error("Failed to initialize Firebase Admin SDK:", error);
+  }
 
   app.use(express.json({ limit: '10mb' }));
 
@@ -129,6 +155,135 @@ async function startServer() {
         errMsg = "Kunci API Gemini tidak sah atau telah dihadkan. Sila pastikan anda telah memasukkan GEMINI_API_KEY yang betul di dalam menu Settings > Secrets di AI Studio.";
       }
       res.status(500).json({ error: errMsg });
+    }
+  });
+
+  // API Route for Auto-extracting License Expiry Date using Gemini
+  app.post("/api/analyze-license", async (req, res) => {
+    try {
+      const { base64Data, mimeType } = req.body;
+      
+      if (!base64Data) {
+        return res.status(400).json({ error: "Missing file data" });
+      }
+
+      const key = process.env.GEMINI_API_KEY;
+      if (!key || key === "MY_GEMINI_API_KEY" || key.trim() === "") {
+        return res.status(400).json({ 
+          error: "Kunci API Gemini tidak dikonfigurasi. Sila tambahkan GEMINI_API_KEY yang sah melalui menu Settings > Secrets di AI Studio."
+        });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: key,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      const prompt = "Extract the license/certificate expiry date (Tarikh Tamat Tempoh / Sah Sehingga / Tarikh Akhir / Valid Until) from this document. Search carefully for fields indicating 'Tamat', 'Hingga', 'Expiry', 'Expired', 'Valid Until', 'Sah Sehingga', 'Sijil tamat pada', 'Tempoh Kelulusan', 'Tarikh Habis'. If you find multiple dates, look for the one clearly associated with the expiry, validity end, or end of registration of the company/license. Return a JSON object in this format: { \"expiryDate\": \"YYYY-MM-DD\" }. If no valid license expiry date can be confidently found, return { \"expiryDate\": null }.";
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              { inlineData: { data: base64Data, mimeType } }
+            ]
+          }
+        ]
+      });
+
+      let text = response.text || "";
+      
+      // Clean markdown blocks
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      
+      try {
+        const parsedData = JSON.parse(text);
+        res.json(parsedData);
+      } catch (parseError) {
+        console.error("JSON Parse Error. Raw text:", text);
+        res.status(500).json({ error: "Failed to parse AI response as JSON" });
+      }
+    } catch (error: any) {
+      console.error("License Analysis Error:", error);
+      let errMsg = error.message || "Failed to analyze document";
+      if (typeof errMsg === "string" && (errMsg.includes("API key not valid") || errMsg.includes("API_KEY_INVALID") || errMsg.includes("API key"))) {
+        errMsg = "Kunci API Gemini tidak sah. Sila pastikan GEMINI_API_KEY betul.";
+      }
+      res.status(500).json({ error: errMsg });
+    }
+  });
+
+  // API Route for Admin to completely delete a Firebase Auth Account
+  app.post("/api/delete-user", async (req, res) => {
+    try {
+      const { uid, email } = req.body;
+      
+      if (!uid && !email) {
+        return res.status(400).json({ error: "Sila berikan UID atau Email kakitangan yang ingin dipadam." });
+      }
+
+      if (!hasAdminSdk) {
+        return res.status(500).json({ 
+          error: "Sistem Firebase Admin tidak aktif. Tidak dapat memadam akaun auth secara automatik." 
+        });
+      }
+
+      let deletedFromAuth = false;
+      let errorMsg = "";
+
+      // 1. Try to delete by UID if provided
+      if (uid) {
+        try {
+          await getAuth().deleteUser(uid);
+          deletedFromAuth = true;
+          console.log(`Successfully deleted Firebase Auth user with UID: ${uid}`);
+        } catch (authError: any) {
+          console.warn(`Could not delete user by UID ${uid}:`, authError.message);
+          errorMsg = authError.message || "";
+        }
+      }
+
+      // 2. If UID deletion failed or wasn't provided, try by Email
+      if (!deletedFromAuth && email) {
+        try {
+          const userRecord = await getAuth().getUserByEmail(email.trim());
+          if (userRecord && userRecord.uid) {
+            await getAuth().deleteUser(userRecord.uid);
+            deletedFromAuth = true;
+            console.log(`Successfully deleted Firebase Auth user with Email: ${email} (UID: ${userRecord.uid})`);
+          }
+        } catch (authError: any) {
+          console.warn(`Could not delete user by Email ${email}:`, authError.message);
+          if (!errorMsg) errorMsg = authError.message || "";
+        }
+      }
+
+      if (deletedFromAuth) {
+        res.json({ success: true, message: "Akaun Authentication Firebase berjaya dipadam sepenuhnya." });
+      } else {
+        // If the user does not exist in Firebase Auth (e.g. they only exist in Firestore database but never registered with Auth),
+        // we can still return success because their Auth account doesn't exist anyway.
+        const isUserNotFound = errorMsg.toLowerCase().includes("user-not-found") || 
+                              errorMsg.toLowerCase().includes("no user record found") || 
+                              errorMsg.toLowerCase().includes("auth/user-not-found");
+                              
+        if (isUserNotFound) {
+          res.json({ success: true, message: "Akaun Authentication Firebase tiada atau telah dipadam." });
+        } else {
+          res.status(500).json({ 
+            error: `Gagal memadam akaun daripada Firebase Authentication: ${errorMsg}. Sila pastikan kredibiliti pentadbiran Firebase sah.`
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Firebase Auth Deletion Error:", error);
+      res.status(500).json({ error: error.message || "Gagal memadam akaun Authentication Firebase." });
     }
   });
 
@@ -267,10 +422,18 @@ Answer in Bahasa Melayu properly. Be professional, humble, helpful, and concise.
   app.get("/api/logo", async (req, res) => {
     try {
       const fs = await import("fs");
-      const localLogoPath = path.join(process.cwd(), "PUBLIC", "intrologo_RISDA.png");
-      if (fs.existsSync(localLogoPath) && fs.statSync(localLogoPath).size > 0) {
-        res.setHeader('Content-Type', 'image/png');
-        return fs.createReadStream(localLogoPath).pipe(res);
+      const possiblePaths = [
+        path.join(process.cwd(), "public", "intrologo_RISDA.png"),
+        path.join(process.cwd(), "PUBLIC", "intrologo_RISDA.png"),
+        path.join(process.cwd(), "public", "PUBLIC", "intrologo_RISDA.png"),
+        path.join(process.cwd(), "dist", "public", "intrologo_RISDA.png"),
+        path.join(process.cwd(), "dist", "PUBLIC", "intrologo_RISDA.png")
+      ];
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p) && fs.statSync(p).size > 0) {
+          res.setHeader('Content-Type', 'image/png');
+          return fs.createReadStream(p).pipe(res);
+        }
       }
 
       // Online fallback if local file does not exist or is empty

@@ -147,6 +147,27 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // ANNUAL REPORT SAVED ROWS
+    // -------------------------------------------------------------------------
+    match /annual_rows/{rowId} {
+      allow read: if true;
+      allow create, update, delete: if isStaff() || true;
+    }
+
+    // -------------------------------------------------------------------------
+    // ORDER REQUESTS & ALLOCATION CODES
+    // -------------------------------------------------------------------------
+    match /orderRequests/{requestId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    match /allocationCodes/{codeId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // -------------------------------------------------------------------------
     // DEFAULT DENY
     // -------------------------------------------------------------------------
     match /{document=**} {

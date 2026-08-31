@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { addDoc, collection, doc, updateDoc, getDocs, query, where, setDoc, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { motion } from 'motion/react';
-import { UserCheck, CheckCircle, Shield, X, Upload, FileText as FileIcon, Search, Database, UserPlus, ArrowLeft, RefreshCw } from 'lucide-react';
+import { UserCheck, CheckCircle, Shield, X, Upload, FileText as FileIcon, Search, Database, UserPlus, ArrowLeft, RefreshCw, Calendar } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { optimizeImage } from '../lib/imageOptimizer';
 
@@ -32,10 +32,50 @@ interface AttendanceFormProps {
     phoneNumber: string;
     email?: string;
     certificateUrl?: string;
-  }
+    timestamp?: string;
+  };
+  isManualMode?: boolean;
 }
 
-export default function AttendanceForm({ adId, adTitle, tenderNo, office, licenseRequirements, licenses, onSuccess, editingRecord }: AttendanceFormProps) {
+const formatForDateTimeLocal = (dateString?: string) => {
+  if (!dateString) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch (e) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+};
+
+export default function AttendanceForm({ adId, adTitle, tenderNo, office, licenseRequirements, licenses, onSuccess, editingRecord, isManualMode }: AttendanceFormProps) {
   const [formData, setFormData] = useState({
     companyName: editingRecord?.companyName || '',
     ownerName: editingRecord?.ownerName || '',
@@ -44,12 +84,52 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
     phoneNumber: editingRecord?.phoneNumber || '',
     email: editingRecord?.email || '',
   });
+  const [customTimestamp, setCustomTimestamp] = useState<string>(
+    formatForDateTimeLocal((editingRecord as any)?.timestamp)
+  );
   const [certificateFiles, setCertificateFiles] = useState<Record<string, File>>({});
+  const [certificateExpiries, setCertificateExpiries] = useState<Record<string, string>>((editingRecord as any)?.certificateExpiries || {});
   const [dragActiveStates, setDragActiveStates] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [registeredSeriesNo, setRegisteredSeriesNo] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
+  // Closed / Re-tender state check
+  const [isAdClosed, setIsAdClosed] = useState<boolean>(false);
+  const [isReTenderAd, setIsReTenderAd] = useState<boolean>(false);
+  const [adCategory, setAdCategory] = useState<string>('');
+
+  React.useEffect(() => {
+    const checkAdStatus = async () => {
+      if (!adId) return;
+      try {
+        const adDocRef = doc(db, 'ads', adId);
+        const adSnap = await getDoc(adDocRef);
+        if (adSnap.exists()) {
+          const adData = adSnap.data();
+          if (adData.category) setAdCategory(adData.category);
+          const reTender = Boolean(
+            adData.winner?.isReTender ||
+            adData.winner?.companyName === 'SEBUTHARGA SEMULA' ||
+            adData.winnerName === 'SEBUTHARGA SEMULA' ||
+            adData.winner?.companyName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+            adData.winnerName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+            adData.statusPelaksanaan === 'SEBUTHARGA SEMULA'
+          );
+          if (reTender) {
+            setIsReTenderAd(true);
+            setIsAdClosed(true);
+          } else if (adData.status === 'SELESAI (KEPUTUSAN)' || adData.status === 'BATAL') {
+            setIsAdClosed(true);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking ad status in AttendanceForm:', err);
+      }
+    };
+    checkAdStatus();
+  }, [adId]);
 
   // Registration check state
   const [hasRegisteredBefore, setHasRegisteredBefore] = useState<boolean | null>(editingRecord ? false : null);
@@ -82,26 +162,115 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
       }
       
       const records = querySnapshot.docs.map(docSnap => docSnap.data());
-      // Sort desc by timestamp
-      records.sort((a: any, b: any) => {
+
+      // Helper to identify license type of a previous record
+      const getRecordLicenseTypes = (rec: any): string[] => {
+        const types: string[] = [];
+        
+        // 1. Direct licenseType field
+        if (rec.licenseType) {
+          if (typeof rec.licenseType === 'string') {
+            const lt = rec.licenseType.toUpperCase();
+            if (lt.includes('MOF')) types.push('MOF');
+            if (lt.includes('CIDB')) types.push('CIDB');
+          } else if (Array.isArray(rec.licenseType)) {
+            rec.licenseType.forEach((t: string) => {
+              const lt = String(t).toUpperCase();
+              if (lt.includes('MOF')) types.push('MOF');
+              if (lt.includes('CIDB')) types.push('CIDB');
+            });
+          }
+        }
+
+        // 2. Category field
+        const cat = (rec.category || '').toUpperCase();
+        if (cat === 'BEKALAN' || cat === 'PERKHIDMATAN') {
+          if (!types.includes('MOF')) types.push('MOF');
+        } else if (cat === 'KERJA') {
+          if (!types.includes('CIDB')) types.push('CIDB');
+        }
+
+        // 3. Explicit certificate flags
+        const certs = rec.certificates || {};
+        const expiries = rec.certificateExpiries || {};
+        const b64 = rec.certificatesBase64 || {};
+
+        if (certs.mof || expiries.mof || b64.mof) {
+          if (!types.includes('MOF')) types.push('MOF');
+        }
+        if (certs.cidb || certs.cidbSpkk || certs.cidbPkk || expiries.cidb || expiries.cidbSpkk || expiries.cidbPkk || b64.cidb || b64.cidbSpkk || b64.cidbPkk) {
+          if (!types.includes('CIDB')) types.push('CIDB');
+        }
+
+        // 4. Fallback: Check certificateName or adTitle
+        if (types.length === 0) {
+          const certName = (rec.certificateName || '').toUpperCase();
+          const adTitleRec = (rec.adTitle || '').toUpperCase();
+          if (certName.includes('MOF') || certName.includes('KEWANGAN') || adTitleRec.includes('BEKALAN') || adTitleRec.includes('PERKHIDMATAN')) {
+            types.push('MOF');
+          } else if (certName.includes('CIDB') || certName.includes('SPKK') || certName.includes('PKK') || adTitleRec.includes('KERJA')) {
+            types.push('CIDB');
+          }
+        }
+
+        return types;
+      };
+
+      // Determine license requirement of current advertisement
+      const titleUpper = (adTitle || '').toUpperCase();
+      const currentAdIsCidb = Boolean(
+        licenses?.cidbSpkk || licenses?.cidbPkk || adCategory === 'KERJA' || titleUpper.includes('KERJA')
+      );
+
+      const currentAdIsMof = Boolean(
+        licenses?.mof || adCategory === 'BEKALAN' || adCategory === 'PERKHIDMATAN' || titleUpper.includes('BEKALAN') || titleUpper.includes('PERKHIDMATAN')
+      );
+
+      // Sort helper
+      const sortByTime = (arr: any[]) => arr.sort((a, b) => {
         const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return timeB - timeA;
       });
-      
-      const newestRecord = records[0];
-      
+
+      let newestRecord: any = null;
+      let matchedTag = '';
+
+      if (currentAdIsMof) {
+        const mofRecords = records.filter(rec => getRecordLicenseTypes(rec).includes('MOF'));
+        if (mofRecords.length > 0) {
+          sortByTime(mofRecords);
+          newestRecord = mofRecords[0];
+          matchedTag = ' [LESEN MOF]';
+        }
+      } else if (currentAdIsCidb) {
+        const cidbRecords = records.filter(rec => getRecordLicenseTypes(rec).includes('CIDB'));
+        if (cidbRecords.length > 0) {
+          sortByTime(cidbRecords);
+          newestRecord = cidbRecords[0];
+          matchedTag = ' [LESEN CIDB]';
+        }
+      }
+
+      // Fallback if no specific license record match found, use newest overall record for this IC
+      if (!newestRecord) {
+        const allSorted = [...records];
+        sortByTime(allSorted);
+        newestRecord = allSorted[0];
+        matchedTag = '';
+      }
+
       // Auto-fill form data
       setFormData({
-        companyName: newestRecord.companyName || '',
-        ownerName: newestRecord.ownerName || '',
-        companyAddress: newestRecord.companyAddress || '',
+        companyName: (newestRecord.companyName || '').toUpperCase().trim(),
+        ownerName: (newestRecord.ownerName || '').toUpperCase().trim(),
+        companyAddress: (newestRecord.companyAddress || '').toUpperCase().trim(),
         icNumber: newestRecord.icNumber || cleanIc,
         phoneNumber: newestRecord.phoneNumber || '',
         email: newestRecord.email || '',
       });
       
-      toast.success('Pendaftaran terdahulu ditemui! Maklumat anda telah diisi secara automatik.');
+      toast.success(`Pendaftaran terdahulu${matchedTag} ditemui untuk ${newestRecord.companyName}! Maklumat telah diisi secara automatik.`);
       
       // Navigate to the form
       setHasRegisteredBefore(false);
@@ -129,7 +298,48 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
     ? requiredLicenses 
     : [{ key: 'umum', label: 'Sijil Pendaftaran Syarikat / CIDB / Lain-Lain Sijil Kelayakan' }];
 
+  const fileToBase64 = (fileObj: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(fileObj);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const autoExtractExpiryDate = async (key: string, file: File) => {
+    const ocrToastId = toast.loading('Mengimbas tarikh tamat tempoh secara automatik...');
+    try {
+      const b64 = await fileToBase64(file);
+      const base64Data = b64.split(',')[1];
+      const mimeType = file.type || 'application/pdf';
+
+      const res = await fetch('/api/analyze-license', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64Data, mimeType })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.expiryDate) {
+          setCertificateExpiries(prev => ({ ...prev, [key]: data.expiryDate }));
+          toast.success('Tarikh tamat tempoh dikesan secara automatik!', { id: ocrToastId });
+        } else {
+          toast.error('Tarikh tamat tidak dikesan. Sila masukkan secara manual.', { id: ocrToastId });
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || 'Ralat semasa mengimbas fail. Sila masukkan tarikh secara manual.', { id: ocrToastId });
+      }
+    } catch (err) {
+      console.error('OCR Extraction error:', err);
+      toast.error('Sistem gagal mengimbas tarikh secara automatik. Sila isi tarikh manual.', { id: ocrToastId });
+    }
+  };
+
   const processAndSetFile = async (key: string, file: File) => {
+    let finalFile = file;
     if (file.type.startsWith('image/')) {
       const compressToastId = toast.loading('Mengoptimumkan saiz imej...');
       try {
@@ -141,6 +351,7 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
           return;
         }
         
+        finalFile = optimized;
         setCertificateFiles(prev => ({ ...prev, [key]: optimized }));
         toast.success(`Imej berjaya dioptimumkan! Saiz sekarang: ${(optimized.size / 1024).toFixed(1)} KB`);
       } catch (optimizeErr) {
@@ -160,15 +371,9 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
       }
       setCertificateFiles(prev => ({ ...prev, [key]: file }));
     }
-  };
 
-  const fileToBase64 = (fileObj: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(fileObj);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-    });
+    // Trigger auto extract
+    await autoExtractExpiryDate(key, finalFile);
   };
 
   const handleDrag = (key: string, e: React.DragEvent) => {
@@ -198,6 +403,14 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAdClosed) {
+      const closedMsg = isReTenderAd
+        ? 'Pendaftaran Kehadiran & Serahan telah TAMAT kerana Keputusan Rasmi iklan ini adalah SEBUTHARGA SEMULA.'
+        : 'Pendaftaran Kehadiran & Serahan telah ditutup kerana iklan ini telah tamat/tidak aktif.';
+      setError(closedMsg);
+      toast.error(closedMsg);
+      return;
+    }
     setLoading(true);
     const path = `attendance`;
     try {
@@ -242,34 +455,49 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
         }
       }
       
+      const isCidbReq = Boolean(licenses?.cidbSpkk || licenses?.cidbPkk || adCategory === 'KERJA');
+      const isMofReq = Boolean(licenses?.mof || adCategory === 'BEKALAN' || adCategory === 'PERKHIDMATAN');
+
       const submissionData: any = {
         ...formData,
         companyName: formData.companyName.toUpperCase().trim(),
         adId,
         adTitle,
         office,
+        category: adCategory || (isCidbReq ? 'KERJA' : 'BEKALAN'),
+        licenseType: isCidbReq ? 'CIDB' : (isMofReq ? 'MOF' : 'LAIN'),
         hasCertificate: editingRecord ? (!!editingRecord.certificateUrl || hasUploadedAny) : hasUploadedAny,
         certificateName: editingRecord 
           ? (editingRecord.certificateUrl ? 'Sijil sedia ada' : (hasUploadedAny ? certificateNamesList : 'Tiada Sijil Dikepilkan (Mendaftar Tanpa Sijil)'))
           : (hasUploadedAny ? certificateNamesList : 'Tiada Sijil Dikepilkan (Mendaftar Tanpa Sijil)'),
         certificates: uploadedCertificateMap,
+        certificateExpiries,
         certificatesBase64,
       };
 
       if (editingRecord && !hasUploadedAny) {
         try {
           const existingDoc = await getDoc(doc(db, 'attendance', editingRecord.id));
-          if (existingDoc.exists() && existingDoc.data().certificatesBase64) {
-            submissionData.certificatesBase64 = existingDoc.data().certificatesBase64;
+          if (existingDoc.exists()) {
+            if (existingDoc.data().certificatesBase64) {
+              submissionData.certificatesBase64 = existingDoc.data().certificatesBase64;
+            }
+            if (existingDoc.data().certificateExpiries) {
+              submissionData.certificateExpiries = existingDoc.data().certificateExpiries;
+            }
           }
         } catch (errPreserve) {
-          console.error("Preserving certificatesBase64 error:", errPreserve);
+          console.error("Preserving certificatesBase64 and expiries error:", errPreserve);
         }
       }
+
+      const selectedDate = customTimestamp ? new Date(customTimestamp) : new Date();
+      const finalIsoTimestamp = isNaN(selectedDate.getTime()) ? new Date().toISOString() : selectedDate.toISOString();
 
       if (editingRecord) {
         await updateDoc(doc(db, 'attendance', editingRecord.id), {
           ...submissionData,
+          timestamp: finalIsoTimestamp,
           updatedAt: new Date().toISOString(),
         });
 
@@ -298,8 +526,27 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
           cidbSpkk: finalCidb,
           updatedAt: new Date().toISOString()
         }, { merge: true });
+
+        // Broadcast notification to system for staff real-time pop-up modal
+        addDoc(collection(db, 'notifications'), {
+          type: 'ATTENDANCE_SUBMITTED',
+          userName: normalizedCompanyName,
+          companyName: normalizedCompanyName,
+          ownerName: formData.ownerName.trim(),
+          adTitle: adTitle,
+          tenderNo: tenderNo || '',
+          docSeriesNo: (editingRecord as any).docSeriesNo || '001',
+          icNumber: formData.icNumber.trim(),
+          phoneNumber: formData.phoneNumber.trim(),
+          email: (formData.email || '').trim(),
+          office: office || 'PEJABAT RISDA DAERAH BEAUFORT',
+          timestamp: finalIsoTimestamp,
+          createdAt: new Date().toISOString(),
+          message: `Kontraktor ${normalizedCompanyName} (${formData.ownerName.trim()}) telah selesai mengemaskini/mendaftar kehadiran lawatan tapak bagi: ${adTitle}`,
+          status: 'pending'
+        }).catch(err => console.error("Error creating system notification for attendance edit:", err));
       } else {
-        submissionData.timestamp = new Date().toISOString();
+        submissionData.timestamp = finalIsoTimestamp;
         // Auto-generate docSeriesNo for this specific project title
         const q = query(collection(db, path), where('adTitle', '==', adTitle));
         const snap = await getDocs(q);
@@ -309,8 +556,25 @@ export default function AttendanceForm({ adId, adTitle, tenderNo, office, licens
         
         await addDoc(collection(db, path), submissionData);
 
-        // Save/Merge to 'suppliers' collection so they can receive future invitations directly
+        // Broadcast notification to system for staff real-time pop-up modal
         const normalizedCompanyName = formData.companyName.toUpperCase().trim();
+        addDoc(collection(db, 'notifications'), {
+          type: 'ATTENDANCE_SUBMITTED',
+          userName: normalizedCompanyName,
+          companyName: normalizedCompanyName,
+          ownerName: formData.ownerName.trim(),
+          adTitle: adTitle,
+          tenderNo: tenderNo || '',
+          docSeriesNo: nextNo,
+          icNumber: formData.icNumber.trim(),
+          phoneNumber: formData.phoneNumber.trim(),
+          email: (formData.email || '').trim(),
+          office: office || 'PEJABAT RISDA DAERAH BEAUFORT',
+          timestamp: finalIsoTimestamp,
+          createdAt: new Date().toISOString(),
+          message: `Kontraktor ${normalizedCompanyName} (${formData.ownerName.trim()}) telah selesai mendaftar kehadiran lawatan tapak bagi: ${adTitle}`,
+          status: 'pending'
+        }).catch(err => console.error("Error creating system notification for attendance:", err));
         const supplierDocId = `supplier_${normalizedCompanyName.replace(/[^A-Z0-9]/g, '_')}`;
         
         let finalCidb = '';
@@ -618,6 +882,26 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
           >
             Selesai & Tutup Borang
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAdClosed) {
+    return (
+      <div className="p-8 md:p-12 bg-amber-500/10 border border-amber-500/30 rounded-3xl text-center space-y-5 my-6 shadow-2xl max-w-2xl mx-auto">
+        <div className="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center mx-auto border border-amber-500/30 shadow-lg shadow-amber-500/10">
+          <Database size={28} />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-lg md:text-xl font-black text-white uppercase tracking-wider">
+            {isReTenderAd ? 'IKLAN TELAH TAMAT (SEBUTHARGA SEMULA)' : 'PENDAFTARAN DITUTUP'}
+          </h3>
+          <p className="text-xs md:text-sm text-amber-200/90 uppercase leading-relaxed font-medium max-w-lg mx-auto">
+            {isReTenderAd
+              ? 'Keputusan rasmi bagi sebut harga ini telah disahkan sebagai SEBUTHARGA SEMULA (Tiada Pemenang Dipilih). Pengisian manual dan pendaftaran borang kehadiran & serahan telah TAMAT secara rasmi.'
+              : 'Pendaftaran borang kehadiran dan penyerahan bagi sebut harga ini telah tamat atau tidak lagi aktif.'}
+          </p>
         </div>
       </div>
     );
@@ -942,6 +1226,22 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                   required
                 />
               </div>
+              <div className="space-y-1.5 pt-2 border-t border-white/5">
+                <label className="text-[8px] md:text-[9px] font-bold text-risda-orange uppercase tracking-[2px] px-1 flex items-center gap-1.5">
+                  <Calendar size={13} className="text-risda-orange" />
+                  Tarikh &amp; Masa Pendaftaran Kehadiran <span className="text-white/50 text-[8px] font-normal italic">(Pilih Jika Daftar Manual / Iklan Tahun Lain)</span>
+                </label>
+                <input 
+                  type="datetime-local"
+                  value={customTimestamp}
+                  onChange={(e) => setCustomTimestamp(e.target.value)}
+                  className="w-full bg-black/40 border border-risda-border rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 text-xs md:text-sm text-white focus:border-risda-orange/50 outline-none transition-all font-mono"
+                  required
+                />
+                <p className="text-[8px] text-risda-muted italic px-1">
+                  * Nota: Sila tentukan tarikh dan masa rasmi pendaftaran kehadiran bagi iklan diterbitkan tahun berlainan/selepas.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -957,7 +1257,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                 const file = certificateFiles[lic.key];
                 const isDragLocal = !!dragActiveStates[lic.key];
                 return (
-                  <div key={lic.key} className="space-y-1.5 p-3.5 bg-white/5 rounded-xl border border-white/5">
+                  <div key={lic.key} className="space-y-2.5 p-4 bg-white/5 rounded-xl border border-white/5">
                     <div className="flex items-center justify-between px-1">
                       <span className="text-[9px] font-black text-white uppercase tracking-wider">
                         {lic.label} <span className="text-white/40 italic font-normal text-[8px] uppercase tracking-normal"> (Jika Ada)</span>
@@ -1005,6 +1305,11 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                                 delete next[lic.key];
                                 return next;
                               });
+                              setCertificateExpiries(prev => {
+                                const next = { ...prev };
+                                delete next[lic.key];
+                                return next;
+                              });
                             }}
                             className="text-[9px] font-black text-risda-orange uppercase tracking-wider"
                           >
@@ -1021,6 +1326,23 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                         </div>
                       )}
                     </div>
+
+                    {/* Expiry Date input field */}
+                    {file && (
+                      <div className="space-y-1 pt-1.5 border-t border-white/5 animate-in fade-in duration-300">
+                        <label className="text-[8px] md:text-[9px] font-bold text-risda-gold uppercase tracking-[2px] flex items-center gap-1.5">
+                          <Calendar size={11} className="text-risda-orange" />
+                          TARIKH TAMAT TEMPOH LESEN / SIJIL <span className="text-red-500">*</span>
+                        </label>
+                        <input 
+                          type="date"
+                          required
+                          value={certificateExpiries[lic.key] || ''}
+                          onChange={(e) => setCertificateExpiries(prev => ({ ...prev, [lic.key]: e.target.value }))}
+                          className="w-full bg-black/40 border border-white/10 rounded-xl py-2.5 px-4 text-[11px] text-white focus:border-risda-orange outline-none transition-all"
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Shield, Upload, UserCheck, CheckCircle, AlertCircle, ArrowLeft, FileText, Landmark, Search, Database, UserPlus, ArrowRight, RefreshCw } from 'lucide-react';
+import { X, Shield, Upload, UserCheck, CheckCircle, AlertCircle, ArrowLeft, FileText, Landmark, Search, Database, UserPlus, ArrowRight, RefreshCw, Calendar } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { optimizeImage } from '../lib/imageOptimizer';
 
@@ -32,6 +32,7 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
     email: '',
   });
   const [certificateFiles, setCertificateFiles] = useState<Record<string, File>>({});
+  const [certificateExpiries, setCertificateExpiries] = useState<Record<string, string>>({});
   const [dragActiveStates, setDragActiveStates] = useState<Record<string, boolean>>({});
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -91,7 +92,48 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
     }
   };
 
+  const fileToBase64 = (fileObj: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(fileObj);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const autoExtractExpiryDate = async (key: string, file: File) => {
+    const ocrToastId = toast.loading('Mengimbas tarikh tamat tempoh secara automatik...');
+    try {
+      const b64 = await fileToBase64(file);
+      const base64Data = b64.split(',')[1];
+      const mimeType = file.type || 'application/pdf';
+
+      const res = await fetch('/api/analyze-license', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64Data, mimeType })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.expiryDate) {
+          setCertificateExpiries(prev => ({ ...prev, [key]: data.expiryDate }));
+          toast.success('Tarikh tamat tempoh dikesan secara automatik!', { id: ocrToastId });
+        } else {
+          toast.error('Tarikh tamat tidak dikesan. Sila masukkan secara manual.', { id: ocrToastId });
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || 'Ralat semasa mengimbas fail. Sila masukkan tarikh secara manual.', { id: ocrToastId });
+      }
+    } catch (err) {
+      console.error('OCR Extraction error:', err);
+      toast.error('Sistem gagal mengimbas tarikh secara automatik. Sila isi tarikh manual.', { id: ocrToastId });
+    }
+  };
+
   const processAndSetFile = async (key: string, file: File) => {
+    let finalFile = file;
     if (file.type.startsWith('image/')) {
       const compressToastId = toast.loading('Mengoptimumkan saiz imej...');
       try {
@@ -103,6 +145,7 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
           return;
         }
         
+        finalFile = optimized;
         setCertificateFiles(prev => ({ ...prev, [key]: optimized }));
         toast.success(`Imej berjaya dioptimumkan! Saiz sekarang: ${(optimized.size / 1024).toFixed(1)} KB`);
       } catch (optimizeErr) {
@@ -122,15 +165,9 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
       }
       setCertificateFiles(prev => ({ ...prev, [key]: file }));
     }
-  };
 
-  const fileToBase64 = (fileObj: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(fileObj);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-    });
+    // Trigger auto extract
+    await autoExtractExpiryDate(key, finalFile);
   };
 
   const handleDrop = async (key: string, e: React.DragEvent) => {
@@ -201,26 +238,115 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
       }
       
       const records = querySnapshot.docs.map(docSnap => docSnap.data());
-      // Sort desc by timestamp
-      records.sort((a: any, b: any) => {
+
+      // Helper to identify license type of a previous record
+      const getRecordLicenseTypes = (rec: any): string[] => {
+        const types: string[] = [];
+        
+        // 1. Direct licenseType field
+        if (rec.licenseType) {
+          if (typeof rec.licenseType === 'string') {
+            const lt = rec.licenseType.toUpperCase();
+            if (lt.includes('MOF')) types.push('MOF');
+            if (lt.includes('CIDB')) types.push('CIDB');
+          } else if (Array.isArray(rec.licenseType)) {
+            rec.licenseType.forEach((t: string) => {
+              const lt = String(t).toUpperCase();
+              if (lt.includes('MOF')) types.push('MOF');
+              if (lt.includes('CIDB')) types.push('CIDB');
+            });
+          }
+        }
+
+        // 2. Category field
+        const cat = (rec.category || '').toUpperCase();
+        if (cat === 'BEKALAN' || cat === 'PERKHIDMATAN') {
+          if (!types.includes('MOF')) types.push('MOF');
+        } else if (cat === 'KERJA') {
+          if (!types.includes('CIDB')) types.push('CIDB');
+        }
+
+        // 3. Explicit certificate flags
+        const certs = rec.certificates || {};
+        const expiries = rec.certificateExpiries || {};
+        const b64 = rec.certificatesBase64 || {};
+
+        if (certs.mof || expiries.mof || b64.mof) {
+          if (!types.includes('MOF')) types.push('MOF');
+        }
+        if (certs.cidb || certs.cidbSpkk || certs.cidbPkk || expiries.cidb || expiries.cidbSpkk || expiries.cidbPkk || b64.cidb || b64.cidbSpkk || b64.cidbPkk) {
+          if (!types.includes('CIDB')) types.push('CIDB');
+        }
+
+        // 4. Fallback: Check certificateName or adTitle
+        if (types.length === 0) {
+          const certName = (rec.certificateName || '').toUpperCase();
+          const adTitleRec = (rec.adTitle || '').toUpperCase();
+          if (certName.includes('MOF') || certName.includes('KEWANGAN') || adTitleRec.includes('BEKALAN') || adTitleRec.includes('PERKHIDMATAN')) {
+            types.push('MOF');
+          } else if (certName.includes('CIDB') || certName.includes('SPKK') || certName.includes('PKK') || adTitleRec.includes('KERJA')) {
+            types.push('CIDB');
+          }
+        }
+
+        return types;
+      };
+
+      // Determine license requirement of current advertisement
+      const titleUpper = (ad?.title || '').toUpperCase();
+      const currentAdIsCidb = Boolean(
+        ad?.licenses?.cidbSpkk || ad?.licenses?.cidbPkk || ad?.category === 'KERJA' || titleUpper.includes('KERJA')
+      );
+
+      const currentAdIsMof = Boolean(
+        ad?.licenses?.mof || ad?.category === 'BEKALAN' || ad?.category === 'PERKHIDMATAN' || titleUpper.includes('BEKALAN') || titleUpper.includes('PERKHIDMATAN')
+      );
+
+      // Sort helper
+      const sortByTime = (arr: any[]) => arr.sort((a, b) => {
         const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return timeB - timeA;
       });
-      
-      const newestRecord = records[0];
-      
+
+      let newestRecord: any = null;
+      let matchedTag = '';
+
+      if (currentAdIsMof) {
+        const mofRecords = records.filter(rec => getRecordLicenseTypes(rec).includes('MOF'));
+        if (mofRecords.length > 0) {
+          sortByTime(mofRecords);
+          newestRecord = mofRecords[0];
+          matchedTag = ' [LESEN MOF]';
+        }
+      } else if (currentAdIsCidb) {
+        const cidbRecords = records.filter(rec => getRecordLicenseTypes(rec).includes('CIDB'));
+        if (cidbRecords.length > 0) {
+          sortByTime(cidbRecords);
+          newestRecord = cidbRecords[0];
+          matchedTag = ' [LESEN CIDB]';
+        }
+      }
+
+      // Fallback if no specific license record match found, use newest overall record for this IC
+      if (!newestRecord) {
+        const allSorted = [...records];
+        sortByTime(allSorted);
+        newestRecord = allSorted[0];
+        matchedTag = '';
+      }
+
       // Auto-fill form data
       setFormData({
-        companyName: newestRecord.companyName || '',
-        ownerName: newestRecord.ownerName || '',
-        companyAddress: newestRecord.companyAddress || '',
+        companyName: (newestRecord.companyName || '').toUpperCase().trim(),
+        ownerName: (newestRecord.ownerName || '').toUpperCase().trim(),
+        companyAddress: (newestRecord.companyAddress || '').toUpperCase().trim(),
         icNumber: newestRecord.icNumber || cleanIc,
         phoneNumber: newestRecord.phoneNumber || '',
         email: newestRecord.email || '',
       });
       
-      toast.success('Pendaftaran terdahulu ditemui! Maklumat anda telah diisi secara automatik.');
+      toast.success(`Pendaftaran terdahulu${matchedTag} ditemui untuk ${newestRecord.companyName}! Maklumat telah diisi secara automatik.`);
       
       // Navigate to the form
       setHasRegisteredBefore(false);
@@ -286,6 +412,9 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
         }
       }
 
+      const isCidbAd = Boolean(ad?.licenses?.cidbSpkk || ad?.licenses?.cidbPkk || ad?.category === 'KERJA');
+      const isMofAd = Boolean(ad?.licenses?.mof || ad?.category === 'BEKALAN' || ad?.category === 'PERKHIDMATAN');
+
       const submissionData = {
         companyName: normalizedCompanyName,
         ownerName: formData.ownerName.trim(),
@@ -296,15 +425,37 @@ export default function PublicAttendancePage({ adId, onBackToPortal }: PublicAtt
         adId: ad.id,
         adTitle: ad.title,
         office: ad.office || '',
+        category: ad.category || (isCidbAd ? 'KERJA' : 'BEKALAN'),
+        licenseType: isCidbAd ? 'CIDB' : (isMofAd ? 'MOF' : 'LAIN'),
         hasCertificate: hasUploadedAny,
         certificateName: hasUploadedAny ? certificateNamesList : 'Tiada Sijil Dikepilkan (Mendaftar Tanpa Sijil)',
         certificates: uploadedCertificateMap,
+        certificateExpiries,
         certificatesBase64,
         timestamp: new Date().toISOString(),
         docSeriesNo: nextNo,
       };
 
       await addDoc(collection(db, path), submissionData);
+
+      // Broadcast notification to system for staff real-time pop-up modal
+      addDoc(collection(db, 'notifications'), {
+        type: 'ATTENDANCE_SUBMITTED',
+        userName: normalizedCompanyName,
+        companyName: normalizedCompanyName,
+        ownerName: formData.ownerName.trim(),
+        adTitle: ad.title,
+        tenderNo: ad.tenderNo || '',
+        docSeriesNo: nextNo,
+        icNumber: formData.icNumber.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
+        email: formData.email.trim(),
+        office: ad.office || 'PEJABAT RISDA DAERAH BEAUFORT',
+        timestamp: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        message: `Kontraktor ${normalizedCompanyName} (${formData.ownerName.trim()}) telah selesai mendaftar kehadiran lawatan tapak bagi: ${ad.title}`,
+        status: 'pending'
+      }).catch(err => console.error("Error creating system notification for attendance:", err));
 
       // Save/Merge to 'suppliers' collection so they can receive future invitations directly
       const supplierDocId = `supplier_${normalizedCompanyName.replace(/[^A-Z0-9]/g, '_')}`;
@@ -495,12 +646,12 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#040814] text-slate-300 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div className="min-h-screen bg-risda-dark text-slate-300 flex flex-col items-center justify-center p-6 relative overflow-hidden">
         {/* Glow visual atmosphere */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-sky-500/5 blur-[140px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-risda-gold/5 blur-[140px] pointer-events-none" />
         <div className="relative z-10 flex flex-col items-center space-y-6">
-          <div className="w-14 h-14 border-t-2 border-r-2 border-[#0984e3] rounded-full animate-spin flex items-center justify-center">
-            <div className="w-10 h-10 border-b-2 border-l-2 border-[#38bdf8] rounded-full animate-spin" />
+          <div className="w-14 h-14 border-t-2 border-r-2 border-risda-orange rounded-full animate-spin flex items-center justify-center">
+            <div className="w-10 h-10 border-b-2 border-l-2 border-risda-gold rounded-full animate-spin" />
           </div>
           <p className="text-[10px] text-white opacity-80 font-black uppercase tracking-[5px] animate-pulse">Memuat Turun Portal...</p>
         </div>
@@ -510,25 +661,25 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
 
   if (error || !ad) {
     return (
-      <div className="min-h-screen bg-[#040814] text-slate-300 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div className="min-h-screen bg-risda-dark text-slate-300 flex flex-col items-center justify-center p-6 relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-red-500/5 blur-[120px] pointer-events-none" />
         
         <motion.div 
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative z-10 w-full max-w-md bg-[#0a0f1d] border border-slate-800 rounded-3xl p-8 md:p-10 text-center space-y-6 shadow-2xl"
+          className="relative z-10 w-full max-w-md bg-risda-card border border-risda-border rounded-3xl p-8 md:p-10 text-center space-y-6 shadow-2xl"
         >
           <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-center justify-center mx-auto">
             <AlertCircle size={28} />
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-black text-white uppercase tracking-tight font-sans">Ralat Pendaftaran</h3>
-            <p className="text-xs text-slate-400 leading-relaxed uppercase">{error || 'Maklumat sebut harga tidak sah.'}</p>
+            <p className="text-xs text-risda-muted leading-relaxed uppercase">{error || 'Maklumat sebut harga tidak sah.'}</p>
           </div>
           <div className="pt-4">
             <button 
               onClick={onBackToPortal || (() => window.location.href = '/')}
-              className="w-full py-4 bg-[#131b2c] hover:bg-[#1c273e] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-slate-800"
+              className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-risda-border"
             >
               <ArrowLeft size={14} /> PORTAL UTAMA SEBUTHARGA
             </button>
@@ -538,13 +689,22 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
     );
   }
 
-  const isClosed = ad.status !== 'AKTIF';
+  const isReTender = Boolean(
+    ad?.winner?.isReTender ||
+    ad?.winner?.companyName === 'SEBUTHARGA SEMULA' ||
+    ad?.winnerName === 'SEBUTHARGA SEMULA' ||
+    ad?.winner?.companyName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+    ad?.winnerName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+    ad?.statusPelaksanaan === 'SEBUTHARGA SEMULA'
+  );
+
+  const isClosed = ad?.status !== 'AKTIF' || isReTender;
 
   return (
-    <div className="min-h-screen bg-[#040814] text-slate-300 relative py-12 px-4 md:px-8 overflow-x-hidden flex flex-col items-center justify-start">
+    <div className="min-h-screen bg-risda-dark text-slate-300 relative py-12 px-4 md:px-8 overflow-x-hidden flex flex-col items-center justify-start">
       {/* Background radial atmosphere */}
-      <div className="absolute top-1/4 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#0284c7]/5 blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/3 translate-x-1/2 translate-y-1/2 w-[600px] h-[600px] bg-sky-500/3 blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-risda-gold/5 blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/3 translate-x-1/2 translate-y-1/2 w-[600px] h-[600px] bg-risda-orange/3 blur-[140px] pointer-events-none" />
 
       <div className="w-full max-w-6xl relative z-10 space-y-8">
         
@@ -578,7 +738,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -30 }}
-              className="bg-[#0a0f1d] border border-slate-800/80 rounded-[28px] p-8 md:p-12 text-center space-y-8 shadow-[0_30px_100px_rgba(0,0,0,0.8)] relative overflow-hidden max-w-2xl mx-auto"
+              className="bg-risda-card border border-risda-border rounded-[28px] p-8 md:p-12 text-center space-y-8 shadow-[0_30px_100px_rgba(0,0,0,0.8)] relative overflow-hidden max-w-2xl mx-auto"
             >
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" />
               
@@ -594,7 +754,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
               </div>
 
               {/* Status Receipt Card */}
-              <div className="max-w-xl mx-auto bg-[#060b13] border border-slate-800/60 rounded-2xl p-6 text-left space-y-4 shadow-xl">
+              <div className="max-w-xl mx-auto bg-black/40 border border-risda-border rounded-2xl p-6 text-left space-y-4 shadow-xl">
                 <div className="flex justify-between items-center border-b border-white/5 pb-3">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Status Pendaftaran:</span>
                   <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-wider animate-pulse flex items-center gap-1.5">
@@ -656,51 +816,51 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
               className="space-y-8"
             >
               {/* Project & License box */}
-              <div className="bg-[#0a0f1d] border border-slate-800/80 rounded-[18px] p-6 lg:p-8 space-y-5">
+              <div className="bg-risda-card border border-risda-border rounded-[18px] p-6 lg:p-8 space-y-5">
                 <div>
-                  <p className="text-[10px] md:text-xs font-black text-sky-400 tracking-[2px] uppercase">RUJUKAN PROJEK</p>
+                  <p className="text-[10px] md:text-xs font-black text-risda-gold tracking-[2px] uppercase">RUJUKAN PROJEK</p>
                   <h2 className="text-sm md:text-lg font-extrabold text-white leading-relaxed mt-2 uppercase">
                     {ad.title}
                   </h2>
                 </div>
                 
-                <div className="border-t border-slate-800/60" />
+                <div className="border-t border-risda-border" />
 
                 <div>
-                  <p className="text-[10px] md:text-xs font-black text-sky-400 tracking-[2px] uppercase mb-3">SIJIL WAJIB</p>
+                  <p className="text-[10px] md:text-xs font-black text-risda-gold tracking-[2px] uppercase mb-3">SIJIL WAJIB</p>
                   <div className="flex flex-wrap gap-2">
                     {ad.licenses?.cidbSpkk && (
-                      <span className="bg-[#0284c7]/5 border border-[#38bdf8]/30 text-[#38bdf8] px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
+                      <span className="bg-risda-orange-glow border border-risda-gold/30 text-risda-gold px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
                         CIDB SPKK
                       </span>
                     )}
                     {ad.licenses?.cidbPkk && (
-                      <span className="bg-[#0284c7]/5 border border-[#38bdf8]/30 text-[#38bdf8] px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
+                      <span className="bg-risda-orange-glow border border-risda-gold/30 text-risda-gold px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
                         CIDB PKK
                       </span>
                     )}
                     {ad.licenses?.stb && (
-                      <span className="bg-[#0284c7]/5 border border-[#38bdf8]/30 text-[#38bdf8] px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
+                      <span className="bg-risda-orange-glow border border-risda-gold/30 text-risda-gold px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
                         STB
                       </span>
                     )}
                     {ad.licenses?.mof && (
-                      <span className="bg-[#0284c7]/5 border border-[#38bdf8]/30 text-[#38bdf8] px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
+                      <span className="bg-risda-orange-glow border border-risda-gold/30 text-risda-gold px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
                         MOF
                       </span>
                     )}
                     {ad.licenses?.tcc && (
-                      <span className="bg-[#0284c7]/5 border border-[#38bdf8]/30 text-[#38bdf8] px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
+                      <span className="bg-risda-orange-glow border border-risda-gold/30 text-risda-gold px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
                         TCC
                       </span>
                     )}
                     {ad.licenses?.pukonsa && (
-                      <span className="bg-[#0284c7]/5 border border-[#38bdf8]/30 text-[#38bdf8] px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
+                      <span className="bg-risda-orange-glow border border-risda-gold/30 text-risda-gold px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
                         PUKONSA
                       </span>
                     )}
                     {ad.licenses?.kuhean && (
-                      <span className="bg-[#0284c7]/5 border border-[#38bdf8]/30 text-[#38bdf8] px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
+                      <span className="bg-risda-orange-glow border border-risda-gold/30 text-risda-gold px-3.5 py-1.5 rounded-md text-[9px] font-black tracking-wider uppercase font-mono">
                         KUHEAN
                       </span>
                     )}
@@ -714,11 +874,19 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
               </div>
 
               {isClosed ? (
-                <div className="p-12 bg-red-500/5 border border-red-500/20 rounded-2xl text-center space-y-4">
-                  <AlertCircle size={40} className="text-red-400 mx-auto" />
-                  <div className="space-y-1">
-                    <h4 className="text-base font-black text-white uppercase tracking-tight">Pendaftaran Ditutup</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed uppercase">Sebut harga ini sudah tidak aktif, ditarik balik atau telah melebihi tarikh pendaftaran briefing.</p>
+                <div className="p-10 md:p-14 bg-amber-500/10 border border-amber-500/30 rounded-3xl text-center space-y-4 shadow-2xl max-w-3xl mx-auto">
+                  <div className="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center mx-auto border border-amber-500/30 shadow-lg shadow-amber-500/10">
+                    <AlertCircle size={36} />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-lg md:text-xl font-black text-white uppercase tracking-wider">
+                      {isReTender ? 'IKLAN TELAH TAMAT (SEBUTHARGA SEMULA)' : 'Pendaftaran Ditutup'}
+                    </h4>
+                    <p className="text-xs md:text-sm text-amber-200/90 leading-relaxed uppercase max-w-xl mx-auto font-medium">
+                      {isReTender
+                        ? 'Keputusan rasmi bagi sebut harga ini telah disahkan sebagai SEBUTHARGA SEMULA (Tiada Pemenang Dipilih). Pengisian manual dan pendaftaran borang kehadiran & serahan telah TAMAT secara rasmi.'
+                        : 'Sebut harga ini sudah tidak aktif, ditarik balik atau telah melebihi tarikh pendaftaran briefing.'}
+                    </p>
                   </div>
                 </div>
               ) : hasRegisteredBefore === null ? (
@@ -726,10 +894,10 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-[#0a0f1d] border border-slate-800/80 rounded-[28px] p-8 md:p-12 text-center space-y-8 shadow-2xl max-w-3xl mx-auto relative overflow-hidden"
+                  className="bg-risda-card border border-risda-border rounded-[28px] p-8 md:p-12 text-center space-y-8 shadow-2xl max-w-3xl mx-auto relative overflow-hidden"
                 >
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-[#0ea5e9]" />
-                  <div className="w-16 h-16 bg-[#0ea5e9]/10 border border-[#0ea5e9]/20 text-[#0ea5e9] rounded-2xl flex items-center justify-center mx-auto shadow-md">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-risda-orange to-risda-gold" />
+                  <div className="w-16 h-16 bg-risda-orange-glow border border-risda-gold/20 text-risda-gold rounded-2xl flex items-center justify-center mx-auto shadow-md">
                     <Database size={28} />
                   </div>
                   
@@ -737,7 +905,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                     <h3 className="text-lg md:text-xl font-black text-white uppercase tracking-tight">
                       Semakan Rekod Pendaftaran Pintar
                     </h3>
-                    <p className="text-xs text-slate-400 leading-relaxed uppercase">
+                    <p className="text-xs text-risda-muted leading-relaxed uppercase">
                       Adakah syarikat anda pernah mendaftar untuk mana-mana taklimat sebut harga di portal ini sebelum ini?
                     </p>
                   </div>
@@ -747,14 +915,14 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                     <button
                       type="button"
                       onClick={() => setHasRegisteredBefore(true)}
-                      className="group flex flex-col items-center justify-center p-6 bg-[#060b13] hover:bg-sky-500/10 border border-slate-800/85 hover:border-sky-500/40 rounded-2xl transition-all duration-300 text-center gap-3 cursor-pointer"
+                      className="group flex flex-col items-center justify-center p-6 bg-black/40 hover:bg-risda-orange-glow border border-risda-border hover:border-risda-orange/40 rounded-2xl transition-all duration-300 text-center gap-3 cursor-pointer"
                     >
-                      <div className="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition-all duration-300">
+                      <div className="w-12 h-12 bg-risda-orange-glow text-risda-gold rounded-xl flex items-center justify-center group-hover:scale-110 transition-all duration-300">
                         <Search size={22} />
                       </div>
                       <div>
                         <p className="text-xs font-black text-white uppercase tracking-wider">Ya, Pernah Mendaftar</p>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-tight mt-1">Sistem akan mencari &amp; auto-isi maklumat syarikat anda</p>
+                        <p className="text-[10px] text-risda-muted uppercase tracking-tight mt-1">Sistem akan mencari &amp; auto-isi maklumat syarikat anda</p>
                       </div>
                     </button>
 
@@ -762,14 +930,14 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                     <button
                       type="button"
                       onClick={() => setHasRegisteredBefore(false)}
-                      className="group flex flex-col items-center justify-center p-6 bg-[#060b13] hover:bg-white/5 border border-slate-800/85 hover:border-slate-700 rounded-2xl transition-all duration-300 text-center gap-3 cursor-pointer"
+                      className="group flex flex-col items-center justify-center p-6 bg-black/40 hover:bg-white/5 border border-risda-border hover:border-white/20 rounded-2xl transition-all duration-300 text-center gap-3 cursor-pointer"
                     >
                       <div className="w-12 h-12 bg-white/5 text-slate-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition-all duration-300">
                         <UserPlus size={22} />
                       </div>
                       <div>
                         <p className="text-xs font-black text-white uppercase tracking-wider">Tidak, Ini Kali Pertama</p>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-tight mt-1">Sila isi borang pendaftaran baharu secara manual</p>
+                        <p className="text-[10px] text-risda-muted uppercase tracking-tight mt-1">Sila isi borang pendaftaran baharu secara manual</p>
                       </div>
                     </button>
                   </div>
@@ -779,9 +947,9 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-[#0a0f1d] border border-slate-800/80 rounded-[28px] p-8 md:p-12 text-center space-y-8 shadow-2xl max-w-xl mx-auto relative overflow-hidden"
+                  className="bg-risda-card border border-risda-border rounded-[28px] p-8 md:p-12 text-center space-y-8 shadow-2xl max-w-xl mx-auto relative overflow-hidden"
                 >
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-[#0ea5e9]" />
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-risda-orange to-risda-gold" />
                   
                   <div className="flex items-center justify-between border-b border-white/5 pb-4">
                     <button
@@ -795,19 +963,19 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                     >
                       <ArrowLeft size={12} /> Kembali
                     </button>
-                    <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest bg-sky-500/10 px-2.5 py-1 rounded-md">
+                    <span className="text-[9px] font-black text-risda-gold uppercase tracking-widest bg-risda-orange-glow px-2.5 py-1 rounded-md">
                       Semakan Sistem
                     </span>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-xl flex items-center justify-center mx-auto">
+                    <div className="w-12 h-12 bg-risda-orange-glow text-risda-gold rounded-xl flex items-center justify-center mx-auto">
                       <Search size={22} />
                     </div>
                     <h3 className="text-base font-black text-white uppercase tracking-tight">
                       Cari Maklumat Kontraktor
                     </h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed uppercase max-w-sm mx-auto">
+                    <p className="text-[11px] text-risda-muted leading-relaxed uppercase max-w-sm mx-auto">
                       Sila masukkan Nombor Kad Pengenalan (IC) Pemilik/Wakil Syarikat untuk carian pendaftaran terdahulu.
                     </p>
                   </div>
@@ -824,7 +992,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                         value={searchIc}
                         onChange={(e) => setSearchIc(e.target.value.replace(/\D/g, ''))}
                         placeholder="cth: 880101125555"
-                        className="w-full bg-[#060b13] border border-slate-800/80 rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-all placeholder:text-white/10 text-center font-mono tracking-[3px]"
+                        className="w-full bg-black/40 border border-risda-border rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-risda-orange outline-none transition-all placeholder:text-white/10 text-center font-mono tracking-[3px]"
                       />
                     </div>
 
@@ -838,7 +1006,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                       <button
                         type="submit"
                         disabled={searchingIcLoading}
-                        className="w-full py-4 bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+                        className="w-full py-4 bg-risda-orange hover:brightness-110 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-lg"
                       >
                         {searchingIcLoading ? (
                           <>
@@ -864,7 +1032,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                             email: '',
                           });
                         }}
-                        className="w-full py-3 hover:bg-white/5 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-transparent hover:border-slate-800"
+                        className="w-full py-3 hover:bg-white/5 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-transparent hover:border-risda-border"
                       >
                         Daftar Baharu (Isi Manual)
                       </button>
@@ -875,14 +1043,14 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                 /* STEP 3: The standard/autofilled form */
                 <>
                   {formData.companyName && (
-                    <div className="max-w-6xl mx-auto bg-sky-500/5 border border-sky-500/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="max-w-6xl mx-auto bg-risda-orange-glow border border-risda-border rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
                       <div className="flex items-center gap-3 text-left">
-                        <div className="w-10 h-10 bg-sky-500/15 rounded-xl flex items-center justify-center text-sky-400 shrink-0">
+                        <div className="w-10 h-10 bg-risda-orange-glow rounded-xl flex items-center justify-center text-risda-gold shrink-0">
                           <CheckCircle size={18} />
                         </div>
                         <div>
                           <p className="text-xs font-black text-white uppercase">Maklumat Berjaya Diisi Secara Automatik!</p>
-                          <p className="text-[10px] text-slate-400 uppercase">Sila semak maklumat di bawah sebelum meneruskan pendaftaran.</p>
+                          <p className="text-[10px] text-risda-muted uppercase">Sila semak maklumat di bawah sebelum meneruskan pendaftaran.</p>
                         </div>
                       </div>
                       <button
@@ -898,7 +1066,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                           });
                           setHasRegisteredBefore(null);
                         }}
-                        className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-[9px] font-black uppercase tracking-wider rounded-xl transition-all border border-slate-800"
+                        className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-[9px] font-black uppercase tracking-wider rounded-xl transition-all border border-risda-border"
                       >
                         Set Semula &amp; Kosongkan Borang
                       </button>
@@ -926,7 +1094,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
 
                     {/* MAKLUMAT SYARIKAT */}
                     <div className="space-y-5">
-                      <h3 className="text-xs md:text-sm font-extrabold text-sky-400 tracking-[3px] uppercase border-b border-sky-500/20 pb-2 mb-4">
+                      <h3 className="text-xs md:text-sm font-extrabold text-risda-gold tracking-[3px] uppercase border-b border-risda-gold/20 pb-2 mb-4">
                         MAKLUMAT SYARIKAT
                       </h3>
                       
@@ -940,7 +1108,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                           value={formData.companyName}
                           onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                           placeholder="cth: Bina Jaya Sdn Bhd"
-                          className="w-full bg-[#060b13] border border-slate-800/80 rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-all placeholder:text-white/10"
+                          className="w-full bg-black/40 border border-risda-border rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-risda-orange outline-none transition-all placeholder:text-white/10"
                         />
                       </div>
 
@@ -954,7 +1122,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                           value={formData.ownerName}
                           onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
                           placeholder="cth: Ahmad Bin Ismail"
-                          className="w-full bg-[#060b13] border border-slate-800/80 rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-all placeholder:text-white/10"
+                          className="w-full bg-black/40 border border-risda-border rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-risda-orange outline-none transition-all placeholder:text-white/10"
                         />
                       </div>
 
@@ -968,14 +1136,14 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                           value={formData.companyAddress}
                           onChange={(e) => setFormData({ ...formData, companyAddress: e.target.value })}
                           placeholder="Masukkan alamat penuh syarikat..."
-                          className="w-full bg-[#060b13] border border-slate-800/80 rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-all placeholder:text-white/10 resize-none"
+                          className="w-full bg-black/40 border border-risda-border rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-risda-orange outline-none transition-all placeholder:text-white/10 resize-none"
                         />
                       </div>
                     </div>
 
                     {/* BUTIRAN PERIBADI */}
                     <div className="space-y-5">
-                      <h3 className="text-xs md:text-sm font-extrabold text-sky-400 tracking-[3px] uppercase border-b border-sky-500/20 pb-2 mb-4">
+                      <h3 className="text-xs md:text-sm font-extrabold text-risda-gold tracking-[3px] uppercase border-b border-risda-gold/20 pb-2 mb-4">
                         BUTIRAN PERIBADI
                       </h3>
 
@@ -990,7 +1158,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                           value={formData.icNumber}
                           onChange={(e) => setFormData({ ...formData, icNumber: e.target.value.replace(/\D/g, '') })}
                           placeholder="cth: 880101015555"
-                          className="w-full bg-[#060b13] border border-slate-800/80 rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-all placeholder:text-white/10"
+                          className="w-full bg-black/40 border border-risda-border rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-risda-orange outline-none transition-all placeholder:text-white/10"
                         />
                       </div>
 
@@ -1004,7 +1172,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                           value={formData.phoneNumber}
                           onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                           placeholder="cth: 0123456789"
-                          className="w-full bg-[#060b13] border border-slate-800/80 rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-all placeholder:text-white/10"
+                          className="w-full bg-black/40 border border-risda-border rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-risda-orange outline-none transition-all placeholder:text-white/10"
                         />
                       </div>
 
@@ -1018,7 +1186,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           placeholder="cth: syarikat@gmail.com (atau '-' jika tiada)"
-                          className="w-full bg-[#060b13] border border-slate-800/80 rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-sky-500 outline-none transition-all placeholder:text-white/10"
+                          className="w-full bg-black/40 border border-risda-border rounded-xl py-4 px-5 text-xs md:text-sm text-white focus:border-risda-orange outline-none transition-all placeholder:text-white/10"
                         />
                       </div>
                     </div>
@@ -1029,10 +1197,10 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                   <div className="flex flex-col h-full justify-between space-y-6">
                     <div className="flex-1 space-y-6">
                       <div>
-                        <h3 className="text-xs md:text-sm font-extrabold text-sky-400 tracking-[3px] uppercase border-b border-sky-500/20 pb-2 mb-2">
+                        <h3 className="text-xs md:text-sm font-extrabold text-risda-gold tracking-[3px] uppercase border-b border-risda-gold/20 pb-2 mb-2">
                           SENARAI MUAT NAIK SIJIL KELAYAKAN
                         </h3>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                        <p className="text-[10px] text-risda-muted uppercase tracking-widest font-bold">
                           Sila muat naik sijil kelayakan yang berkenaan dengan syarikat anda (Format Gambar/PDF). Sijil yang tiada boleh dilepaskan (tidak wajib sekiranya anda tidak memilikinya).
                         </p>
                       </div>
@@ -1042,11 +1210,11 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                           const file = certificateFiles[lic.key];
                           const isDragLocal = !!dragActiveStates[lic.key];
                           return (
-                            <div key={lic.key} className="space-y-2">
+                            <div key={lic.key} className="space-y-3 bg-white/5 p-4 rounded-2xl border border-risda-border/30">
                               <div className="flex items-center justify-between px-1">
                                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded-full bg-sky-500" />
-                                  {lic.label} <span className="text-sky-400 font-bold uppercase tracking-wider">(Jika Ada)</span>
+                                  <span className="w-2 h-2 rounded-full bg-risda-orange" />
+                                  {lic.label} <span className="text-risda-gold font-bold uppercase tracking-wider">(Jika Ada)</span>
                                 </label>
                                 {file && (
                                   <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
@@ -1062,8 +1230,8 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                                 onDragLeave={(e) => handleDrag(lic.key, e)}
                                 onDrop={(e) => handleDrop(lic.key, e)}
                                 className={`relative w-full border-2 border-dashed rounded-xl p-6 min-h-[140px] flex flex-col items-center justify-center transition-all cursor-pointer select-none ${
-                                  isDragLocal ? 'border-sky-500 bg-sky-500/5 scale-[0.99]' : 
-                                  file ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-slate-800 bg-[#060b13] hover:border-slate-700'
+                                  isDragLocal ? 'border-risda-orange bg-risda-orange-glow scale-[0.99]' : 
+                                  file ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-risda-border bg-black/40 hover:border-risda-orange/40'
                                 }`}
                               >
                                 <input 
@@ -1095,15 +1263,20 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                                           delete next[lic.key];
                                           return next;
                                         });
+                                        setCertificateExpiries(prev => {
+                                          const next = { ...prev };
+                                          delete next[lic.key];
+                                          return next;
+                                        });
                                       }}
-                                      className="text-[9px] font-black text-sky-400 hover:text-sky-300 uppercase tracking-wider relative z-20"
+                                      className="text-[9px] font-black text-risda-gold hover:text-risda-gold/80 uppercase tracking-wider relative z-20"
                                     >
                                       TUKAR FAIL
                                     </button>
                                   </div>
                                 ) : (
                                   <div className="flex flex-col items-center text-center gap-2.5">
-                                    <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800/80 flex items-center justify-center text-sky-400 transition-transform group-hover:scale-105">
+                                    <div className="w-10 h-10 rounded-full bg-slate-900 border border-risda-border flex items-center justify-center text-risda-gold transition-transform group-hover:scale-105">
                                       <Upload size={16} />
                                     </div>
                                     <div className="space-y-0.5">
@@ -1113,15 +1286,32 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                                   </div>
                                 )}
                               </div>
+
+                              {/* Date Input for Expiry - Visible below the uploaded file */}
+                              {file && (
+                                <div className="space-y-1.5 pt-1.5 border-t border-white/5 animate-in fade-in duration-300">
+                                  <label className="text-[9px] font-black text-risda-gold uppercase tracking-widest flex items-center gap-1.5">
+                                    <Calendar size={12} className="text-risda-orange" />
+                                    TARIKH TAMAT TEMPOH LESEN / SIJIL <span className="text-red-500">*</span>
+                                  </label>
+                                  <input 
+                                    type="date"
+                                    required
+                                    value={certificateExpiries[lic.key] || ''}
+                                    onChange={(e) => setCertificateExpiries(prev => ({ ...prev, [lic.key]: e.target.value }))}
+                                    className="w-full bg-black/40 border border-risda-border rounded-xl py-3.5 px-4 text-xs text-white focus:border-risda-orange outline-none transition-all"
+                                  />
+                                </div>
+                              )}
                             </div>
                           );
                         })}
                       </div>
 
                       {/* Small informative block with Shield icon */}
-                      <div className="flex items-start gap-4 p-5 bg-[#0a1220]/60 border border-slate-800/40 rounded-xl">
-                        <Shield size={20} className="text-sky-400 shrink-0 mt-0.5" />
-                        <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                      <div className="flex items-start gap-4 p-5 bg-black/30 border border-risda-border rounded-xl">
+                        <Shield size={20} className="text-risda-gold shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-risda-muted leading-relaxed font-sans">
                           Dengan menekan butang daftar, anda mengesahkan maklumat di atas adalah benar bagi tujuan pendaftaran taklimat tapak.
                         </p>
                       </div>
@@ -1131,7 +1321,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                       <button 
                         type="submit"
                         disabled={formLoading}
-                        className="w-full py-5 bg-[#0091ff] hover:bg-[#0081eb] text-white font-extrabold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-[0_15px_30px_rgba(0,145,255,0.15)] disabled:opacity-50 select-none cursor-pointer"
+                        className="w-full py-5 bg-risda-orange hover:brightness-110 text-white font-extrabold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-lg disabled:opacity-50 select-none cursor-pointer"
                       >
                         <UserCheck size={18} />
                         {formLoading ? "SEDANG MEMPROSES..." : "DAFTAR KEHADIRAN"}

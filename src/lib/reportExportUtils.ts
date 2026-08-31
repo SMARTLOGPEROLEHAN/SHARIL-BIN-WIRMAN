@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, HeadingLevel, ShadingType } from 'docx';
 import { saveAs } from 'file-saver';
 import { loadLogo, addWatermark } from './exportUtils';
+import { calculateTempohSiapKerja, formatDateToDDMMYYYY } from './scopeUtils';
 
 // Helper to format currency
 const formatCurrency = (val: number): string => {
@@ -360,12 +361,12 @@ export const exportA2ToPDF = async (params: {
   // Table rows mapping using padded rows
   const bodyRows = paddedRows.map((r, index) => [
     (index + 1).toString(),
-    r.tenderNo || '',
-    r.category || '',
-    r.jenisPeruntukan || '',
-    r.title || '',
-    r.winnerName || '',
-    r.winningPrice === 0 ? '' : formatCurrency(r.winningPrice)
+    (r.tenderNo || '').toUpperCase(),
+    (r.category || '').toUpperCase(),
+    (r.jenisPeruntukan || '').toUpperCase(),
+    (r.title || '').toUpperCase(),
+    (r.winnerName || '').toUpperCase(),
+    r.winnerName === 'SEBUTHARGA SEMULA' ? '0.00' : (r.winningPrice === 0 ? '' : formatCurrency(r.winningPrice))
   ]);
 
   autoTable(doc, {
@@ -644,12 +645,12 @@ export const exportA2ToExcel = (params: {
   paddedRows.forEach((r, idx) => {
     sheetData.push([
       (idx + 1).toString(),
-      r.tenderNo || '',
-      r.category || '',
-      r.jenisPeruntukan || '',
-      r.title || '',
-      r.winnerName || '',
-      r.winningPrice ? r.winningPrice.toFixed(2) : ''
+      (r.tenderNo || '').toUpperCase(),
+      (r.category || '').toUpperCase(),
+      (r.jenisPeruntukan || '').toUpperCase(),
+      (r.title || '').toUpperCase(),
+      (r.winnerName || '').toUpperCase(),
+      r.winnerName === 'SEBUTHARGA SEMULA' ? '0.00' : (r.winningPrice ? r.winningPrice.toFixed(2) : '')
     ]);
   });
 
@@ -870,12 +871,12 @@ export const exportA2ToWord = (params: {
   const wordRows = paddedRows.map((r, index) => new TableRow({
     children: [
       new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (index + 1).toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.tenderNo || '', bold: true, size: 18 })] })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.category || '', size: 18 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.jenisPeruntukan || '', size: 18 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.title || '', size: 16 })] })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.winnerName || '', size: 18 })] })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.winningPrice === 0 ? '' : formatCurrency(r.winningPrice), size: 18 })], alignment: AlignmentType.RIGHT })] })
+      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (r.tenderNo || '').toUpperCase(), bold: true, size: 18 })] })] }),
+      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (r.category || '').toUpperCase(), size: 18 })], alignment: AlignmentType.CENTER })] }),
+      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (r.jenisPeruntukan || '').toUpperCase(), size: 18 })], alignment: AlignmentType.CENTER })] }),
+      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (r.title || '').toUpperCase(), size: 16 })] })] }),
+      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (r.winnerName || '').toUpperCase(), size: 18 })] })] }),
+      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.winnerName === 'SEBUTHARGA SEMULA' ? '0.00' : (r.winningPrice === 0 ? '' : formatCurrency(r.winningPrice)), size: 18 })], alignment: AlignmentType.RIGHT })] })
     ]
   }));
 
@@ -942,6 +943,7 @@ export interface RowAnnual {
   tempohSiapKerja: string;
   winnerName: string;
   winningPrice: number;
+  noPesananTempatan?: string;
   noBaucar: string;
   tarikhDibayar: string;
   tarikhSiapBaru: string;
@@ -990,6 +992,7 @@ export const exportAnnualToPDF = async (params: {
       'TEMPOH SIAP\nKERJA',
       'NAMA SYARIKAT\nBERJAYA',
       'NILAI TAWARAN\n(RM)',
+      'NO PESANAN\nTEMPATAN',
       'NO BAUCAR\nBAYARAN',
       'TARIKH\nDIBAYAR',
       'TARIKH SIAP\nKERJA BARU\n(SEKIRANYA\nADA EOT)',
@@ -997,21 +1000,25 @@ export const exportAnnualToPDF = async (params: {
     ]
   ];
   
-  const body = rows.map((r, idx) => [
-    idx + 1,
-    r.title || '-',
-    r.category || '-',
-    r.tenderNo || '-',
-    r.tarikhSetujuTerima || '-',
-    r.tarikhSiapKerja || '-',
-    r.tempohSiapKerja || '-',
-    r.winnerName || '-',
-    r.winningPrice ? r.winningPrice.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00',
-    r.noBaucar || '-',
-    r.tarikhDibayar || '-',
-    r.tarikhSiapBaru || '-',
-    r.statusPelaksanaan || '-'
-  ]);
+  const body = rows.map((r, idx) => {
+    const isReTender = Boolean(r.winnerName && r.winnerName.toUpperCase().includes('SEBUTHARGA SEMULA'));
+    return [
+      idx + 1,
+      r.title || '-',
+      r.category || '-',
+      r.tenderNo || '-',
+      isReTender ? '-' : (formatDateToDDMMYYYY(r.tarikhSetujuTerima) || '-'),
+      isReTender ? '-' : (formatDateToDDMMYYYY(r.tarikhSiapKerja) || '-'),
+      isReTender ? '-' : (calculateTempohSiapKerja(r.tarikhSetujuTerima, r.tarikhSiapKerja) || r.tempohSiapKerja || '-'),
+      r.winnerName || '-',
+      isReTender || !r.winningPrice ? '-' : r.winningPrice.toLocaleString('en-US', { minimumFractionDigits: 2 }),
+      isReTender ? '-' : (r.noPesananTempatan || '-'),
+      isReTender ? '-' : (r.noBaucar || '-'),
+      isReTender ? '-' : (r.tarikhDibayar || '-'),
+      isReTender ? '-' : (r.tarikhSiapBaru || '-'),
+      isReTender ? 'TAMAT' : (r.statusPelaksanaan || '-')
+    ];
+  });
   
   autoTable(doc, {
     startY: 32,
@@ -1033,19 +1040,20 @@ export const exportAnnualToPDF = async (params: {
       valign: 'middle'
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' }, // BIL
-      1: { cellWidth: 55 }, // TAJUK
-      2: { cellWidth: 18, halign: 'center' }, // KATEGORI
-      3: { cellWidth: 22, halign: 'center' }, // NO SEBUTHARGA
-      4: { cellWidth: 16, halign: 'center' }, // SETUJU TERIMA
-      5: { cellWidth: 16, halign: 'center' }, // SIAP KERJA
-      6: { cellWidth: 16, halign: 'center' }, // TEMPOH SIAP
-      7: { cellWidth: 25, halign: 'center' }, // SYARIKAT
-      8: { cellWidth: 20, halign: 'right' }, // HARGA
-      9: { cellWidth: 20, halign: 'center' }, // NO BAUCAR
-      10: { cellWidth: 16, halign: 'center' }, // TARIKH DIBAYAR
-      11: { cellWidth: 20, halign: 'center' }, // SIAP BARU (EOT)
-      12: { cellWidth: 18, halign: 'center' } // STATUS
+      0: { cellWidth: 8, halign: 'center' }, // BIL
+      1: { cellWidth: 48 }, // TAJUK
+      2: { cellWidth: 16, halign: 'center' }, // KATEGORI
+      3: { cellWidth: 20, halign: 'center' }, // NO SEBUTHARGA
+      4: { cellWidth: 15, halign: 'center' }, // SETUJU TERIMA
+      5: { cellWidth: 15, halign: 'center' }, // SIAP KERJA
+      6: { cellWidth: 15, halign: 'center' }, // TEMPOH SIAP
+      7: { cellWidth: 22, halign: 'center' }, // SYARIKAT
+      8: { cellWidth: 18, halign: 'right' }, // HARGA
+      9: { cellWidth: 18, halign: 'center' }, // NO PESANAN TEMPATAN
+      10: { cellWidth: 18, halign: 'center' }, // NO BAUCAR
+      11: { cellWidth: 15, halign: 'center' }, // TARIKH DIBAYAR
+      12: { cellWidth: 18, halign: 'center' }, // SIAP BARU (EOT)
+      13: { cellWidth: 16, halign: 'center' } // STATUS
     },
     didDrawPage: (data) => {
       if (logo) {
@@ -1074,27 +1082,32 @@ export const exportAnnualToExcel = (params: {
     'TEMPOH SIAP KERJA', 
     'NAMA SYARIKAT BERJAYA', 
     'NILAI TAWARAN (RM)', 
+    'NO PESANAN TEMPATAN',
     'NO BAUCAR BAYARAN', 
     'TARIKH DIBAYAR', 
     'TARIKH SIAP KERJA BARU (SEKIRANYA ADA EOT)', 
     'STATUS'
   ];
   
-  const data = rows.map((r, idx) => ({
-    'BIL': idx + 1,
-    'TAJUK SEBUTHARGA': r.title || '-',
-    'KERJA / PERKHIDMATAN / BEKALAN': r.category || '-',
-    'NO SEBUTHARGA': r.tenderNo || '-',
-    'TARIKH SETUJU TERIMA': r.tarikhSetujuTerima || '-',
-    'TARIKH SIAP KERJA': r.tarikhSiapKerja || '-',
-    'TEMPOH SIAP KERJA': r.tempohSiapKerja || '-',
-    'NAMA SYARIKAT BERJAYA': r.winnerName || '-',
-    'NILAI TAWARAN (RM)': r.winningPrice || 0,
-    'NO BAUCAR BAYARAN': r.noBaucar || '-',
-    'TARIKH DIBAYAR': r.tarikhDibayar || '-',
-    'TARIKH SIAP KERJA BARU (SEKIRANYA ADA EOT)': r.tarikhSiapBaru || '-',
-    'STATUS': r.statusPelaksanaan || '-'
-  }));
+  const data = rows.map((r, idx) => {
+    const isReTender = Boolean(r.winnerName && r.winnerName.toUpperCase().includes('SEBUTHARGA SEMULA'));
+    return {
+      'BIL': idx + 1,
+      'TAJUK SEBUTHARGA': r.title || '-',
+      'KERJA / PERKHIDMATAN / BEKALAN': r.category || '-',
+      'NO SEBUTHARGA': r.tenderNo || '-',
+      'TARIKH SETUJU TERIMA': isReTender ? '-' : (formatDateToDDMMYYYY(r.tarikhSetujuTerima) || '-'),
+      'TARIKH SIAP KERJA': isReTender ? '-' : (formatDateToDDMMYYYY(r.tarikhSiapKerja) || '-'),
+      'TEMPOH SIAP KERJA': isReTender ? '-' : (calculateTempohSiapKerja(r.tarikhSetujuTerima, r.tarikhSiapKerja) || r.tempohSiapKerja || '-'),
+      'NAMA SYARIKAT BERJAYA': r.winnerName || '-',
+      'NILAI TAWARAN (RM)': isReTender || !r.winningPrice ? '-' : r.winningPrice,
+      'NO PESANAN TEMPATAN': isReTender ? '-' : (r.noPesananTempatan || '-'),
+      'NO BAUCAR BAYARAN': isReTender ? '-' : (r.noBaucar || '-'),
+      'TARIKH DIBAYAR': isReTender ? '-' : (r.tarikhDibayar || '-'),
+      'TARIKH SIAP KERJA BARU (SEKIRANYA ADA EOT)': isReTender ? '-' : (r.tarikhSiapBaru || '-'),
+      'STATUS': isReTender ? 'TAMAT' : (r.statusPelaksanaan || '-')
+    };
+  });
   
   const ws = XLSX.utils.json_to_sheet(data, { header: headers });
   const wb = XLSX.utils.book_new();
@@ -1119,6 +1132,7 @@ export const exportAnnualToWord = (params: {
     'TEMPOH SIAP KERJA', 
     'NAMA SYARIKAT BERJAYA', 
     'NILAI TAWARAN (RM)', 
+    'NO PESANAN TEMPATAN',
     'NO BAUCAR BAYARAN', 
     'TARIKH DIBAYAR', 
     'TARIKH SIAP KERJA BARU (SEKIRANYA ADA EOT)', 
@@ -1130,23 +1144,27 @@ export const exportAnnualToWord = (params: {
   
   const headerRow = new TableRow({ children: headerCells });
   
-  const wordRows = rows.map((r, idx) => new TableRow({
-    children: [
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (idx + 1).toString(), size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.title || '-', size: 14 })] })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.category || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.tenderNo || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.tarikhSetujuTerima || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.tarikhSiapKerja || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.tempohSiapKerja || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.winnerName || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: formatCurrency(r.winningPrice), size: 14 })], alignment: AlignmentType.RIGHT })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.noBaucar || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.tarikhDibayar || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.tarikhSiapBaru || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.statusPelaksanaan || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
-    ]
-  }));
+  const wordRows = rows.map((r, idx) => {
+    const isReTender = Boolean(r.winnerName && r.winnerName.toUpperCase().includes('SEBUTHARGA SEMULA'));
+    return new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (idx + 1).toString(), size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.title || '-', size: 14 })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.category || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.tenderNo || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: isReTender ? '-' : (formatDateToDDMMYYYY(r.tarikhSetujuTerima) || '-'), size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: isReTender ? '-' : (formatDateToDDMMYYYY(r.tarikhSiapKerja) || '-'), size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: isReTender ? '-' : (calculateTempohSiapKerja(r.tarikhSetujuTerima, r.tarikhSiapKerja) || r.tempohSiapKerja || '-'), size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: r.winnerName || '-', size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: isReTender || !r.winningPrice ? '-' : formatCurrency(r.winningPrice), size: 14 })], alignment: AlignmentType.RIGHT })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: isReTender ? '-' : (r.noPesananTempatan || '-'), size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: isReTender ? '-' : (r.noBaucar || '-'), size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: isReTender ? '-' : (r.tarikhDibayar || '-'), size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: isReTender ? '-' : (r.tarikhSiapBaru || '-'), size: 14 })], alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: isReTender ? 'TAMAT' : (r.statusPelaksanaan || '-'), size: 14 })], alignment: AlignmentType.CENTER })] }),
+      ]
+    });
+  });
   
   const doc = new Document({
     sections: [{
@@ -1183,3 +1201,318 @@ export const exportAnnualToWord = (params: {
     saveAs(blob, `LAPORAN_TAHUNAN_PEROLEHAN_${year}.docx`);
   });
 };
+
+// -----------------------------------------------------------------
+// 5. EXPORT LAPORAN PERUNTUKAN TERPERINCI (BUKU VOT) TO PDF
+// -----------------------------------------------------------------
+export interface DetailedReportCodeData {
+  akt: string;
+  obj: string;
+  perihal: string;
+  objPerihal?: string;
+  jumlahDiterima: number;
+  peruntukanBlk: number;
+  nkeaKwr: number;
+  pertanggunganBelumDijelaskan?: number;
+  jumlahPerbelanjaan?: number;
+  bakiPeruntukan?: number;
+  year?: string;
+  rows: {
+    tarikh: string;
+    kodPa: string;
+    kodObjek: string;
+    perihal: string;
+    pertanggunganNilai: number;
+    pertanggunganBaki: number;
+    perbelanjaanNilai: number;
+    perbelanjaanTerkumpul: number;
+    peruntukanNilai: number;
+    peruntukanBaki: number;
+  }[];
+}
+
+export const exportDetailedAllocationReportToPDF = async (params: {
+  year: string;
+  office?: string;
+  criteriaCodeText?: string;
+  startDate?: string;
+  endDate?: string;
+  codes: DetailedReportCodeData[];
+}) => {
+  const { year, office = 'PEJABAT RISDA DAERAH BEAUFORT', criteriaCodeText, startDate, endDate, codes } = params;
+  const doc = new jsPDF('l', 'mm', 'a4'); // A4 Landscape: 297mm x 210mm
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  const logo = await loadLogo();
+
+  // Helper to format currency
+  const fmt = (n: number | undefined | null) => {
+    if (n === undefined || n === null) return '0.00';
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const todayStr = new Date().toLocaleDateString('ms-MY', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  codes.forEach((codeItem, cIdx) => {
+    if (cIdx > 0) {
+      doc.addPage();
+    }
+
+    // Watermark if logo exists
+    if (logo) {
+      try {
+        addWatermark(doc, logo);
+      } catch (e) {
+        console.error('Watermark error:', e);
+      }
+    }
+
+    // Header Background Accent
+    doc.setFillColor(248, 250, 252);
+    doc.rect(10, 8, pageWidth - 20, 26, 'F');
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.4);
+    doc.rect(10, 8, pageWidth - 20, 26, 'S');
+
+    // Draw RISDA Logo
+    if (logo) {
+      try {
+        doc.addImage(logo, 'PNG', 14, 10, 22, 22);
+      } catch (e) {
+        console.error('Logo render error:', e);
+      }
+    }
+
+    // Main Department Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.text('PIHAK BERKUASA KEMAJUAN PEKEBUN KECIL PERUSAHAAN GETAH (RISDA)', 40, 15);
+    
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105); // slate-600
+    doc.text(`KEMENTERIAN KEMAJUAN DESA DAN WILAYAH | ${office.toUpperCase()}`, 40, 20);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(180, 83, 9); // amber-700
+    doc.text(`LAPORAN PERUNTUKAN TERPERINCI (BUKU VOT / BENTUK KOD AKAUN) - TAHUN ${year}`, 40, 26);
+
+    // Metadata & Generation Info (Top-Right)
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Tarikh Cetakan : ${todayStr}`, pageWidth - 14, 15, { align: 'right' });
+    if (startDate || endDate) {
+      const formatToDMY = (dStr?: string) => {
+        if (!dStr) return '';
+        try {
+          const clean = dStr.split('T')[0];
+          const parts = clean.split('-');
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+          if (clean.includes('/')) return clean;
+        } catch (e) {}
+        return dStr;
+      };
+      const startFormatted = startDate ? formatToDMY(startDate) : `01/01/${year}`;
+      const endFormatted = endDate ? formatToDMY(endDate) : todayStr;
+      doc.text(`Julat Tarikh   : ${startFormatted} hingga ${endFormatted}`, pageWidth - 14, 20, { align: 'right' });
+    }
+    doc.text(`Sistem Smart Log Perolehan`, pageWidth - 14, 25, { align: 'right' });
+
+    // Financial Code Header & Summary Box
+    const startBoxY = 37;
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(10, startBoxY, pageWidth - 20, 18, 2, 2, 'F');
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(10, startBoxY, pageWidth - 20, 18, 2, 2, 'S');
+
+    // Code Details
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text('KOD PA :', 14, startBoxY + 6);
+    doc.setTextColor(217, 119, 6); // amber-600
+    doc.text(codeItem.akt || '-', 32, startBoxY + 6);
+    doc.setTextColor(15, 23, 42);
+    doc.text((codeItem.perihal || '').toUpperCase(), 50, startBoxY + 6);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text('KOD OBJEK :', 14, startBoxY + 13);
+    doc.setTextColor(13, 148, 136); // teal-600
+    doc.text(codeItem.obj || '-', 32, startBoxY + 13);
+    doc.setTextColor(71, 85, 105);
+    doc.text((codeItem.objPerihal || 'SUBSIDI KEPADA PEKEBUN KECIL').toUpperCase(), 50, startBoxY + 13);
+
+    // Financial Pill Summary (Right Side of Box)
+    const metricsStartX = pageWidth - 140;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    
+    // Peruntukan Diterima
+    doc.setFillColor(254, 243, 199); // amber-100
+    doc.roundedRect(metricsStartX, startBoxY + 3, 42, 12, 1.5, 1.5, 'FD');
+    doc.setTextColor(180, 83, 9);
+    doc.text('PERUNTUKAN DITERIMA', metricsStartX + 21, startBoxY + 7, { align: 'center' });
+    doc.setFontSize(8.5);
+    doc.text(`RM ${fmt(codeItem.jumlahDiterima)}`, metricsStartX + 21, startBoxY + 12.5, { align: 'center' });
+
+    // BLK
+    doc.setFontSize(7.5);
+    doc.setFillColor(241, 245, 249); // slate-100
+    doc.roundedRect(metricsStartX + 44, startBoxY + 3, 40, 12, 1.5, 1.5, 'FD');
+    doc.setTextColor(51, 65, 85);
+    doc.text('BLK (RM)', metricsStartX + 64, startBoxY + 7, { align: 'center' });
+    doc.setFontSize(8.5);
+    doc.text(`RM ${fmt(codeItem.peruntukanBlk)}`, metricsStartX + 64, startBoxY + 12.5, { align: 'center' });
+
+    // NKEA / PEND KWR
+    doc.setFontSize(7.5);
+    doc.setFillColor(241, 245, 249); // slate-100
+    doc.roundedRect(metricsStartX + 86, startBoxY + 3, 40, 12, 1.5, 1.5, 'FD');
+    doc.setTextColor(51, 65, 85);
+    doc.text('NKEA / PEND KWR', metricsStartX + 106, startBoxY + 7, { align: 'center' });
+    doc.setFontSize(8.5);
+    doc.text(`RM ${fmt(codeItem.nkeaKwr)}`, metricsStartX + 106, startBoxY + 12.5, { align: 'center' });
+
+    // Build Table Body
+    const tableBody: any[] = [];
+    let lastRow = codeItem.rows[codeItem.rows.length - 1];
+
+    codeItem.rows.forEach((r) => {
+      const isInitial = r.perihal.startsWith('PERUNTUKAN ASAL');
+      const isReversal = r.pertanggunganNilai < 0;
+
+      tableBody.push([
+        { content: r.tarikh, styles: { halign: 'center', fontStyle: isInitial ? 'bold' : 'normal' } },
+        { content: r.kodPa, styles: { halign: 'center', fontStyle: 'bold', textColor: [217, 119, 6] } },
+        { content: r.kodObjek, styles: { halign: 'center', fontStyle: 'bold', textColor: [13, 148, 136] } },
+        { content: r.perihal, styles: { halign: 'left', fontStyle: isInitial ? 'bold' : 'normal' } },
+        { 
+          content: r.pertanggunganNilai !== 0 ? fmt(r.pertanggunganNilai) : '0.00', 
+          styles: { halign: 'right', fontStyle: 'bold', textColor: isReversal ? [225, 29, 72] : [180, 83, 9] } 
+        },
+        { content: fmt(r.pertanggunganBaki), styles: { halign: 'right', fontStyle: 'bold' } },
+        { 
+          content: r.perbelanjaanNilai !== 0 ? fmt(r.perbelanjaanNilai) : '0.00', 
+          styles: { halign: 'right', fontStyle: 'bold', textColor: r.perbelanjaanNilai > 0 ? [2, 132, 199] : [100, 116, 139] } 
+        },
+        { content: fmt(r.perbelanjaanTerkumpul), styles: { halign: 'right', fontStyle: 'bold' } },
+        { 
+          content: r.peruntukanNilai !== 0 ? fmt(r.peruntukanNilai) : '0.00', 
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129] } 
+        },
+        { 
+          content: fmt(r.peruntukanBaki), 
+          styles: { halign: 'right', fontStyle: 'bold', textColor: r.peruntukanBaki < 0 ? [225, 29, 72] : [5, 150, 105] } 
+        }
+      ]);
+    });
+
+    // Summary Footer Row
+    if (lastRow) {
+      tableBody.push([
+        { 
+          content: 'BAKI AKHIR PERUNTUKAN / STATUS SEMASA', 
+          colSpan: 4, 
+          styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249], textColor: [15, 23, 42] } 
+        },
+        { 
+          content: fmt(lastRow.pertanggunganBaki), 
+          colSpan: 2, 
+          styles: { halign: 'center', fontStyle: 'bold', fillColor: [254, 243, 199], textColor: [180, 83, 9] } 
+        },
+        { 
+          content: fmt(lastRow.perbelanjaanTerkumpul), 
+          colSpan: 2, 
+          styles: { halign: 'center', fontStyle: 'bold', fillColor: [224, 242, 254], textColor: [3, 105, 161] } 
+        },
+        { 
+          content: fmt(lastRow.peruntukanBaki), 
+          colSpan: 2, 
+          styles: { halign: 'center', fontStyle: 'bold', fillColor: [209, 250, 229], textColor: [4, 120, 87] } 
+        }
+      ]);
+    }
+
+    autoTable(doc, {
+      startY: startBoxY + 21,
+      margin: { left: 10, right: 10, bottom: 18 },
+      tableWidth: 'auto',
+      head: [
+        [
+          { content: 'TARIKH', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'KOD PA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'KOD OBJEK', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'PERIHAL ITEM / PESANAN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'MAKLUMAT PERTANGGUNGAN', colSpan: 2, styles: { halign: 'center', fillColor: [217, 119, 6], textColor: [255, 255, 255] } },
+          { content: 'MAKLUMAT PERBELANJAAN', colSpan: 2, styles: { halign: 'center', fillColor: [2, 132, 199], textColor: [255, 255, 255] } },
+          { content: 'MAKLUMAT PERUNTUKAN', colSpan: 2, styles: { halign: 'center', fillColor: [5, 150, 105], textColor: [255, 255, 255] } }
+        ],
+        [
+          { content: 'NILAI (RM)', styles: { halign: 'right', fillColor: [245, 158, 11], textColor: [255, 255, 255] } },
+          { content: 'BAKI (RM)', styles: { halign: 'right', fillColor: [245, 158, 11], textColor: [255, 255, 255] } },
+          { content: 'NILAI (RM)', styles: { halign: 'right', fillColor: [14, 165, 233], textColor: [255, 255, 255] } },
+          { content: 'TERKUMPUL (RM)', styles: { halign: 'right', fillColor: [14, 165, 233], textColor: [255, 255, 255] } },
+          { content: 'NILAI (RM)', styles: { halign: 'right', fillColor: [16, 185, 129], textColor: [255, 255, 255] } },
+          { content: 'BAKI (RM)', styles: { halign: 'right', fillColor: [16, 185, 129], textColor: [255, 255, 255] } }
+        ]
+      ],
+      body: tableBody,
+      theme: 'grid',
+      styles: {
+        fontSize: 7.5,
+        font: 'helvetica',
+        cellPadding: { top: 2, right: 2, bottom: 2, left: 2 },
+        lineColor: [203, 213, 225],
+        lineWidth: 0.2,
+        textColor: [30, 41, 59]
+      },
+      headStyles: {
+        fontSize: 7.5,
+        fontStyle: 'bold',
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        lineWidth: 0.3,
+        lineColor: [148, 163, 184]
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
+      },
+      columnStyles: {
+        0: { cellWidth: 20 }, // Tarikh
+        1: { cellWidth: 18 }, // Kod PA
+        2: { cellWidth: 20 }, // Kod Objek
+        3: { cellWidth: 83 }, // Perihal
+        4: { cellWidth: 23 }, // Pertanggungan Nilai
+        5: { cellWidth: 23 }, // Pertanggungan Baki
+        6: { cellWidth: 23 }, // Perbelanjaan Nilai
+        7: { cellWidth: 23 }, // Perbelanjaan Terkumpul
+        8: { cellWidth: 22 }, // Peruntukan Nilai
+        9: { cellWidth: 22 }  // Peruntukan Baki
+      },
+      didDrawPage: (data) => {
+        // Page Footer
+        const str = `Muka Surat ${doc.getNumberOfPages()}`;
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(str, pageWidth - 14, pageHeight - 8, { align: 'right' });
+        doc.text('Dokumen ini dijana secara digital melalui Sistem Smart Log Perolehan RISDA.', 14, pageHeight - 8);
+      }
+    });
+  });
+
+  const fileName = `LAPORAN_PERUNTUKAN_TERPERINCI_${year}_${(criteriaCodeText || 'SEMUA').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+  doc.save(fileName);
+};
+

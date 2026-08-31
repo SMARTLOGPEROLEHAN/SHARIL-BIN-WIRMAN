@@ -11,7 +11,9 @@ import {
   Menu as MenuIcon,
   BookOpen,
   MapPin,
-  Mail
+  Mail,
+  ShoppingBag,
+  Coins
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -29,6 +31,12 @@ interface SidebarItemProps {
 const SidebarItem = ({ icon: Icon, label, active, collapsed, onClick, subItems }: SidebarItemProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    if (active) {
+      setIsExpanded(true);
+    }
+  }, [active]);
 
   const handleClick = () => {
     if (subItems && !collapsed) {
@@ -242,7 +250,7 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
               RISDA
             </span>
             <span className="text-[10px] text-risda-gold font-black tracking-[2.5px] uppercase whitespace-nowrap opacity-80">
-              DAERAH {district ? district.toUpperCase() : 'BEAUFORT'}
+              {isAdmin ? 'PENTADBIR SISTEM (SEMUA PEJABAT)' : `DAERAH ${district ? district.toUpperCase() : 'BEAUFORT'}`}
             </span>
           </motion.div>
         )}
@@ -291,6 +299,26 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
             )}
             <SidebarItem icon={Edit3} label="URUS SEBUT HARGA" active={currentPath === '/urus-sebut-harga'} collapsed={collapsed} onClick={() => navigateTo('/urus-sebut-harga')} />
             <SidebarItem icon={Mail} label="PELAWAAN SEBUTHARGA" active={currentPath === '/pelawaan-sebutharga'} collapsed={collapsed} onClick={() => navigateTo('/pelawaan-sebutharga')} />
+            <SidebarItem icon={ShoppingBag} label="URUS PERMINTAAN PESANAN" active={currentPath === '/urus-permintaan-pesanan'} collapsed={collapsed} onClick={() => navigateTo('/urus-permintaan-pesanan')} />
+            <SidebarItem 
+              icon={Coins} 
+              label="KOD PERUNTUKAN" 
+              active={currentPath === '/kod-peruntukan'} 
+              collapsed={collapsed} 
+              onClick={() => navigateTo('/kod-peruntukan')} 
+              subItems={[
+                { 
+                  label: 'PENGELASAN KOD PERUNTUKAN', 
+                  active: currentPath === '/kod-peruntukan' && (!currentHash || currentHash === '' || currentHash === '#pengelasan'), 
+                  onClick: () => navigateTo('/kod-peruntukan', 'pengelasan')
+                },
+                { 
+                  label: 'LAPORAN PERUNTUKAN TERPERINCI', 
+                  active: currentPath === '/kod-peruntukan' && (currentHash === '#terperinci' || currentHash === '#laporan'), 
+                  onClick: () => navigateTo('/kod-peruntukan', 'terperinci')
+                }
+              ]}
+            />
           </div>
         )}
 

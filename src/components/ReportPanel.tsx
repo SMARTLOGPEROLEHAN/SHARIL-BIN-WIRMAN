@@ -21,8 +21,43 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
-import { collection, query, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { isWithinUserScope, calculateTempohSiapKerja, formatDateToDDMMYYYY } from '../lib/scopeUtils';
+
+const getNormalizedDecisionDate = (ad: any): string => {
+  if (!ad) return '';
+  const dDate = ad.winner?.decisionDate || ad.decisionDate;
+  
+  let targetYear = '';
+  if (ad.winner?.contractStartDate && ad.winner.contractStartDate.length >= 4 && ad.winner.contractStartDate !== '-') {
+    targetYear = ad.winner.contractStartDate.substring(0, 4);
+  } else if (ad.contractStartDate && ad.contractStartDate.length >= 4 && ad.contractStartDate !== '-') {
+    targetYear = ad.contractStartDate.substring(0, 4);
+  } else if (ad.closingDate && ad.closingDate.length >= 4) {
+    targetYear = ad.closingDate.substring(0, 4);
+  } else if (ad.tenderNo) {
+    const match = ad.tenderNo.match(/20\d\d/);
+    if (match) targetYear = match[0];
+  }
+
+  if (dDate) {
+    if (targetYear && targetYear.length === 4 && dDate.startsWith('2026') && targetYear !== '2026') {
+      return dDate.replace(/^2026/, targetYear);
+    }
+    return dDate;
+  }
+
+  if (ad.closingDate && targetYear) {
+    if (ad.closingDate.includes('-')) {
+      const parts = ad.closingDate.split('-');
+      if (parts.length === 3) {
+        return `${targetYear}-${parts[1]}-25`;
+      }
+    }
+  }
+  return `${targetYear || '2025'}-02-25`;
+};
 import { 
   exportA1ToPDF, 
   exportA2ToPDF, 
@@ -40,7 +75,7 @@ import {
 import { exportToPDF, exportResultToPDF } from '../lib/exportUtils';
 
 export default function ReportPanel() {
-  const { role, office: userOffice } = useAuth();
+  const { role, office: userOffice, state: userState, district: userDistrict } = useAuth();
   const [view, setView] = useState<'summary' | 'sukuan' | 'tahunan'>('summary');
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -81,22 +116,44 @@ export default function ReportPanel() {
   const [selectedAnnualYear, setSelectedAnnualYear] = useState<string | null>(null);
   const [rowsAnnual, setRowsAnnual] = useState<RowAnnual[]>([]);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [customAnnualRows, setCustomAnnualRows] = useState<RowAnnual[]>([]);
 
   const getInitialMockAnnual = (yearStr: string): RowAnnual[] => {
     return [];
   };
 
+  const formatDate = (d: any): string => {
+    if (!d) return '';
+    return formatDateToDDMMYYYY(String(d));
+  };
+
+  const formatPONo = (rawPo?: string): string => {
+    if (!rawPo) return '';
+    const trimmed = rawPo.trim();
+    if (!trimmed || trimmed === '-') return '';
+    // Clean prefixes like "PO:", "PO :", "PO ", "LO:", "LO ", etc.
+    const cleaned = trimmed.replace(/^(PO|LO)\s*[:\-]?\s*/i, '').trim();
+    if (cleaned) {
+      return `PO${cleaned}`;
+    }
+    return trimmed;
+  };
+
   const getDBAnnualRowsForYear = (yearStr: string): RowAnnual[] => {
+    // Track matched order IDs so we never create duplicate rows for projects that already exist as Sebutharga
+    const matchedOrderIds = new Set<string>();
+
+    // 1. Process ads (Sebutharga)
     const filtered = allAds.filter(ad => {
       if (selectedOffice && selectedOffice !== 'SEMUA') {
         const adOffice = ad.office || '';
         if (adOffice.trim().toLowerCase() !== selectedOffice.trim().toLowerCase()) return false;
       }
 
-      const isWinnerDecided = ad.status === 'SELESAI (KEPUTUSAN)' || (ad.winner && ad.winner.companyName && ad.winner.companyName !== 'TIADA');
+      const isWinnerDecided = ad.status === 'SELESAI (KEPUTUSAN)' || (ad.winner && ad.winner.companyName && ad.winner.companyName !== 'TIADA') || ad.winnerName;
       if (!isWinnerDecided) return false;
 
-      const dateStr = ad.winner?.decisionDate || ad.winner?.timestamp || ad.winner?.contractStartDate || ad.updatedAt || ad.closingDate || ad.createdAt;
+      const dateStr = getNormalizedDecisionDate(ad) || ad.winner?.timestamp || ad.winner?.contractStartDate || ad.updatedAt || ad.closingDate || ad.createdAt;
       if (!dateStr) return false;
 
       const date = new Date(dateStr);
@@ -105,38 +162,247 @@ export default function ReportPanel() {
       return date.getFullYear().toString() === yearStr;
     });
 
-    return filtered.map((ad, idx) => {
+    const adRows: RowAnnual[] = filtered.map((ad, idx) => {
+      const isReTender = Boolean(
+        ad.winner?.isReTender || 
+        ad.winner?.companyName === 'SEBUTHARGA SEMULA' || 
+        ad.winnerName === 'SEBUTHARGA SEMULA' || 
+        ad.winner?.companyName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+        ad.winnerName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+        ad.statusPelaksanaan === 'SEBUTHARGA SEMULA'
+      );
+
       let winningPrice = 0;
-      if (ad.winner?.winningPrice) {
+      if (isReTender) {
+        winningPrice = 0;
+      } else if (ad.winningPrice !== undefined && ad.winningPrice !== null) {
+        winningPrice = Number(ad.winningPrice) || 0;
+      } else if (ad.winner?.winningPrice) {
         winningPrice = Number(ad.winner.winningPrice) || 0;
       } else if (ad.winner) {
         winningPrice = 50000;
       }
 
-      const tStart = ad.winner?.contractStartDate ? formatDate(ad.winner.contractStartDate) : (ad.contractStartDate ? formatDate(ad.contractStartDate) : '');
-      const tEnd = ad.winner?.contractEndDate ? formatDate(ad.winner.contractEndDate) : (ad.contractEndDate ? formatDate(ad.contractEndDate) : '');
+      // Check if there is a matching Order Request created for this Sebutharga
+      const cleanAdTitle = (ad.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const tenderNoClean = (ad.tenderNo || '').toUpperCase().trim();
+      const adWinnerName = (ad.winnerName || ad.winner?.companyName || '').toUpperCase().trim();
+
+      const matchedOrder = allOrderRequests.find(ord => {
+        if (!ord) return false;
+        // 1. Direct tender reference match
+        const rujukan = (ord.rujukanDokumen || '').toUpperCase().trim();
+        if (rujukan && tenderNoClean && (rujukan === tenderNoClean || rujukan.includes(tenderNoClean) || tenderNoClean.includes(rujukan))) {
+          return true;
+        }
+        // 2. Title similarity match
+        const cleanOrdTitle = (ord.title || ord.perihalPerolehan || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (cleanAdTitle && cleanOrdTitle) {
+          if (cleanAdTitle === cleanOrdTitle || cleanAdTitle.includes(cleanOrdTitle) || cleanOrdTitle.includes(cleanAdTitle)) {
+            return true;
+          }
+        }
+        // 3. Match by winner name and amount
+        const ordSupplier = (ord.pembekalDipilih || ord.supplierName || '').toUpperCase().trim();
+        const ordAmt = Number(ord.estimatedAmount) || 0;
+        if (adWinnerName && ordSupplier && adWinnerName === ordSupplier && winningPrice > 0 && Math.abs(ordAmt - winningPrice) < 10) {
+          return true;
+        }
+        return false;
+      });
+
+      if (matchedOrder && matchedOrder.id) {
+        matchedOrderIds.add(matchedOrder.id);
+      }
+
+      const rawStart = isReTender ? '' : (ad.tarikhSetujuTerima || ad.winner?.contractStartDate || ad.contractStartDate || (matchedOrder ? (matchedOrder.requestDate || matchedOrder.disediakanOlehTarikh) : ''));
+      const rawEnd = isReTender ? '' : (ad.tarikhSiapKerja || ad.winner?.contractEndDate || ad.contractEndDate || (matchedOrder ? (matchedOrder.disahkanOlehTarikh || matchedOrder.ketuaPtjTarikh) : ''));
+      const tStart = isReTender ? '' : formatDateToDDMMYYYY(rawStart);
+      const tEnd = isReTender ? '' : formatDateToDDMMYYYY(rawEnd);
+      const autoTempoh = isReTender ? '' : calculateTempohSiapKerja(tStart, tEnd);
+
+      // Extract and format PO number, Voucher number and Paid Date from matched Order
+      const resolvedPo = formatPONo(matchedOrder?.poNo || ad.noPesananTempatan || ad.winner?.noPesananTempatan || '');
+      const resolvedVoucher = (matchedOrder?.noBaucar || (matchedOrder as any)?.voucherNo || ad.noBaucar || '').toUpperCase();
+      const resolvedPaidDate = formatDateToDDMMYYYY(matchedOrder?.tarikhDibayar || (matchedOrder as any)?.paidDate || ad.tarikhDibayar || '');
 
       return {
         id: ad.id,
-        title: ad.title || '',
-        category: ad.category || 'KERJA',
-        tenderNo: ad.tenderNo || `SH/S.6-${String(idx + 1).padStart(2, '0')}/${yearStr}`,
+        title: (ad.title || '').toUpperCase(),
+        category: (ad.category || 'KERJA').toUpperCase() as any,
+        tenderNo: (ad.tenderNo || `SH/S.6-${String(idx + 1).padStart(2, '0')}/${yearStr}`).toUpperCase(),
         tarikhSetujuTerima: tStart,
         tarikhSiapKerja: tEnd,
-        tempohSiapKerja: ad.category === 'BEKALAN' ? '12 MINGGU' : ad.category === 'KERJA' ? '11 MINGGU' : '10 MINGGU',
-        winnerName: ad.winner?.companyName || 'TIADA',
+        tempohSiapKerja: isReTender ? '' : (autoTempoh || ad.tempohSiapKerja || ''),
+        winnerName: isReTender ? 'SEBUTHARGA SEMULA' : (ad.winnerName || ad.winner?.companyName || 'TIADA').toUpperCase(),
         winningPrice,
-        noBaucar: ad.noBaucar || '',
-        tarikhDibayar: ad.tarikhDibayar || '',
-        tarikhSiapBaru: ad.tarikhSiapBaru || '',
-        statusPelaksanaan: ad.winner?.status || 'ON TIME'
+        noPesananTempatan: isReTender ? '' : resolvedPo,
+        noBaucar: isReTender ? '' : resolvedVoucher,
+        tarikhDibayar: isReTender ? '' : resolvedPaidDate,
+        tarikhSiapBaru: isReTender ? '' : (ad.tarikhSiapBaru || ''),
+        statusPelaksanaan: isReTender ? 'TAMAT' : (ad.statusPelaksanaan || ad.winner?.status || 'ON TIME').toUpperCase()
       };
     });
+
+    // 2. Process standalone orderRequests (Only direct purchases that do NOT belong to any Sebutharga)
+    const filteredOrders = allOrderRequests.filter(ord => {
+      if (!ord || (ord.id && matchedOrderIds.has(ord.id))) return false;
+
+      if (selectedOffice && selectedOffice !== 'SEMUA') {
+        const ordOffice = ord.unitOffice || ord.ptjName || '';
+        const selLower = selectedOffice.trim().toLowerCase();
+        const distName = selLower.replace('pejabat risda daerah', '').trim();
+        if (ordOffice && !ordOffice.toLowerCase().includes(selLower) && distName && !ordOffice.toLowerCase().includes(distName)) {
+          return false;
+        }
+      }
+
+      // Check if this order title already matches any ad row to prevent duplicate reporting
+      const cleanOrdTitle = (ord.title || ord.perihalPerolehan || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const alreadyInAd = adRows.some(a => {
+        const cleanAdTitle = (a.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cleanAdTitle && cleanOrdTitle && (cleanAdTitle.includes(cleanOrdTitle) || cleanOrdTitle.includes(cleanAdTitle));
+      });
+      if (alreadyInAd) return false;
+
+      // Must be sent to finance, approved, or paid
+      const isSentOrPaid = ord.status === 'DIHANTAR KE KEWANGAN' || 
+                            ord.status === 'DIBAYAR' || 
+                            ord.status === 'LULUS' || 
+                            ord.financeStatus === 'DIHANTAR' || 
+                            ord.financeStatus === 'DISAHKAN KEWANGAN' || 
+                            ord.financeStatus === 'DIBAYAR';
+      if (!isSentOrPaid) return false;
+
+      let ordYear = yearStr;
+      const reqDate = ord.requestDate || ord.disediakanOlehTarikh || ord.createdAt || '';
+      if (reqDate && reqDate.length >= 4) {
+        const match = reqDate.match(/20\d\d/);
+        if (match) ordYear = match[0];
+      } else if (ord.orderNo) {
+        const match = ord.orderNo.match(/20\d\d/);
+        if (match) ordYear = match[0];
+      }
+
+      return ordYear === yearStr;
+    });
+
+    const orderRows: RowAnnual[] = filteredOrders.map((ord, idx) => {
+      const isPaid = ord.financeStatus === 'DIBAYAR' || ord.status === 'DIBAYAR';
+      const supplierName = (
+        ord.pembekalDipilih || 
+        ord.supplierName || 
+        (ord.kajianPasaran && ord.kajianPasaran.find((k: any) => k.namaSyarikat && k.namaSyarikat.trim() !== '')?.namaSyarikat) || 
+        'PEMBEKAL DILANTIK'
+      ).toUpperCase();
+
+      const amt = Number(ord.estimatedAmount) || (ord.items ? ord.items.reduce((s: number, i: any) => s + (Number(i.jumlahHarga || i.totalPrice) || 0), 0) : 0);
+
+      const reqDate = formatDateToDDMMYYYY(ord.requestDate || ord.disediakanOlehTarikh || '');
+      const appDate = formatDateToDDMMYYYY(ord.disahkanOlehTarikh || ord.ketuaPtjTarikh || reqDate);
+
+      // Clean PO Number
+      const loNo = formatPONo(ord.poNo || ord.financeReferenceNo || '');
+
+      // Baucer Bayaran & Tarikh Dibayar from Finance System
+      const voucherNo = (ord.noBaucar || (ord as any).voucherNo || '').toUpperCase();
+      const paidDate = formatDateToDDMMYYYY(ord.tarikhDibayar || (ord as any).paidDate || '');
+
+      return {
+        id: ord.id || `order-${idx}`,
+        title: (ord.title || ord.perihalPerolehan || 'PESANAN PEMBELIAN').toUpperCase(),
+        category: (ord.category || 'BEKALAN').toUpperCase() as any,
+        tenderNo: (ord.orderNo || `PP/RISDA/${yearStr}/${idx + 1}`).toUpperCase(),
+        tarikhSetujuTerima: reqDate,
+        tarikhSiapKerja: appDate,
+        tempohSiapKerja: '14 HARI',
+        winnerName: supplierName,
+        winningPrice: amt,
+        noPesananTempatan: loNo,
+        noBaucar: voucherNo,
+        tarikhDibayar: paidDate,
+        tarikhSiapBaru: '',
+        statusPelaksanaan: isPaid ? 'SELESAI (DIBAYAR)' : 'PROSES KEWANGAN'
+      };
+    });
+
+    return [...adRows, ...orderRows];
+  };
+
+  const loadAnnualRowsForYear = (yearStr: string, customList?: RowAnnual[]): RowAnnual[] => {
+    const dbRows = getDBAnnualRowsForYear(yearStr);
+    const rowsToUse = customList !== undefined ? customList : customAnnualRows;
+    const savedAnnualForYear = rowsToUse.filter((cr: any) => cr.year === yearStr || (!cr.year && cr.id.startsWith('custom-')));
+
+    if (savedAnnualForYear.length === 0) {
+      return dbRows;
+    }
+
+    // Merge by unique key (tenderNo or normalized title) to eliminate duplicate rows
+    const mergedMap = new Map<string, RowAnnual>();
+
+    dbRows.forEach(row => {
+      const normTitle = (row.title || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = row.tenderNo && row.tenderNo.trim() !== '' ? row.tenderNo.trim().toUpperCase() : (normTitle || row.id);
+      mergedMap.set(key, row);
+    });
+
+    savedAnnualForYear.forEach((savedRow: any) => {
+      const normTitle = (savedRow.title || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = savedRow.tenderNo && savedRow.tenderNo.trim() !== '' ? savedRow.tenderNo.trim().toUpperCase() : (normTitle || savedRow.id);
+
+      if (mergedMap.has(key)) {
+        const existing = mergedMap.get(key)!;
+        mergedMap.set(key, {
+          ...existing,
+          ...savedRow,
+          noPesananTempatan: formatPONo(savedRow.noPesananTempatan || existing.noPesananTempatan),
+          noBaucar: (savedRow.noBaucar || existing.noBaucar || '').toUpperCase(),
+          tarikhDibayar: savedRow.tarikhDibayar || existing.tarikhDibayar || ''
+        });
+      } else {
+        // Only keep if it doesn't match an existing row
+        const alreadyMatched = Array.from(mergedMap.values()).some(r => {
+          const rTitle = (r.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          return normTitle && rTitle && (normTitle === rTitle || normTitle.includes(rTitle) || rTitle.includes(normTitle));
+        });
+
+        if (!alreadyMatched) {
+          mergedMap.set(key, {
+            ...(savedRow as RowAnnual),
+            noPesananTempatan: formatPONo(savedRow.noPesananTempatan)
+          });
+        }
+      }
+    });
+
+    const result = Array.from(mergedMap.values()).map(row => {
+      const isReTender = Boolean(
+        row.winnerName && row.winnerName.toUpperCase().includes('SEBUTHARGA SEMULA')
+      );
+      if (isReTender) {
+        return {
+          ...row,
+          tempohSiapKerja: '',
+          winningPrice: 0,
+          statusPelaksanaan: 'TAMAT',
+          tarikhSetujuTerima: '',
+          tarikhSiapKerja: '',
+          noPesananTempatan: '',
+          noBaucar: '',
+          tarikhDibayar: '',
+          tarikhSiapBaru: ''
+        };
+      }
+      return row;
+    });
+
+    return result;
   };
 
   const handleSyncAnnualFromDB = () => {
     if (!selectedAnnualYear) return;
-    const mapped = getDBAnnualRowsForYear(selectedAnnualYear);
+    const mapped = loadAnnualRowsForYear(selectedAnnualYear);
 
     if (mapped.length === 0) {
       toast.error(`Tiada data sebut harga rasmi ditemui di DB bagi tahun ${selectedAnnualYear}. Dibuka sebagai draf ditaip.`);
@@ -150,7 +416,7 @@ export default function ReportPanel() {
   const handleAddAnnualRow = () => {
     const nextNum = rowsAnnual.length + 1;
     const newRow: RowAnnual = {
-      id: `custom-ann-${Math.random()}`,
+      id: `custom-ann-${Math.random().toString(36).substring(2, 9)}`,
       title: 'CADANGAN PROJEK PEROLEHAN BARU...',
       category: 'KERJA',
       tenderNo: `SH/S.6-${String(nextNum).padStart(2, '0')}/${selectedAnnualYear}`,
@@ -159,6 +425,7 @@ export default function ReportPanel() {
       tempohSiapKerja: '',
       winnerName: 'TIADA',
       winningPrice: 0,
+      noPesananTempatan: '',
       noBaucar: '',
       tarikhDibayar: '',
       tarikhSiapBaru: '',
@@ -166,17 +433,150 @@ export default function ReportPanel() {
       isCustom: true
     };
     setRowsAnnual([...rowsAnnual, newRow]);
-    toast.success('Baris perolehan tahunan baru ditambah!');
+    toast.success('Baris perolehan tahunan baru ditambah! Tekan "Simpan" untuk menyimpan secara kekal.');
   };
 
-  const handleDeleteAnnualRow = (id: string) => {
-    setRowsAnnual(rowsAnnual.filter(r => r.id !== id));
-    toast.success('Merekod sebut harga berjaya dipadam dari laporan tahunan.');
+  const handleSaveAnnualRow = async (r: RowAnnual) => {
+    if (!selectedAnnualYear) return;
+    setLoading(true);
+    try {
+      const annualRowData = {
+        ...r,
+        year: selectedAnnualYear,
+        office: selectedOffice || office || '',
+        updatedAt: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, 'annual_rows', r.id), annualRowData, { merge: true });
+
+      const isExistingAd = allAds.some(ad => ad.id === r.id);
+      if (isExistingAd) {
+        const updatePayload: any = {
+          title: r.title,
+          category: r.category,
+          tenderNo: r.tenderNo,
+          tarikhSetujuTerima: r.tarikhSetujuTerima,
+          tarikhSiapKerja: r.tarikhSiapKerja,
+          tempohSiapKerja: r.tempohSiapKerja,
+          winnerName: r.winnerName,
+          winningPrice: Number(r.winningPrice) || 0,
+          noPesananTempatan: r.noPesananTempatan || '',
+          noBaucar: r.noBaucar || '',
+          tarikhDibayar: r.tarikhDibayar || '',
+          tarikhSiapBaru: r.tarikhSiapBaru || '',
+          statusPelaksanaan: r.statusPelaksanaan || 'ON TIME',
+          updatedAt: new Date().toISOString()
+        };
+
+        if (r.winnerName) {
+          updatePayload['winner.companyName'] = r.winnerName;
+        }
+        if (r.winningPrice !== undefined) {
+          updatePayload['winner.winningPrice'] = Number(r.winningPrice) || 0;
+        }
+
+        await updateDoc(doc(db, 'ads', r.id), updatePayload);
+      }
+
+      setEditingRowId(null);
+      await fetchDatabaseData(true);
+      toast.success('Rekod perolehan berjaya disimpan ke Pangkalan Data!');
+    } catch (err: any) {
+      console.error('Error saving annual row:', err);
+      toast.error('Gagal menyimpan rekod: ' + (err.message || err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAllAnnualRows = async () => {
+    if (!selectedAnnualYear || rowsAnnual.length === 0) return;
+    setLoading(true);
+    try {
+      for (const r of rowsAnnual) {
+        const annualRowData = {
+          ...r,
+          year: selectedAnnualYear,
+          office: selectedOffice || office || '',
+          updatedAt: new Date().toISOString()
+        };
+
+        await setDoc(doc(db, 'annual_rows', r.id), annualRowData, { merge: true });
+
+        const isExistingAd = allAds.some(ad => ad.id === r.id);
+        if (isExistingAd) {
+          const updatePayload: any = {
+            title: r.title,
+            category: r.category,
+            tenderNo: r.tenderNo,
+            tarikhSetujuTerima: r.tarikhSetujuTerima,
+            tarikhSiapKerja: r.tarikhSiapKerja,
+            tempohSiapKerja: r.tempohSiapKerja,
+            winnerName: r.winnerName,
+            winningPrice: Number(r.winningPrice) || 0,
+            noPesananTempatan: r.noPesananTempatan || '',
+            noBaucar: r.noBaucar || '',
+            tarikhDibayar: r.tarikhDibayar || '',
+            tarikhSiapBaru: r.tarikhSiapBaru || '',
+            statusPelaksanaan: r.statusPelaksanaan || 'ON TIME',
+            updatedAt: new Date().toISOString()
+          };
+
+          if (r.winnerName) {
+            updatePayload['winner.companyName'] = r.winnerName;
+          }
+          if (r.winningPrice !== undefined) {
+            updatePayload['winner.winningPrice'] = Number(r.winningPrice) || 0;
+          }
+
+          await updateDoc(doc(db, 'ads', r.id), updatePayload);
+        }
+      }
+
+      setEditingRowId(null);
+      await fetchDatabaseData(true);
+      toast.success(`Semua ${rowsAnnual.length} rekod Laporan Tahunan ${selectedAnnualYear} berjaya disimpan secara kekal!`);
+    } catch (err: any) {
+      console.error('Error saving all annual rows:', err);
+      toast.error('Gagal menyimpan laporan tahunan: ' + (err.message || err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAnnualRow = async (id: string) => {
+    setRowsAnnual(prev => prev.filter(r => r.id !== id));
+    try {
+      await deleteDoc(doc(db, 'annual_rows', id));
+    } catch (err) {
+      console.error('Error deleting annual row from DB:', err);
+    }
+    toast.success('Rekod sebut harga berjaya dipadam dari laporan tahunan.');
   };
 
   const handleAnnualCellChange = (index: number, field: keyof RowAnnual, val: any) => {
     const updated = [...rowsAnnual];
-    updated[index] = { ...updated[index], [field]: val };
+    const finalVal = typeof val === 'string' ? val.toUpperCase() : val;
+    const updatedRow = { ...updated[index], [field]: finalVal };
+
+    const isReTender = Boolean(
+      updatedRow.winnerName && updatedRow.winnerName.toUpperCase().includes('SEBUTHARGA SEMULA')
+    );
+
+    if (isReTender) {
+      updatedRow.tempohSiapKerja = '';
+      updatedRow.winningPrice = 0;
+      updatedRow.statusPelaksanaan = 'TAMAT';
+      updatedRow.tarikhSetujuTerima = '';
+      updatedRow.tarikhSiapKerja = '';
+    } else if (field === 'tarikhSetujuTerima' || field === 'tarikhSiapKerja') {
+      const computed = calculateTempohSiapKerja(updatedRow.tarikhSetujuTerima, updatedRow.tarikhSiapKerja);
+      if (computed) {
+        updatedRow.tempohSiapKerja = computed;
+      }
+    }
+
+    updated[index] = updatedRow;
     setRowsAnnual(updated);
   };
 
@@ -208,6 +608,7 @@ export default function ReportPanel() {
   // Dynamic system-wide data states
   const [locations, setLocations] = useState<any[]>([]);
   const [allAds, setAllAds] = useState<any[]>([]);
+  const [allOrderRequests, setAllOrderRequests] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [selectedOffice, setSelectedOffice] = useState<string>('SEMUA');
   const [summaryStats, setSummaryStats] = useState({
@@ -284,7 +685,7 @@ export default function ReportPanel() {
         const adOffice = ad.office || '';
         if (adOffice.trim().toLowerCase() !== selectedOffice.trim().toLowerCase()) return false;
       }
-      const dateStr = ad.winner?.decisionDate || ad.winner?.timestamp || ad.visitDate || ad.closingDate || ad.createdAt || ad.publishedDate;
+      const dateStr = getNormalizedDecisionDate(ad) || ad.winner?.timestamp || ad.visitDate || ad.closingDate || ad.createdAt || ad.publishedDate;
       if (!dateStr) return false;
       const date = new Date(dateStr);
       return !isNaN(date.getTime()) && date.getFullYear() === yr;
@@ -311,9 +712,17 @@ export default function ReportPanel() {
       const adsList = adsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as any);
       setAllAds(adsList);
 
+      const ordersSnap = await getDocs(collection(db, 'orderRequests'));
+      const ordersList = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as any);
+      setAllOrderRequests(ordersList);
+
       const usersSnap = await getDocs(collection(db, 'users'));
       const usersList = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as any);
       setAllUsers(usersList);
+
+      const annualSnap = await getDocs(collection(db, 'annual_rows'));
+      const annualList = annualSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as RowAnnual);
+      setCustomAnnualRows(annualList);
     } catch (err) {
       console.error('Error fetching dashboard statistics data:', err);
     } finally {
@@ -327,7 +736,9 @@ export default function ReportPanel() {
 
   // Compute dynamic stats dashboard metrics on data changes
   useEffect(() => {
+    const userScope = { role, state: userState, district: userDistrict, office: userOffice };
     const filteredAds = allAds.filter(ad => {
+      if (!isWithinUserScope(ad, userScope)) return false;
       if (selectedOffice && selectedOffice !== 'SEMUA') {
         const adOffice = ad.office || '';
         return adOffice.trim().toLowerCase() === selectedOffice.trim().toLowerCase();
@@ -336,6 +747,7 @@ export default function ReportPanel() {
     });
 
     const filteredUsers = allUsers.filter(u => {
+      if (!isWithinUserScope(u, userScope)) return false;
       if (selectedOffice && selectedOffice !== 'SEMUA') {
         const uOffice = u.office || '';
         return uOffice.trim().toLowerCase() === selectedOffice.trim().toLowerCase();
@@ -392,7 +804,7 @@ export default function ReportPanel() {
       if (!isWinnerDecided) return false;
 
       // Classify the quarter based strictly on the winner decision date
-      const dateStr = ad.winner?.decisionDate || ad.winner?.timestamp || ad.updatedAt || ad.closingDate || ad.createdAt;
+      const dateStr = getNormalizedDecisionDate(ad) || ad.winner?.timestamp || ad.updatedAt || ad.closingDate || ad.createdAt;
       if (!dateStr) return false;
 
       const date = new Date(dateStr);
@@ -420,8 +832,19 @@ export default function ReportPanel() {
     }
 
     const mappedA2: RowA2[] = filtered.map(ad => {
+      const isReTender = Boolean(
+        ad.winner?.isReTender || 
+        ad.winner?.companyName === 'SEBUTHARGA SEMULA' || 
+        ad.winnerName === 'SEBUTHARGA SEMULA' || 
+        ad.winner?.companyName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+        ad.winnerName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+        ad.statusPelaksanaan === 'SEBUTHARGA SEMULA'
+      );
+
       let winningPrice = 0;
-      if (ad.winner?.winningPrice) {
+      if (isReTender) {
+        winningPrice = 0;
+      } else if (ad.winner?.winningPrice) {
         winningPrice = Number(ad.winner.winningPrice) || 0;
       } else if (ad.tenderNo === 'S.H/S.6-04/2025') {
         winningPrice = 127000;
@@ -431,18 +854,34 @@ export default function ReportPanel() {
         winningPrice = 50000;
       }
 
-      let jenisPeruntukan = 'BLK';
-      if (ad.title?.toLowerCase().includes('kwr') || ad.category === 'BEKALAN') {
-        jenisPeruntukan = 'KWR';
+      let jenisPeruntukan = (ad as any).jenisPeruntukan || 'BLK';
+      if (!(ad as any).jenisPeruntukan) {
+        if (ad.title?.toLowerCase().includes('kwr')) {
+          jenisPeruntukan = 'KWR';
+        } else {
+          jenisPeruntukan = 'BLK';
+        }
+      }
+
+      const tenderNorm = (ad.tenderNo || '').toUpperCase().replace(/\s+/g, '');
+      if (
+        tenderNorm.includes('06/2024') ||
+        tenderNorm.includes('07/2024') ||
+        tenderNorm.includes('S.6-06/2024') ||
+        tenderNorm.includes('S.6-07/2024') ||
+        tenderNorm.includes('SH/S.6-06/2024') ||
+        tenderNorm.includes('SH/S.6-07/2024')
+      ) {
+        jenisPeruntukan = 'BLK';
       }
 
       return {
         id: ad.id,
-        tenderNo: ad.tenderNo || 'S.H/S.6-0X/2025',
-        category: ad.category || 'KERJA',
-        jenisPeruntukan,
-        title: ad.title || '',
-        winnerName: ad.winner?.companyName || 'TIADA',
+        tenderNo: (ad.tenderNo || 'S.H/S.6-0X/2025').toUpperCase(),
+        category: (ad.category || 'KERJA').toUpperCase() as any,
+        jenisPeruntukan: jenisPeruntukan.toUpperCase(),
+        title: (ad.title || '').toUpperCase(),
+        winnerName: isReTender ? 'SEBUTHARGA SEMULA' : (ad.winner?.companyName || ad.winnerName || 'TIADA').toUpperCase(),
         winningPrice
       };
     });
@@ -468,7 +907,56 @@ export default function ReportPanel() {
       const sstBumiBil = winningBumi.length;
       const sstBumiNilai = winningBumi.reduce((sum, a) => sum + a.winningPrice, 0);
 
-      const hasDecision = catAds.some(ad => ad.status === 'SELESAI (KEPUTUSAN)' || (ad.winner && ad.winner.companyName && ad.winner.companyName !== 'TIADA'));
+      const hasDecision = catAds.some(ad => {
+        const isReTender = ad.winner?.companyName === 'SEBUTHARGA SEMULA' || ad.winnerName === 'SEBUTHARGA SEMULA' || ad.statusPelaksanaan === 'SEBUTHARGA SEMULA';
+        return !isReTender && (ad.status === 'SELESAI (KEPUTUSAN)' || (ad.winner && ad.winner.companyName && ad.winner.companyName !== 'TIADA'));
+      });
+
+      // Calculate the highest duration in weeks for projects in this category based on winner selection dates / duration
+      let maxWeeks = 0;
+      catAds.forEach(ad => {
+        const isReTender = Boolean(
+          ad.winner?.isReTender ||
+          ad.winner?.companyName === 'SEBUTHARGA SEMULA' ||
+          ad.winnerName === 'SEBUTHARGA SEMULA' ||
+          ad.winner?.companyName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+          ad.winnerName?.toUpperCase() === 'SEBUTHARGA SEMULA' ||
+          ad.statusPelaksanaan === 'SEBUTHARGA SEMULA'
+        );
+        if (isReTender) return;
+
+        // Try start & end dates from winner or ad level
+        const startDateStr = ad.winner?.contractStartDate || ad.contractStartDate || ad.winner?.tarikhSetujuTerima || ad.tarikhSetujuTerima;
+        const endDateStr = ad.winner?.contractEndDate || ad.contractEndDate || ad.winner?.tarikhSiapKerja || ad.tarikhSiapKerja;
+
+        let weeks = 0;
+        if (startDateStr && endDateStr) {
+          const tempohStr = calculateTempohSiapKerja(startDateStr, endDateStr);
+          const match = tempohStr.match(/(\d+)\s*MINGGU/i) || tempohStr.match(/(\d+)/);
+          if (match) {
+            weeks = parseInt(match[1], 10) || 0;
+          }
+        }
+
+        if (weeks <= 0) {
+          const directTempoh = ad.winner?.tempohSiapKerja || ad.tempohSiapKerja || ad.tempoh || '';
+          const match = directTempoh.match(/(\d+)\s*MINGGU/i) || directTempoh.match(/(\d+)/);
+          if (match) {
+            weeks = parseInt(match[1], 10) || 0;
+          }
+        }
+
+        if (weeks > maxWeeks) {
+          maxWeeks = weeks;
+        }
+      });
+
+      let syorJangkaanText = '';
+      if (maxWeeks > 0) {
+        syorJangkaanText = `${maxWeeks} MINGGU`;
+      } else if (hasDecision) {
+        syorJangkaanText = cat === 'BEKALAN' ? '12 MINGGU' : cat === 'KERJA' ? '11 MINGGU' : '';
+      }
 
       return {
         category: cat,
@@ -483,7 +971,7 @@ export default function ReportPanel() {
         sstBumiNilai,
         sstNonBumiBil: 0,
         sstNonBumiNilai: 0,
-        syorJangkaan: cat === 'BEKALAN' ? (hasDecision ? '12 MINGGU' : '') : cat === 'KERJA' ? '11 MINGGU' : ''
+        syorJangkaan: syorJangkaanText
       };
     });
     setRowsA1(computedA1);
@@ -551,8 +1039,40 @@ export default function ReportPanel() {
   // Inline Handlers for A2 Edit Cells
   const handleA2CellChange = (index: number, field: keyof RowA2, val: any) => {
     const updated = [...rowsA2];
-    updated[index] = { ...updated[index], [field]: val };
+    const finalVal = typeof val === 'string' ? val.toUpperCase() : val;
+    const updatedRow = { ...updated[index], [field]: finalVal };
+
+    const isReTender = Boolean(
+      updatedRow.winnerName && updatedRow.winnerName.toUpperCase().includes('SEBUTHARGA SEMULA')
+    );
+
+    if (isReTender) {
+      updatedRow.winningPrice = 0;
+      updatedRow.winnerName = 'SEBUTHARGA SEMULA';
+    }
+
+    updated[index] = updatedRow;
     setRowsA2(updated);
+
+    // Recompute Jadual 1 totals if winningPrice or winnerName or category changes
+    if (field === 'winningPrice' || field === 'winnerName' || field === 'category') {
+      setRowsA1(prevA1 => {
+        return prevA1.map(r1 => {
+          const catA2 = updated.filter(a => a.category === r1.category);
+          if (catA2.length === 0) return r1;
+
+          const perancanganNilai = catA2.reduce((sum, a) => sum + (Number(a.winningPrice) || 0), 0);
+          const winningBumi = catA2.filter(a => a.winnerName && a.winnerName !== 'TIADA');
+          const sstBumiNilai = winningBumi.reduce((sum, a) => sum + (Number(a.winningPrice) || 0), 0);
+
+          return {
+            ...r1,
+            perancanganNilai,
+            sstBumiNilai
+          };
+        });
+      });
+    }
   };
 
   // Add custom manual record to Lampiran A2 table (Starts completely empty)
@@ -1247,8 +1767,8 @@ export default function ReportPanel() {
                                   className="w-full bg-[#111622] border border-white/10 rounded-lg p-2 text-center text-white placeholder:text-white/20 uppercase font-bold focus:border-risda-orange outline-none text-[11px]"
                                 />
                               ) : (
-                                <div className="p-2 text-center font-bold text-risda-gold min-h-[34px] flex items-center justify-center">
-                                  {r.jenisPeruntukan || <span className="text-white/10 italic text-[10px]">-</span>}
+                                <div className="p-2 text-center font-bold uppercase text-risda-gold min-h-[34px] flex items-center justify-center">
+                                  {r.jenisPeruntukan ? r.jenisPeruntukan.toUpperCase() : <span className="text-white/10 italic text-[10px]">-</span>}
                                 </div>
                               )}
                             </td>
@@ -1264,8 +1784,8 @@ export default function ReportPanel() {
                                   placeholder="Masukkan Nama Projek..."
                                 />
                               ) : (
-                                <div className="p-2 text-white/80 lowercase first-letter:uppercase text-[11.5px] leading-relaxed break-words max-w-[400px] min-h-[34px] flex items-center">
-                                  {r.title || <span className="text-white/10 italic text-[10px]">Tiada Nama Projek</span>}
+                                <div className="p-2 text-white/90 uppercase font-bold text-[11.5px] leading-relaxed break-words max-w-[400px] min-h-[34px] flex items-center">
+                                  {r.title ? r.title.toUpperCase() : <span className="text-white/10 italic text-[10px]">Tiada Nama Projek</span>}
                                 </div>
                               )}
                             </td>
@@ -1282,7 +1802,7 @@ export default function ReportPanel() {
                                 />
                               ) : (
                                 <div className="p-2 font-black uppercase text-white/90 min-h-[34px] flex items-center">
-                                  {r.winnerName || <span className="text-white/10 italic text-[10px]">Tiada</span>}
+                                  {r.winnerName ? r.winnerName.toUpperCase() : <span className="text-white/10 italic text-[10px]">Tiada</span>}
                                 </div>
                               )}
                             </td>
@@ -1387,6 +1907,15 @@ export default function ReportPanel() {
 
                   <div className="flex items-center flex-wrap gap-2">
                     <button 
+                      onClick={handleSaveAllAnnualRows}
+                      disabled={loading || rowsAnnual.length === 0}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-green-600/20 active:scale-95 disabled:opacity-50"
+                      title="Simpan semua rekod laporan tahunan ke Pangkalan Data"
+                    >
+                      <Save size={14} />
+                      Simpan Laporan Tahunan
+                    </button>
+                    <button 
                       onClick={handleSyncAnnualFromDB}
                       disabled={loading}
                       className="px-4 py-2 bg-white/5 border border-white/10 text-white rounded-xl hover:border-risda-orange/50 transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2"
@@ -1463,6 +1992,7 @@ export default function ReportPanel() {
                         <th className="p-3 w-36 border-r border-[#D49010]">TEMPOH SIAP KERJA</th>
                         <th className="p-3 w-52 border-r border-[#D49010]">NAMA SYARIKAT BERJAYA</th>
                         <th className="p-3 w-36 border-r border-[#D49010] text-right">NILAI TAWARAN (RM)</th>
+                        <th className="p-3 w-40 border-r border-[#D49010]">NO PESANAN TEMPATAN</th>
                         <th className="p-3 w-36 border-r border-[#D49010]">NO BAUCAR BAYARAN</th>
                         <th className="p-3 w-36 border-r border-[#D49010]">TARIKH DIBAYAR</th>
                         <th className="p-3 h-auto w-48 border-r border-[#D49010]">TARIKH SIAP KERJA BARU (EOT)</th>
@@ -1473,7 +2003,7 @@ export default function ReportPanel() {
                     <tbody className="divide-y divide-white/5 font-medium bg-[#0b0e14]">
                       {rowsAnnual.length === 0 ? (
                         <tr>
-                          <td colSpan={14} className="p-12 text-center text-risda-muted text-sm uppercase font-black tracking-widest">
+                          <td colSpan={15} className="p-12 text-center text-risda-muted text-sm uppercase font-black tracking-widest">
                             Tiada rekod sebut harga tahunan sedia ada. Sila klik "Padan Data DB" untuk menjana baris perolehan.
                           </td>
                         </tr>
@@ -1553,7 +2083,7 @@ export default function ReportPanel() {
                                     className="w-full bg-[#161616] rounded-lg p-2 text-white text-center text-xs uppercase font-bold outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-semibold">{r.tarikhSetujuTerima || '-'}</span>
+                                  <span className="text-white text-xs font-semibold">{formatDateToDDMMYYYY(r.tarikhSetujuTerima) || '-'}</span>
                                 )}
                               </td>
 
@@ -1568,7 +2098,7 @@ export default function ReportPanel() {
                                     className="w-full bg-[#161616] rounded-lg p-2 text-white text-center text-xs uppercase font-bold outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-semibold">{r.tarikhSiapKerja || '-'}</span>
+                                  <span className="text-white text-xs font-semibold">{formatDateToDDMMYYYY(r.tarikhSiapKerja) || '-'}</span>
                                 )}
                               </td>
 
@@ -1583,7 +2113,9 @@ export default function ReportPanel() {
                                     className="w-full bg-[#161616] rounded-lg p-2 text-center text-xs text-white uppercase font-black outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-black uppercase text-center">{r.tempohSiapKerja || '-'}</span>
+                                  <span className="text-white text-xs font-black uppercase text-center">
+                                    {r.winnerName?.toUpperCase().includes('SEBUTHARGA SEMULA') ? '-' : (r.tempohSiapKerja || '-')}
+                                  </span>
                                 )}
                               </td>
 
@@ -1613,7 +2145,24 @@ export default function ReportPanel() {
                                     className="w-full bg-[#161616] rounded-lg p-2 text-right font-mono font-bold text-white text-xs outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
                                   />
                                 ) : (
-                                  r.winningPrice ? `RM ${Number(r.winningPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'RM 0.00'
+                                  (r.winnerName?.toUpperCase().includes('SEBUTHARGA SEMULA') || !r.winningPrice) ? '-' : `RM ${Number(r.winningPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                )}
+                              </td>
+
+                              {/* NO PESANAN TEMPATAN */}
+                              <td className="p-2 border-r border-white/5">
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={r.noPesananTempatan || ''}
+                                    onChange={(e) => handleAnnualCellChange(idx, 'noPesananTempatan', e.target.value)}
+                                    placeholder="No. Pesanan Tempatan"
+                                    className="w-full bg-[#161616] rounded-lg p-2 text-white text-center text-xs uppercase font-bold outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                  />
+                                ) : (
+                                  <span className="text-white text-xs font-bold font-mono">
+                                    {r.noPesananTempatan || <span className="text-white/30 italic">TIADA LO</span>}
+                                  </span>
                                 )}
                               </td>
 
@@ -1679,13 +2228,14 @@ export default function ReportPanel() {
                                 ) : (
                                   <div className="flex justify-center">
                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                                      (r.statusPelaksanaan === 'TAMAT' || r.winnerName?.toUpperCase().includes('SEBUTHARGA SEMULA')) ? 'bg-white/5 text-white/50 border-white/10' :
                                       r.statusPelaksanaan === 'ON TIME' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
                                       r.statusPelaksanaan === 'LEWAT BERSYARAT' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                                       r.statusPelaksanaan === 'DALAM PROSES' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                                       r.statusPelaksanaan === 'LEWAT' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
                                       'bg-white/5 text-white/50 border-white/10'
                                     }`}>
-                                      {r.statusPelaksanaan}
+                                      {r.winnerName?.toUpperCase().includes('SEBUTHARGA SEMULA') ? 'TAMAT' : r.statusPelaksanaan}
                                     </span>
                                   </div>
                                 )}
@@ -1696,12 +2246,9 @@ export default function ReportPanel() {
                                 {isEditing ? (
                                   <div className="flex items-center justify-center gap-1.5 flex-nowrap">
                                     <button
-                                      onClick={() => {
-                                        setEditingRowId(null);
-                                        toast.success('Rekod perolehan berjaya disimpan dan dikemaskini!');
-                                      }}
+                                      onClick={() => handleSaveAnnualRow(r)}
                                       className="px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-black rounded-lg transition-all text-[11px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md shadow-green-500/20 active:scale-95"
-                                      title="Simpan perubahan"
+                                      title="Simpan perubahan rekod ke Pangkalan Data"
                                     >
                                       <Save size={12} strokeWidth={2.5} />
                                       Simpan
@@ -1771,12 +2318,11 @@ export default function ReportPanel() {
                         status={item.status} 
                         onClick={() => {
                           setSelectedAnnualYear(item.year);
-                          const dbRows = getDBAnnualRowsForYear(item.year);
-                          if (dbRows.length > 0) {
-                            setRowsAnnual(dbRows);
-                            toast.success(`Berjaya memadankan ${dbRows.length} rekod dari pangkalan data bagi tahun ${item.year}`);
+                          const rows = loadAnnualRowsForYear(item.year);
+                          setRowsAnnual(rows);
+                          if (rows.length > 0) {
+                            toast.success(`Berjaya memuatkan ${rows.length} rekod laporan bagi tahun ${item.year}`);
                           } else {
-                            // Empty report initially as requested because no database data is registered yet
                             setRowsAnnual([]);
                             toast(`Tiada data database bagi tahun ${item.year}. Laporan tahunan bermula kosong.`);
                           }
@@ -1871,21 +2417,8 @@ function StateBar({ name, percentage, count }: any) {
 }
 
 const formatDate = (dateStr: string | undefined): string => {
-  if (!dateStr) return '-';
-  try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return dateStr;
-    const day = String(date.getDate()).padStart(2, '0');
-    const months = [
-      'Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun',
-      'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'
-    ];
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
-  } catch (e) {
-    return dateStr;
-  }
+  if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
+  return formatDateToDDMMYYYY(dateStr);
 };
 
 function DownloadItem({ title, subtitle, size, date, onClick }: any) {
