@@ -72,7 +72,7 @@ export default function DecorationBackground({ isStaff = false, isSidebarCollaps
       <div className="absolute bottom-[5%] right-[30%] w-12 h-12 border-4 border-risda-orange/10 rounded-full" />
 
       {/* RISDA Logo Watermark */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.2] overflow-hidden">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] overflow-hidden">
         <motion.img 
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -88,7 +88,7 @@ export default function DecorationBackground({ isStaff = false, isSidebarCollaps
           alt="RISDA BACKGROUND" 
           referrerPolicy="no-referrer"
           crossOrigin="anonymous"
-          className="w-[800px] h-[800px] object-contain select-none mix-blend-overlay"
+          className="w-[720px] h-[720px] object-contain select-none"
         />
       </div>
     </motion.div>

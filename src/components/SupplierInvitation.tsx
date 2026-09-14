@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { exportToPDF, exportOfficialLetterToPDF, exportInvitationLetterToPDF } from '../lib/exportUtils';
+import Pagination from './Pagination';
 
 interface Supplier {
   id?: string;
@@ -97,6 +98,14 @@ export default function SupplierInvitation() {
     office: 'ALL'
   });
   const [locations, setLocations] = useState<LocationItem[]>([]);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, listFilters]);
 
   // Get active staff layout info based on logged in record
   const getStaffDefaultOfficeAndAddress = () => {
@@ -1846,6 +1855,11 @@ Pejabat RISDA Daerah Beaufort, Sabah.
     return matchesSearch && matchesYear && matchesState && matchesOffice && matchesUserScope;
   });
 
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredInvitations.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedInvitations = filteredInvitations.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+
   // Dynamic header calculations for live preview
   let previewOffice = 'PEJABAT RISDA DAERAH BEAUFORT';
   let previewAddress = 'K77 & K78, Block K, Beaufort Square Avenue 1,<br/>Jalan Binunuk,<br/>89800 Beaufort, Sabah';
@@ -1875,7 +1889,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-risda-card p-6 md:p-8 rounded-[30px] border border-white/5 relative overflow-hidden shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-r from-risda-orange/5 to-transparent pointer-events-none" />
         <div className="space-y-1 z-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-risda-orange/10 border border-risda-orange/20 rounded-full text-[9px] font-black text-risda-orange tracking-widest uppercase">
+          <div className="badge-header-pill inline-flex items-center gap-1.5 px-3 py-1 bg-risda-orange/10 border border-risda-orange/20 rounded-full text-[9px] font-black text-risda-orange tracking-widest uppercase">
             <Layers size={11} /> Kawalan Operasi
           </div>
           <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">
@@ -1887,22 +1901,22 @@ Pejabat RISDA Daerah Beaufort, Sabah.
         </div>
 
         {/* Action Buttons to Switch Tabs */}
-        <div className="flex items-center gap-2 shrink-0 z-10 bg-black/40 border border-white/10 p-1.5 rounded-2xl">
+        <div className="supplier-tab-group flex items-center gap-2 shrink-0 z-10 bg-black/40 border border-white/10 p-1.5 rounded-2xl">
           <button 
             onClick={() => setActiveTab('list')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'list' ? 'bg-risda-orange text-black' : 'text-risda-muted hover:text-white'}`}
+            className={`supplier-tab-btn px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'list' ? 'active-supplier-tab bg-risda-orange text-white' : 'text-risda-muted hover:text-white'}`}
           >
             Senarai Pelawaan
           </button>
           <button 
             onClick={() => setActiveTab('create')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'create' ? 'bg-risda-orange text-black' : 'text-risda-muted hover:text-white'}`}
+            className={`supplier-tab-btn px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'create' ? 'active-supplier-tab bg-risda-orange text-white' : 'text-risda-muted hover:text-white'}`}
           >
             Sedia Pelawaan Baru
           </button>
           <button 
             onClick={() => setActiveTab('directory')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'directory' ? 'bg-risda-orange text-black' : 'text-risda-muted hover:text-white'}`}
+            className={`supplier-tab-btn px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'directory' ? 'active-supplier-tab bg-risda-orange text-white' : 'text-risda-muted hover:text-white'}`}
           >
             Data Pembekal
           </button>
@@ -1926,7 +1940,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
             <button 
               onClick={() => setActiveTab('create')}
-              className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-risda-orange to-risda-gold text-black rounded-2xl text-[12px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg"
+              className="btn-action-primary w-full md:w-auto px-6 py-3 bg-gradient-to-r from-risda-orange to-risda-gold text-white rounded-2xl text-[12px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg"
             >
               <Plus size={16} /> Sedia Pelawaan
             </button>
@@ -2022,7 +2036,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredInvitations.map((inv) => (
+              {paginatedInvitations.map((inv) => (
                 <div 
                   key={inv.id}
                   onClick={() => setSelectedInvitation(inv)}
@@ -2088,6 +2102,27 @@ Pejabat RISDA Daerah Beaufort, Sabah.
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {filteredInvitations.length > 0 && (
+            <div className="mt-6">
+              <Pagination
+                currentPage={safeCurrentPage}
+                totalItems={filteredInvitations.length}
+                pageSize={pageSize}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                pageSizeOptions={[10, 20, 50]}
+                itemName="surat pelawaan"
+              />
             </div>
           )}
         </div>
@@ -2855,7 +2890,7 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             </div>
             <button 
               onClick={() => { setEditingSupplier(null); setSupForm({ companyName: '', phoneNumber: '', email: '', address: '', cidbSpkk: '' }); setShowSupplierModal(true); }}
-              className="px-6 py-3 bg-gradient-to-r from-risda-orange to-risda-gold text-black rounded-2xl text-[12px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all flex items-center justify-center gap-2 shadow-lg"
+              className="btn-action-primary px-6 py-3 bg-gradient-to-r from-risda-orange to-risda-gold text-white rounded-2xl text-[12px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all flex items-center justify-center gap-2 shadow-lg"
             >
               <Plus size={16} /> Daftar Pembekal Baru
             </button>
@@ -2865,58 +2900,64 @@ Pejabat RISDA Daerah Beaufort, Sabah.
             {directorySuppliers.map((sup) => (
               <div 
                 key={sup.id}
-                className="bg-risda-card border border-white/5 hover:border-white/10 rounded-3xl p-5 flex flex-col justify-between space-y-4 shadow-lg relative overflow-hidden"
+                className="h-full bg-risda-card border border-risda-border hover:border-risda-orange/40 rounded-3xl p-5 flex flex-col justify-between space-y-4 shadow-sm relative overflow-hidden transition-all duration-300"
               >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="p-3 bg-white/5 rounded-2xl text-risda-gold border border-white/5">
-                      <Building size={20} />
+                <div className="space-y-3 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-start justify-between">
+                      <div className="p-3 bg-risda-card-muted rounded-2xl text-risda-gold border border-risda-border">
+                        <Building size={20} />
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        {sup.cidbSpkk && (
+                          <span className="px-2.5 py-0.5 bg-sky-500/10 border border-sky-500/20 text-[9px] font-bold text-sky-600 dark:text-sky-400 rounded-md uppercase font-mono">
+                            CIDB: {sup.cidbSpkk}
+                          </span>
+                        )}
+                        {sup.source === 'attendance' ? (
+                          <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-[8px] font-black text-emerald-600 dark:text-emerald-400 rounded-md uppercase tracking-wider">
+                            DARI KEHADIRAN
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[8px] font-black text-amber-600 dark:text-amber-400 rounded-md uppercase tracking-wider">
+                            DAFTAR MANUAL
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                      {sup.cidbSpkk && (
-                        <span className="px-2.5 py-0.5 bg-sky-500/10 border border-sky-500/20 text-[9px] font-bold text-sky-400 rounded-md uppercase font-mono">
-                          CIDB: {sup.cidbSpkk}
-                        </span>
-                      )}
-                      {sup.source === 'attendance' ? (
-                        <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-[8px] font-black text-emerald-400 rounded-md uppercase tracking-wider">
-                          DARI KEHADIRAN
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[8px] font-black text-amber-400 rounded-md uppercase tracking-wider">
-                          DAFTAR MANUAL
-                        </span>
-                      )}
+
+                    <div className="space-y-1 mt-3">
+                      <h3 className="text-sm font-black text-risda-text uppercase tracking-tight leading-snug line-clamp-2 min-h-[2.5rem] flex items-center">{sup.companyName}</h3>
+                      <p className="text-[10px] text-risda-text-secondary font-bold uppercase flex items-center gap-1.5">
+                        <Phone size={10} className="text-risda-orange" /> {sup.phoneNumber}
+                      </p>
+                      <p className="text-[10px] text-risda-text-secondary font-bold uppercase flex items-center gap-1.5 truncate">
+                        <Mail size={10} className="text-risda-orange" /> {sup.email}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-black text-white uppercase tracking-tight leading-snug line-clamp-1">{sup.companyName}</h3>
-                    <p className="text-[10px] text-white/50 font-bold uppercase flex items-center gap-1.5">
-                      <Phone size={10} className="text-risda-orange" /> {sup.phoneNumber}
-                    </p>
-                    <p className="text-[10px] text-white/50 font-bold uppercase flex items-center gap-1.5 truncate">
-                      <Mail size={10} className="text-risda-orange" /> {sup.email}
-                    </p>
+                  <div className="pt-2 border-t border-risda-border min-h-[38px] flex items-center">
+                    {sup.address ? (
+                      <p className="text-[10px] text-risda-muted italic leading-relaxed line-clamp-2">
+                        {sup.address}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-risda-muted/50 italic">Alamat tidak dinyatakan</p>
+                    )}
                   </div>
-
-                  {sup.address && (
-                    <p className="text-[10px] text-risda-muted italic leading-relaxed line-clamp-2 pt-1 border-t border-white/5">
-                      {sup.address}
-                    </p>
-                  )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/5">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-risda-border mt-auto">
                   <button 
                     onClick={() => { setEditingSupplier(sup); setSupForm(sup); setShowSupplierModal(true); }}
-                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase rounded-lg transition-all"
+                    className="px-3 py-1.5 bg-risda-card-muted hover:bg-risda-orange/15 hover:text-risda-orange text-risda-text text-[10px] font-black uppercase rounded-lg transition-all border border-risda-border"
                   >
                     Sunting
                   </button>
                   <button 
                     onClick={() => handleDeleteSupplier(sup.id!)}
-                    className="p-2 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-white/60 rounded-lg transition-all"
+                    className="p-2 bg-risda-card-muted hover:bg-red-500/20 hover:text-red-600 dark:hover:text-red-400 text-risda-muted rounded-lg transition-all border border-risda-border"
                   >
                     <Trash2 size={13} />
                   </button>

@@ -29,12 +29,16 @@ import { ThemeProvider } from './context/ThemeContext';
 import PublicAttendancePage from './components/PublicAttendancePage';
 import PublicLetterPage from './components/PublicLetterPage';
 import AttendanceNotificationModal from './components/AttendanceNotificationModal';
+import QRScannerModal from './components/QRScannerModal';
+import OfflineIndicator from './components/OfflineIndicator';
+import { QrCode } from 'lucide-react';
 
 function AppContent() {
   const { user, role } = useAuth();
   const [view, setView] = useState<'dashboard' | 'login' | 'staff' | 'tenders' | 'attendance' | 'laporan' | 'info' | 'locations' | 'userInfo' | 'projek' | 'keputusan' | 'attendance-records' | 'pelawaan' | 'permintaan' | 'peruntukan'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [adIdParam, setAdIdParam] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('adId');
@@ -117,7 +121,15 @@ function AppContent() {
     window.addEventListener('popstate', handlePopState);
     handlePopState();
 
-    return () => window.removeEventListener('popstate', handlePopState);
+    const handleTriggerScanner = () => {
+      setIsScannerOpen(true);
+    };
+    window.addEventListener('triggerQRScanner', handleTriggerScanner);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('triggerQRScanner', handleTriggerScanner);
+    };
   }, []);
 
   if (letterParam) {
@@ -240,13 +252,28 @@ function AppContent() {
   const isStaff = role === 'penginput' || role === 'pelulus' || isAdmin;
 
   return (
-    <div className="flex bg-transparent min-h-screen text-risda-text font-sans technical-grid w-full relative">
+    <div className="flex items-stretch bg-transparent min-h-screen text-risda-text font-sans technical-grid w-full relative">
+      <OfflineIndicator />
       <DecorationBackground 
         isStaff={Boolean(isStaff)}
         isSidebarCollapsed={isSidebarCollapsed}
       />
       <SessionGuard />
       <AttendanceNotificationModal />
+      <QRScannerModal 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+      />
+      {/* Mobile Floating Quick-Scan QR Button */}
+      <div className="sm:hidden fixed bottom-5 right-5 z-40">
+        <button
+          onClick={() => setIsScannerOpen(true)}
+          className="w-14 h-14 rounded-full bg-gradient-to-tr from-risda-orange via-amber-500 to-risda-gold text-white flex items-center justify-center shadow-2xl border-2 border-white/30 active:scale-95 transition-transform"
+          title="Imbas QR Iklan Telefon"
+        >
+          <QrCode size={26} />
+        </button>
+      </div>
       {isStaff && (
         <Sidebar 
           isOpen={isSidebarOpen} 
@@ -256,10 +283,10 @@ function AppContent() {
         />
       )}
       
-      <div className="flex-1 flex flex-col min-h-screen relative">
+      <div className="flex-1 flex flex-col min-h-screen relative min-w-0">
         <Header onMenuClick={isStaff ? () => setIsSidebarOpen(true) : undefined} />
         
-        <main className="flex-1 p-4 md:p-6 lg:p-10 bg-risda-dark/50 backdrop-blur-sm overflow-x-hidden relative border-t border-l border-white/5 shadow-[inset_0_0_100px_rgba(0,176,255,0.03)]">
+        <main className="flex-1 p-4 md:p-6 lg:p-10 bg-transparent overflow-x-hidden relative border-t border-risda-border">
           <div className="absolute inset-0 technical-grid pointer-events-none opacity-20" />
           <motion.div 
             key={view}
@@ -278,14 +305,8 @@ function AppContent() {
       <Toaster 
         position="top-center"
         toastOptions={{
-          className: 'bg-risda-card text-white border border-white/10 rounded-2xl font-bold uppercase tracking-wider text-xs p-4',
+          className: 'bg-risda-card text-risda-text border border-risda-border rounded-2xl font-bold uppercase tracking-wider text-xs p-4 shadow-xl',
           duration: 4000,
-          style: {
-            background: 'rgba(17, 20, 25, 0.95)',
-            backdropFilter: 'blur(10px)',
-            color: '#fff',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-          },
         }}
       />
     </div>

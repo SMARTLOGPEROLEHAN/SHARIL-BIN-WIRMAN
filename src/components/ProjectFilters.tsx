@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { collection, query, getDocs, orderBy, where } from 'firebase/firestore';
 import QRCode from 'qrcode';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-import { FileText, Download, UserCheck, X, Shield, Search, AlertCircle, FileSpreadsheet, FileArchive, File as FileIcon, Send, MessageCircle, Mail, RotateCcw } from 'lucide-react';
+import { FileText, Download, UserCheck, X, Shield, Search, AlertCircle, FileSpreadsheet, FileArchive, File as FileIcon, Send, MessageCircle, Mail, RotateCcw, QrCode } from 'lucide-react';
 import AttendanceForm from './AttendanceForm';
+import Pagination from './Pagination';
 import { exportToPDF, exportToWord, exportResultToPDF, exportResultToWord, formatMofText, getLicenseNamesForTerms } from '../lib/exportUtils';
 import { isWithinUserScope, calculateTempohSiapKerja, parseAnyDate } from '../lib/scopeUtils';
 
@@ -81,6 +82,16 @@ export default function ProjectFilters({
   const [modalSearch, setModalSearch] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const tableTopRef = useRef<HTMLDivElement>(null);
+
+  // Reset to page 1 whenever filters or search query change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, searchQuery]);
 
   // Generate client-side base64 QR Code for selected advertisement
   useEffect(() => {
@@ -313,25 +324,29 @@ export default function ProjectFilters({
       );
     });
 
+  // Calculate paginated ads
+  const totalPages = Math.max(1, Math.ceil(filteredAds.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedAds = filteredAds.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+
   return (
     <section className="space-y-12 pb-24 text-left w-full relative">
       <div className="w-full">
         {/* Portal Header with Premium Glassmorphism Statistics Overview */}
-        <div className="relative overflow-hidden bg-white/[0.02] border border-white/5 rounded-[40px] p-6 md:p-10 mb-8 shadow-2xl">
+        <div className="relative overflow-hidden bg-risda-card border border-risda-border rounded-[36px] p-6 md:p-10 mb-8 shadow-sm">
           {/* Ambient light glow backdrop */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-gradient-to-r from-risda-orange/10 to-risda-gold/10 blur-[130px] pointer-events-none" />
           
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2.5 px-4 py-1.5 bg-risda-orange/15 border border-risda-orange/20 rounded-full">
+              <div className="badge-live-pill inline-flex items-center gap-2.5 px-4 py-1.5 bg-risda-orange/15 border border-risda-orange/20 rounded-full">
                 <span className="w-1.5 h-1.5 bg-risda-orange rounded-full animate-pulse shadow-[0_0_8px_rgba(255,176,0,1)]" />
                 <span className="text-[9px] font-black uppercase tracking-[3px] text-risda-orange">KEMAS KINI LANGSUNG (LIVE)</span>
               </div>
-              <h2 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tight font-display !leading-tight">
-                {initialStatus === 'SELESAI (KEPUTUSAN)' ? 'KEPUTUSAN RASMI' : initialStatus === 'AKTIF' ? 'PORTAL IKLAN' : 'PORTAL PEROLEHAN'}{' '}
-                {initialStatus === 'SELESAI (KEPUTUSAN)' ? 'KONTRAKTOR' : initialStatus === 'AKTIF' ? 'SEBUT HARGA' : '& KEPUTUSAN'}
+              <h2 className="text-2xl sm:text-4xl font-black text-risda-text tracking-tight uppercase !leading-tight">
+                {initialStatus === 'SELESAI (KEPUTUSAN)' ? 'Keputusan Rasmi Kontraktor' : initialStatus === 'AKTIF' ? 'Portal Iklan Sebut Harga' : 'Portal Perolehan & Keputusan'}
               </h2>
-              <p className="text-xs sm:text-sm text-risda-muted font-bold max-w-2xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-risda-text-secondary font-medium max-w-2xl leading-relaxed font-sans">
                 {initialStatus === 'SELESAI (KEPUTUSAN)' 
                   ? 'Papar keputusan rasmi pemenang lantikan kontraktor RISDA secara bersepadu, telus dan mutakhir.'
                   : initialStatus === 'AKTIF'
@@ -344,9 +359,9 @@ export default function ProjectFilters({
             {initialStatus === 'SELESAI (KEPUTUSAN)' ? (
               <div className="grid grid-cols-1 gap-4 sm:gap-6 shrink-0 lg:w-48">
                 <div 
-                  className="bg-black/45 border rounded-3xl p-5 border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+                  className="project-filter-stat-card bg-risda-card-muted border rounded-3xl p-5 border-blue-500/40 shadow-sm"
                 >
-                  <div className="text-2xl sm:text-3xl font-black text-white">{resolvedCount}</div>
+                  <div className="text-2xl sm:text-3xl font-black text-risda-text">{resolvedCount}</div>
                   <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Sebut Harga Selesai</div>
                 </div>
               </div>
@@ -354,30 +369,30 @@ export default function ProjectFilters({
               (() => {
                 let countValue = activeCount;
                 let labelText = "Iklan Aktif Terbit";
-                let borderColor = "border-risda-orange/50 shadow-[0_0_15px_rgba(255,176,0,0.1)]";
-                let textColor = "text-white group-hover:text-risda-orange";
+                let borderColor = "border-risda-orange/40 shadow-sm";
+                let textColor = "text-risda-text group-hover:text-risda-orange";
                 
                 if (filters.status === 'SELESAI (KEPUTUSAN)') {
                   countValue = resolvedCount;
                   labelText = "Iklan Selesai";
-                  borderColor = "border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]";
-                  textColor = "text-white group-hover:text-blue-400";
+                  borderColor = "border-blue-500/40 shadow-sm";
+                  textColor = "text-risda-text group-hover:text-blue-600";
                 } else if (filters.status === 'BATAL') {
                   countValue = batalCount;
                   labelText = "Iklan Batal";
-                  borderColor = "border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.1)]";
-                  textColor = "text-white group-hover:text-red-400";
+                  borderColor = "border-red-500/40 shadow-sm";
+                  textColor = "text-risda-text group-hover:text-red-500";
                 } else if (filters.status === 'SEMUA') {
                   countValue = totalCount;
                   labelText = "Semua Iklan";
-                  borderColor = "border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.05)]";
-                  textColor = "text-white";
+                  borderColor = "border-risda-border shadow-sm";
+                  textColor = "text-risda-text";
                 }
 
                 return (
                   <div className="grid grid-cols-1 gap-4 sm:gap-6 shrink-0 lg:w-48">
                     <div 
-                      className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-default group ${borderColor}`}
+                      className={`project-filter-stat-card bg-risda-card-muted border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-default group ${borderColor}`}
                     >
                       <div className={`text-2xl sm:text-3xl font-black transition-colors ${textColor}`}>{countValue}</div>
                       <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">{labelText}</div>
@@ -389,20 +404,20 @@ export default function ProjectFilters({
               <div className="grid grid-cols-2 gap-4 sm:gap-6 shrink-0 lg:w-96">
                 <div 
                   onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
-                  className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
-                    filters.status === 'AKTIF' ? 'border-risda-orange/50 shadow-[0_0_15px_rgba(255,176,0,0.1)]' : 'border-white/5'
+                  className={`project-filter-stat-card bg-risda-card-muted border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group shadow-sm ${
+                    filters.status === 'AKTIF' ? 'border-risda-orange/50' : 'border-risda-border'
                   }`}
                 >
-                  <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-risda-orange transition-colors">{activeCount}</div>
+                  <div className="text-2xl sm:text-3xl font-black text-risda-text group-hover:text-risda-orange transition-colors">{activeCount}</div>
                   <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Iklan Aktif Terbit</div>
                 </div>
                 <div 
                   onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
-                  className={`bg-black/45 border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group ${
-                    filters.status === 'SELESAI (KEPUTUSAN)' ? 'border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'border-white/5'
+                  className={`project-filter-stat-card bg-risda-card-muted border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group shadow-sm ${
+                    filters.status === 'SELESAI (KEPUTUSAN)' ? 'border-blue-500/50' : 'border-risda-border'
                   }`}
                 >
-                  <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-blue-400 transition-colors">{resolvedCount}</div>
+                  <div className="text-2xl sm:text-3xl font-black text-risda-text group-hover:text-blue-600 transition-colors">{resolvedCount}</div>
                   <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Sebut Harga Selesai</div>
                 </div>
               </div>
@@ -410,209 +425,224 @@ export default function ProjectFilters({
           </div>
         </div>
 
-        {/* Master Selector Tab Bar */}
-        <div className="flex flex-wrap items-center gap-3 mb-8 overflow-x-auto pb-2 scrollbar-none border-b border-white/5">
-          {initialStatus === 'SELESAI (KEPUTUSAN)' ? (
-            <button
-              onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
-              className="px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-default shrink-0 border bg-gradient-to-r from-blue-500/20 to-indigo-500/10 text-white border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.15)]"
-            >
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
-              KEPUTUSAN RASMI PEROLEHAN
-              <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{resolvedCount}</span>
-            </button>
-          ) : (
-            <>
-              <button
-                onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
-                className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
-                  filters.status === 'AKTIF'
-                    ? 'bg-gradient-to-r from-risda-orange/20 to-risda-gold/10 text-white border-risda-orange/40 shadow-[0_0_20px_rgba(255,176,0,0.15)]'
-                    : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
-                }`}
-              >
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                IKLAN AKTIF
-                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{activeCount}</span>
-              </button>
-
-              <button
-                onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
-                className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
-                  filters.status === 'SELESAI (KEPUTUSAN)'
-                    ? 'bg-gradient-to-r from-blue-500/20 to-indigo-500/10 text-white border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
-                    : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
-                }`}
-              >
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
-                IKLAN SELESAI
-                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{resolvedCount}</span>
-              </button>
-
-              <button
-                onClick={() => setFilters({ ...filters, status: 'BATAL' })}
-                className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
-                  filters.status === 'BATAL'
-                    ? 'bg-red-500/20 text-red-400 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
-                    : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
-                }`}
-              >
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                IKLAN BATAL
-                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{batalCount}</span>
-              </button>
-
-              <button
-                onClick={() => setFilters({ ...filters, status: 'SEMUA' })}
-                className={`px-6 py-4 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-3 cursor-pointer shrink-0 border ${
-                  filters.status === 'SEMUA'
-                    ? 'bg-white/15 text-white border-white/20'
-                    : 'bg-white/5 hover:bg-white/10 text-risda-muted border-transparent hover:text-white'
-                }`}
-              >
-                SEMUA IKLAN
-                <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[9px] font-black">{totalCount}</span>
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Filters and Searching Deck */}
-        <div className="bg-white/[0.01] border border-white/5 p-6 md:p-8 rounded-[36px] shadow-2xl backdrop-blur-md mb-10">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-end w-full">
-            
-            {/* Realtime Search Searchbar */}
-            <div className="flex flex-col gap-3 md:col-span-4">
-              <div className="flex items-center gap-2 px-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-risda-orange animate-pulse" />
-                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">CARI DOKUMEN / PROJEK</label>
-              </div>
-              <div className="relative group">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari No Sebut Harga atau Tajuk..."
-                  className="bg-transparent border-b-2 border-white/10 py-4 px-1 pl-8 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full placeholder:text-white/20 uppercase tracking-wider"
-                />
-                <Search size={16} className="absolute left-1 top-[18px] text-white/35 group-focus-within:text-risda-orange transition-colors" />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-1 top-[14px] p-1.5 text-risda-muted hover:text-white transition-colors"
+        {/* Unified Master Container (1 Kotak Penuh: Iklan Aktif -> Sebut Harga / Projek) */}
+        <div ref={tableTopRef} className="bg-risda-card border border-risda-border rounded-[24px] sm:rounded-[32px] shadow-sm mb-8 overflow-hidden">
+          {/* Section 1: Master Selector Tab Bar */}
+          <div className="p-5 sm:p-7 pb-5 border-b border-risda-border">
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 overflow-x-auto scrollbar-none">
+              {initialStatus === 'SELESAI (KEPUTUSAN)' ? (
+                <button
+                  onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
+                  className="master-tab-item active-filter-tab px-5 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-default shrink-0 border bg-blue-500/15 text-risda-text border-blue-500/40 shadow-xs whitespace-nowrap"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                  <span>KEPUTUSAN RASMI PEROLEHAN</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{resolvedCount}</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
+                    className={`master-tab-item px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-pointer shrink-0 border whitespace-nowrap ${
+                      filters.status === 'AKTIF'
+                        ? 'active-filter-tab bg-risda-orange/15 text-risda-text border-risda-orange/40 shadow-xs font-black'
+                        : 'bg-risda-card hover:bg-risda-card-muted text-risda-muted border-risda-border hover:text-risda-text'
+                    }`}
                   >
-                    <X size={14} />
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                    <span>IKLAN AKTIF</span>
+                    <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{activeCount}</span>
                   </button>
-                )}
-              </div>
-            </div>
 
-            {/* Negeri Filter */}
-            <div className="flex flex-col gap-3 md:col-span-3">
-              <div className="flex items-center gap-2 px-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
-                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Negeri</label>
-              </div>
-              <div className="relative group">
-                <select 
-                  value={filters.state}
-                  onChange={(e) => {
-                    const newState = e.target.value;
-                    setFilters({...filters, state: newState, office: ''});
-                    const filtered = allLocations
-                      .filter(loc => (!newState || loc.state === newState) && loc.status === 'Aktif')
-                      .map(loc => loc.name?.trim().toUpperCase())
-                      .filter(Boolean)
-                      .sort();
-                    setOffices(Array.from(new Set(filtered)));
-                  }}
-                  className="bg-transparent border-b-2 border-white/10 py-4 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider"
-                >
-                  <option value="" className="bg-risda-dark">SEMUA NEGERI (MALAYSIA)</option>
-                  <option value="SABAH" className="bg-risda-dark">SABAH</option>
-                  <option value="SARAWAK" className="bg-risda-dark">SARAWAK</option>
-                  <option value="SELANGOR" className="bg-risda-dark">SELANGOR</option>
-                  <option value="KUALA LUMPUR" className="bg-risda-dark">KUALA LUMPUR</option>
-                  <option value="JOHOR" className="bg-risda-dark">JOHOR</option>
-                  <option value="KEDAH" className="bg-risda-dark">KEDAH</option>
-                  <option value="KELANTAN" className="bg-risda-dark">KELANTAN</option>
-                  <option value="MELAKA" className="bg-risda-dark">MELAKA</option>
-                  <option value="NEGERI SEMBILAN" className="bg-risda-dark">NEGERI SEMBILAN</option>
-                  <option value="PAHANG" className="bg-risda-dark">PAHANG</option>
-                  <option value="PERAK" className="bg-risda-dark">PERAK</option>
-                  <option value="PERLIS" className="bg-risda-dark">PERLIS</option>
-                  <option value="PULAU PINANG" className="bg-risda-dark">PULAU PINANG</option>
-                  <option value="TERENGGANU" className="bg-risda-dark">TERENGGANU</option>
-                </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                  <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-              </div>
-            </div>
+                  <button
+                    onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
+                    className={`master-tab-item px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-pointer shrink-0 border whitespace-nowrap ${
+                      filters.status === 'SELESAI (KEPUTUSAN)'
+                        ? 'active-filter-tab bg-blue-500/15 text-risda-text border-blue-500/40 shadow-xs font-black'
+                        : 'bg-risda-card hover:bg-risda-card-muted text-risda-muted border-risda-border hover:text-risda-text'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                    <span>IKLAN SELESAI</span>
+                    <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{resolvedCount}</span>
+                  </button>
 
-            {/* Pejabat Filter */}
-            <div className="flex flex-col gap-3 md:col-span-3">
-              <div className="flex items-center gap-2 px-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
-                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Pejabat RISDA</label>
-              </div>
-              <div className="relative group">
-                <select 
-                  value={filters.office}
-                  onChange={(e) => setFilters({...filters, office: e.target.value})}
-                  className="bg-transparent border-b-2 border-white/10 py-4 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider"
-                >
-                  <option value="" className="bg-risda-dark">SEMUA PEJABAT CAWANGAN</option>
-                  {offices.map((office) => (
-                    <option key={office} value={office} className="bg-risda-dark uppercase">{office}</option>
-                  ))}
-                </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                  <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-              </div>
-            </div>
+                  <button
+                    onClick={() => setFilters({ ...filters, status: 'BATAL' })}
+                    className={`master-tab-item px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-pointer shrink-0 border whitespace-nowrap ${
+                      filters.status === 'BATAL'
+                        ? 'active-filter-tab bg-red-500/15 text-red-600 border-red-500/40 shadow-xs font-black'
+                        : 'bg-risda-card hover:bg-risda-card-muted text-risda-muted border-risda-border hover:text-risda-text'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                    <span>IKLAN BATAL</span>
+                    <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{batalCount}</span>
+                  </button>
 
-            {/* Year Filter */}
-            <div className="flex flex-col gap-3 md:col-span-2">
-              <div className="flex items-center gap-2 px-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
-                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] opacity-80">Pilih Tahun</label>
-              </div>
-              <div className="relative group">
-                <select 
-                  value={filters.year}
-                  onChange={(e) => setFilters({...filters, year: e.target.value})}
-                  className="bg-transparent border-b-2 border-white/10 py-4 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5 uppercase tracking-wider"
-                >
-                  {['ALL', ...years].map(year => (
-                    <option key={year} value={year} className="bg-risda-dark">
-                      {year === 'ALL' ? 'SEMUA TAHUN' : year}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                  <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-              </div>
+                  <button
+                    onClick={() => setFilters({ ...filters, status: 'SEMUA' })}
+                    className={`master-tab-item px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-pointer shrink-0 border whitespace-nowrap ${
+                      filters.status === 'SEMUA'
+                        ? 'active-filter-tab bg-risda-card-muted text-risda-text border-risda-border shadow-xs font-black'
+                        : 'bg-risda-card hover:bg-risda-card-muted text-risda-muted border-risda-border hover:text-risda-text'
+                    }`}
+                  >
+                    <span>SEMUA IKLAN</span>
+                    <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{totalCount}</span>
+                  </button>
+                </>
+              )}
             </div>
-
           </div>
-        </div>
 
-        {/* Desktop View Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="text-[10px] font-black text-risda-muted uppercase tracking-[3px] border-b border-white/10">
-                <th className="px-2 py-6">Sebut Harga / Projek</th>
-                <th className="px-6 py-6">Negeri / Pejabat</th>
-                <th className="px-6 py-6 text-center">Status</th>
-                {(filters.status === 'SELESAI (KEPUTUSAN)' || filters.status === 'SEMUA') && <th className="px-6 py-6 text-center">Pembekal Terpilih</th>}
-                <th className="px-6 py-6 text-right">Tarikh Tutup</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
+          {/* Section 2: Filters and Searching Deck */}
+          <div className="p-5 sm:p-7 border-b border-risda-border">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end w-full">
+              
+              {/* Realtime Search Searchbar */}
+              <div className="flex flex-col gap-2 md:col-span-4">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-risda-orange animate-pulse" />
+                    <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">CARI DOKUMEN / PROJEK</label>
+                  </div>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('triggerQRScanner'))}
+                    className="text-[10px] font-black text-risda-orange hover:text-white bg-risda-orange/15 hover:bg-risda-orange px-2 py-0.5 rounded-md border border-risda-orange/30 flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
+                    title="Buka Kamera Telefon untuk Imbas QR Iklan"
+                  >
+                    <QrCode size={12} />
+                    <span>Imbas QR</span>
+                  </button>
+                </div>
+                <div className="relative group">
+                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-risda-muted group-focus-within:text-risda-orange transition-colors pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cari No Sebut Harga atau Tajuk..."
+                    className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 pl-10 pr-9 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all placeholder:text-risda-muted uppercase tracking-wide shadow-xs"
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-risda-muted hover:text-risda-text transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Negeri Filter */}
+              <div className="flex flex-col gap-2 md:col-span-3">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
+                  <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">Negeri</label>
+                </div>
+                <div className="relative group">
+                  <select 
+                    value={filters.state}
+                    onChange={(e) => {
+                      const newState = e.target.value;
+                      setFilters({...filters, state: newState, office: ''});
+                      const filtered = allLocations
+                        .filter(loc => (!newState || loc.state === newState) && loc.status === 'Aktif')
+                        .map(loc => loc.name?.trim().toUpperCase())
+                        .filter(Boolean)
+                        .sort();
+                      setOffices(Array.from(new Set(filtered)));
+                    }}
+                    className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 px-3.5 pr-8 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all cursor-pointer appearance-none uppercase tracking-wide shadow-xs"
+                  >
+                    <option value="" className="bg-risda-card text-risda-text">SEMUA NEGERI (MALAYSIA)</option>
+                    <option value="SABAH" className="bg-risda-card text-risda-text">SABAH</option>
+                    <option value="SARAWAK" className="bg-risda-card text-risda-text">SARAWAK</option>
+                    <option value="SELANGOR" className="bg-risda-card text-risda-text">SELANGOR</option>
+                    <option value="KUALA LUMPUR" className="bg-risda-card text-risda-text">KUALA LUMPUR</option>
+                    <option value="JOHOR" className="bg-risda-card text-risda-text">JOHOR</option>
+                    <option value="KEDAH" className="bg-risda-card text-risda-text">KEDAH</option>
+                    <option value="KELANTAN" className="bg-risda-card text-risda-text">KELANTAN</option>
+                    <option value="MELAKA" className="bg-risda-card text-risda-text">MELAKA</option>
+                    <option value="NEGERI SEMBILAN" className="bg-risda-card text-risda-text">NEGERI SEMBILAN</option>
+                    <option value="PAHANG" className="bg-risda-card text-risda-text">PAHANG</option>
+                    <option value="PERAK" className="bg-risda-card text-risda-text">PERAK</option>
+                    <option value="PERLIS" className="bg-risda-card text-risda-text">PERLIS</option>
+                    <option value="PULAU PINANG" className="bg-risda-card text-risda-text">PULAU PINANG</option>
+                    <option value="TERENGGANU" className="bg-risda-card text-risda-text">TERENGGANU</option>
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 group-focus-within:opacity-100 transition-opacity text-risda-muted">
+                    <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pejabat Filter */}
+              <div className="flex flex-col gap-2 md:col-span-3">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
+                  <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">Pejabat RISDA</label>
+                </div>
+                <div className="relative group">
+                  <select 
+                    value={filters.office}
+                    onChange={(e) => setFilters({...filters, office: e.target.value})}
+                    className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 px-3.5 pr-8 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all cursor-pointer appearance-none uppercase tracking-wide shadow-xs"
+                  >
+                    <option value="" className="bg-risda-card text-risda-text">SEMUA PEJABAT CAWANGAN</option>
+                    {offices.map((office) => (
+                      <option key={office} value={office} className="bg-risda-card text-risda-text uppercase">{office}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 group-focus-within:opacity-100 transition-opacity text-risda-muted">
+                    <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Year Filter */}
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
+                  <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">Pilih Tahun</label>
+                </div>
+                <div className="relative group">
+                  <select 
+                    value={filters.year}
+                    onChange={(e) => setFilters({...filters, year: e.target.value})}
+                    className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 px-3.5 pr-8 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all cursor-pointer appearance-none uppercase tracking-wide shadow-xs"
+                  >
+                    {['ALL', ...years].map(year => (
+                      <option key={year} value={year} className="bg-risda-card text-risda-text">
+                        {year === 'ALL' ? 'SEMUA TAHUN' : year}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 group-focus-within:opacity-100 transition-opacity text-risda-muted">
+                    <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Section 3: Sebut Harga / Projek Content */}
+          {/* Desktop View Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="text-[10px] font-black text-risda-muted uppercase tracking-[3px] border-b border-risda-border bg-risda-card-muted/30">
+                  <th className="px-6 py-5">Sebut Harga / Projek</th>
+                  <th className="px-6 py-5">Negeri / Pejabat</th>
+                  <th className="px-6 py-5 text-center whitespace-nowrap min-w-[140px]">Status</th>
+                  {(filters.status === 'SELESAI (KEPUTUSAN)' || filters.status === 'SEMUA') && <th className="px-6 py-5 text-center">Pembekal Terpilih</th>}
+                  <th className="px-6 py-5 text-right">Tarikh Tutup</th>
+                </tr>
+              </thead>
+            <tbody className="divide-y divide-risda-border">
               {loading ? (
                 <tr>
                   <td colSpan={6} className="py-20 text-center">
@@ -629,25 +659,45 @@ export default function ProjectFilters({
                   </td>
                 </tr>
               ) : (
-                filteredAds.map((item, idx) => (
+                paginatedAds.map((item, idx) => (
                   <tr 
                     key={idx} 
-                    className="group hover:bg-white/[0.02] transition-all cursor-pointer"
+                    className="group hover:bg-risda-card-muted/70 transition-all cursor-pointer"
                     onClick={() => {
                       setSelectedAd({...item, status: item.displayStatus});
                       setIsRegisterMode(false);
                     }}
                   >
                     <td className="px-6 py-6 border-l-2 border-transparent hover:border-risda-orange transition-all">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
                         <span className="font-mono text-[10px] text-risda-orange font-bold tracking-widest">{item.tenderNo}</span>
                         {item.category && (
-                          <span className="px-2 py-0.5 text-[8px] font-black text-white bg-risda-gold/20 border border-risda-gold/30 rounded uppercase tracking-wider">
+                          <span className="px-2 py-0.5 text-[8px] font-black text-white bg-risda-gold/80 rounded uppercase tracking-wider">
                             {item.category}
                           </span>
                         )}
+                        {item.licenses?.cidbSpkk && (
+                          <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#C26B4D] rounded uppercase tracking-wider shadow-sm">
+                            CIDB SPKK
+                          </span>
+                        )}
+                        {item.licenses?.cidbPkk && (
+                          <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#6B7052] rounded uppercase tracking-wider shadow-sm">
+                            CIDB PKK
+                          </span>
+                        )}
+                        {item.licenses?.stb && (
+                          <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#7C8262] rounded uppercase tracking-wider shadow-sm">
+                            STB
+                          </span>
+                        )}
+                        {item.licenses?.mof && (
+                          <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#9E5D42] rounded uppercase tracking-wider shadow-sm">
+                            MOF
+                          </span>
+                        )}
                       </div>
-                      <div className="text-[14px] font-black text-white group-hover:text-risda-orange transition-colors uppercase font-display mb-3 break-words whitespace-normal leading-relaxed">{item.title}</div>
+                      <div className="text-[14px] font-bold text-risda-text group-hover:text-risda-orange transition-colors uppercase font-display mb-3 break-words whitespace-normal leading-relaxed">{item.title}</div>
                       {showRegistration && 
                         (item.displayStatus === 'AKTIF') && 
                         !(item.title?.toUpperCase().includes('PROJEK JALAN') && (role === 'pelawat' || !role)) && (
@@ -659,23 +709,23 @@ export default function ProjectFilters({
                             window.history.pushState({}, '', url.pathname + url.search);
                             window.dispatchEvent(new Event('popstate'));
                           }}
-                          className="bg-risda-orange text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,176,0,0.25)]"
+                          className="bg-risda-orange text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:brightness-110 transition-all shadow-sm"
                         >
                           Daftar Online
                         </button>
                       )}
                     </td>
                     <td className="px-6 py-6">
-                      <div className="text-[10px] font-black text-white uppercase">{item.state}</div>
+                      <div className="text-[10px] font-bold text-risda-text uppercase">{item.state}</div>
                       <div className="text-[8px] text-risda-muted font-bold uppercase">{item.office}</div>
                     </td>
-                    <td className="px-6 py-6 text-center">
-                      <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg ${
+                    <td className="px-6 py-6 text-center whitespace-nowrap">
+                      <span className={`inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-xs whitespace-nowrap leading-none ${
                         item.displayStatus === 'AKTIF' 
-                          ? 'bg-green-500/10 text-green-400 border border-green-400/20 shadow-[0_0_10px_rgba(74,222,128,0.05)]' 
+                          ? 'bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30' 
                           : item.displayStatus === 'BATAL'
-                          ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          : 'bg-blue-500/10 text-blue-400 border border-blue-400/20'
+                          ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30'
+                          : 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30'
                       }`}>
                         {item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus}
                       </span>
@@ -685,7 +735,7 @@ export default function ProjectFilters({
                         {item.winner ? (
                           item.winner.isReTender || item.winner.companyName === 'SEBUTHARGA SEMULA' ? (
                             <div className="flex flex-col items-center">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wider mb-0.5">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider mb-0.5">
                                 <RotateCcw size={10} />
                                 SEBUTHARGA SEMULA
                               </span>
@@ -693,21 +743,21 @@ export default function ProjectFilters({
                             </div>
                           ) : (
                             <div className="flex flex-col items-center">
-                              <span className="w-2 h-2 inline-block rounded-full bg-blue-400 animate-pulse mb-1" />
-                              <div className="text-[11px] font-black text-blue-400 uppercase leading-tight">{item.winner.companyName}</div>
+                              <span className="w-2 h-2 inline-block rounded-full bg-blue-500 animate-pulse mb-1" />
+                              <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase leading-tight">{item.winner.companyName}</div>
                               <div className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{item.winner.ownerName || item.winner.representativeName}</div>
                             </div>
                           )
                         ) : (
                           <div className="flex flex-col items-center">
-                            <span className="text-[10px] text-risda-muted font-black uppercase italic opacity-40">Menunggu Pelantikan</span>
+                            <span className="text-[10px] text-risda-muted font-black uppercase italic opacity-50">Menunggu Pelantikan</span>
                           </div>
                         )}
                       </td>
                     )}
                     <td className="px-6 py-6 text-right">
-                      <div className="text-[11px] text-white font-black tracking-tight">{formatDate(item.closingDate)}</div>
-                      <div className="text-[8px] text-risda-muted font-black uppercase tracking-[1px]">{item.closingTime || '12:00 PM'}</div>
+                      <div className="text-[11px] text-risda-text font-bold tracking-tight">{formatDate(item.closingDate)}</div>
+                      <div className="text-[8px] text-risda-muted font-bold uppercase tracking-[1px]">{item.closingTime || '12:00 PM'}</div>
                     </td>
                   </tr>
                 ))
@@ -728,7 +778,7 @@ export default function ProjectFilters({
               Tiada rekod sepadan ditemui.
             </div>
           ) : (
-            filteredAds.map((item, idx) => (
+            paginatedAds.map((item, idx) => (
               <motion.div 
                 key={idx} 
                 initial={{ opacity: 0, y: 15 }}
@@ -739,41 +789,58 @@ export default function ProjectFilters({
                   setSelectedAd({...item, status: item.displayStatus});
                   setIsRegisterMode(false);
                 }}
-                className="bg-black/30 border border-white/5 rounded-3xl p-6 space-y-4 active:scale-[0.98] transition-all"
+                className="h-full flex flex-col justify-between bg-risda-card border border-risda-border rounded-3xl p-6 space-y-4 shadow-sm active:scale-[0.98] transition-all cursor-pointer hover:border-risda-orange/40"
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-[10px] text-risda-orange font-bold tracking-widest">{item.tenderNo}</span>
-                    {item.category && (
-                      <span className="px-2 py-0.5 text-[8px] font-black text-white bg-risda-gold/20 border border-risda-gold/30 rounded uppercase tracking-wider">
-                        {item.category}
-                      </span>
-                    )}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[10px] text-risda-orange font-bold tracking-widest">{item.tenderNo}</span>
+                      {item.category && (
+                        <span className="px-2 py-0.5 text-[8px] font-black text-white bg-risda-gold/80 rounded uppercase tracking-wider">
+                          {item.category}
+                        </span>
+                      )}
+                      {item.licenses?.cidbSpkk && (
+                        <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#C26B4D] rounded uppercase tracking-wider shadow-sm">
+                          CIDB SPKK
+                        </span>
+                      )}
+                      {item.licenses?.cidbPkk && (
+                        <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#6B7052] rounded uppercase tracking-wider shadow-sm">
+                          CIDB PKK
+                        </span>
+                      )}
+                      {item.licenses?.stb && (
+                        <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#7C8262] rounded uppercase tracking-wider shadow-sm">
+                          STB
+                        </span>
+                      )}
+                    </div>
+                    <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider whitespace-nowrap leading-none shrink-0 ${
+                      item.displayStatus === 'AKTIF' ? 'bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30' : 
+                      item.displayStatus === 'SELESAI (KEPUTUSAN)' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30' :
+                      'bg-risda-muted/15 text-risda-muted border border-risda-border'
+                    }`}>
+                      {item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus}
+                    </span>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                    item.displayStatus === 'AKTIF' ? 'bg-green-500/10 text-green-400 border border-green-400/20' : 
-                    item.displayStatus === 'SELESAI (KEPUTUSAN)' ? 'bg-blue-500/10 text-blue-400 border border-blue-400/20' :
-                    'bg-risda-muted/10 text-risda-muted border border-risda-muted/20'
-                  }`}>
-                    {item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus}
-                  </span>
+                  <h4 className="text-sm font-bold text-risda-text leading-relaxed uppercase break-words whitespace-normal">{item.title}</h4>
                 </div>
-                <h4 className="text-sm font-black text-white leading-relaxed uppercase break-words whitespace-normal">{item.title}</h4>
                 {item.displayStatus === 'SELESAI (KEPUTUSAN)' && item.winner && (
                   item.winner.isReTender || item.winner.companyName === 'SEBUTHARGA SEMULA' ? (
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                    <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                         <RotateCcw size={16} />
                       </div>
                       <div>
-                        <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Keputusan Rasmi:</p>
-                        <p className="text-[10px] font-black text-amber-300 uppercase">SEBUTHARGA SEMULA</p>
+                        <p className="text-[8px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">Keputusan Rasmi:</p>
+                        <p className="text-[10px] font-black text-amber-800 dark:text-amber-300 uppercase">SEBUTHARGA SEMULA</p>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
-                      <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Pembekal Terpilih:</p>
-                      <p className="text-[10px] font-black text-white uppercase">{item.winner.companyName}</p>
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                      <p className="text-[8px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Pembekal Terpilih:</p>
+                      <p className="text-[10px] font-bold text-risda-text uppercase">{item.winner.companyName}</p>
                       <p className="text-[8px] text-risda-muted uppercase font-semibold">{item.winner.ownerName || item.winner.representativeName}</p>
                     </div>
                   )
@@ -789,25 +856,47 @@ export default function ProjectFilters({
                       window.history.pushState({}, '', url.pathname + url.search);
                       window.dispatchEvent(new Event('popstate'));
                     }}
-                    className="bg-risda-orange text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest w-full py-3"
+                    className="bg-risda-orange text-white px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider w-full shadow-sm hover:brightness-110 transition-all text-center"
                   >
                     Daftar Online
                   </button>
                 )}
-                <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                <div className="flex items-center justify-between pt-4 border-t border-risda-border">
                   <div className="flex flex-col">
                     <span className="text-[8px] text-risda-muted font-bold uppercase tracking-[1px]">Cawangan</span>
-                    <span className="text-[10px] font-black text-white uppercase">{item.office}</span>
+                    <span className="text-[10px] font-bold text-risda-text uppercase">{item.office}</span>
                   </div>
                   <div className="flex flex-col text-right">
                     <span className="text-[8px] text-risda-muted font-bold uppercase tracking-[1px]">Tarikh Tutup</span>
-                    <span className="text-xs font-black text-white">{formatDate(item.closingDate)}</span>
+                    <span className="text-xs font-bold text-risda-text">{formatDate(item.closingDate)}</span>
                   </div>
                 </div>
               </motion.div>
             ))
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && filteredAds.length > 0 && (
+          <div className="p-4 sm:p-6 border-t border-risda-border bg-risda-card-muted/30">
+            <Pagination
+              currentPage={safeCurrentPage}
+              totalItems={filteredAds.length}
+              pageSize={pageSize}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                tableTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+              pageSizeOptions={[10, 20, 50]}
+              itemName="iklan sebut harga"
+            />
+          </div>
+        )}
+      </div>
       
         <div className="mt-8 p-6 bg-gradient-to-r from-risda-orange/5 to-transparent border-l-2 border-risda-orange rounded-r-xl">
            <p className="text-[11px] text-risda-text-secondary leading-relaxed italic uppercase tracking-wider">
@@ -836,18 +925,18 @@ export default function ProjectFilters({
             >
               <button 
                 onClick={() => setSelectedAd(null)}
-                className="absolute right-4 top-4 md:right-8 md:top-8 p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white transition-all z-50"
+                className="absolute right-4 top-4 md:right-8 md:top-8 p-3 bg-risda-card-muted hover:bg-risda-border rounded-2xl text-risda-text transition-all z-50 border border-risda-border"
               >
                 <X size={20} />
               </button>
 
               <div className="flex-1 overflow-y-auto">
                 {isRegisterMode || (isViewOnlyList && !selectedAd?.id) ? (
-                  <div className="bg-black/20">
+                  <div className="bg-risda-card-muted">
                     {!selectedAd.id ? (
                       <div className="p-8 md:p-14 space-y-10">
                         <div className="space-y-3 border-l-4 border-risda-orange pl-6">
-                          <h3 className="text-2xl font-black text-white uppercase tracking-tight leading-none">
+                          <h3 className="text-2xl font-black text-risda-text tracking-tight uppercase leading-none">
                             {isRegisterMode ? 'Pilih Rujukan Projek' : 'Senarai Iklan Aktif'}
                           </h3>
                           <p className="text-[11px] text-risda-orange font-black uppercase tracking-[4px]">
@@ -862,7 +951,7 @@ export default function ProjectFilters({
                           <input 
                             type="text"
                             placeholder="Cari No Sebut Harga atau Nama Projek..."
-                            className="w-full bg-black/40 border border-risda-border rounded-2xl py-4 pl-14 pr-6 text-sm text-white focus:border-risda-orange outline-none transition-all"
+                            className="w-full bg-risda-card border border-risda-border rounded-2xl py-4 pl-14 pr-6 text-sm text-risda-text placeholder:text-risda-muted focus:border-risda-orange outline-none transition-all"
                             onChange={(e) => {
                               const searchVal = e.target.value.toLowerCase();
                               // We use a local state for filtering in the modal
@@ -887,12 +976,14 @@ export default function ProjectFilters({
                             <button
                               key={ad.id}
                               onClick={() => setSelectedAd(ad)}
-                              className="w-full text-left p-6 bg-white/5 border border-white/5 hover:border-risda-orange/50 rounded-3xl transition-all group hover:bg-risda-orange/5 relative overflow-hidden"
+                              className="h-full flex flex-col justify-between w-full text-left p-6 bg-risda-card border border-risda-border hover:border-risda-orange rounded-3xl transition-all group hover:bg-risda-card-muted relative overflow-hidden shadow-sm"
                             >
                               <div className="absolute top-0 right-0 w-32 h-32 bg-risda-orange/5 -mr-16 -mt-16 rounded-full blur-2xl group-hover:bg-risda-orange/10 transition-all" />
-                              <div className="font-mono text-[10px] text-risda-orange mb-2 font-bold tracking-widest">{ad.tenderNo}</div>
-                              <div className="text-[13px] font-black text-white uppercase group-hover:text-risda-orange transition-colors leading-relaxed break-words whitespace-normal">{ad.title}</div>
-                              <div className="mt-4 flex items-center justify-between">
+                              <div>
+                                <div className="font-mono text-[10px] text-risda-orange mb-2 font-bold tracking-widest">{ad.tenderNo}</div>
+                                <div className="text-[13px] font-bold text-risda-text uppercase group-hover:text-risda-orange transition-colors leading-relaxed break-words whitespace-normal">{ad.title}</div>
+                              </div>
+                              <div className="mt-4 flex items-center justify-between pt-3 border-t border-risda-border/60">
                                 <span className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{ad.office}</span>
                                 <span className="text-[9px] text-risda-gold font-bold uppercase tracking-widest">{formatDate(ad.closingDate)}</span>
                               </div>
@@ -909,7 +1000,7 @@ export default function ProjectFilters({
                               return status === 'AKTIF' && !isReTender;
                             })
                             .filter(a => a.title.toLowerCase().includes(modalSearch.toLowerCase()) || a.tenderNo.toLowerCase().includes(modalSearch.toLowerCase())).length === 0 && (
-                            <div className="col-span-full text-center py-20 text-risda-muted font-bold uppercase tracking-widest bg-white/5 rounded-3xl border border-dashed border-white/10">
+                            <div className="col-span-full text-center py-20 text-risda-muted font-bold uppercase tracking-widest bg-risda-card rounded-3xl border border-dashed border-risda-border">
                               <AlertCircle size={32} className="mx-auto mb-4 opacity-20" />
                               Tiada iklan yang sepadan dijumpai.
                             </div>
@@ -929,30 +1020,30 @@ export default function ProjectFilters({
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 min-h-full divide-y lg:divide-y-0 lg:divide-x divide-white/10">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 min-h-full divide-y lg:divide-y-0 lg:divide-x divide-risda-border">
                     {/* Information - Column 1 & 2 on Large Screens */}
                     <div className="p-8 md:p-14 space-y-10 lg:col-span-2">
                       
                       {/* High Fidelity Metadata Tracker line matching user's image exactly */}
                       <div className="flex flex-wrap items-center gap-2.5 text-[10px] font-black tracking-[4px] text-risda-muted uppercase mb-1">
                         <span className="font-mono text-risda-orange font-black">{selectedAd.tenderNo}</span>
-                        <span className="w-1.5 h-1.5 bg-white/20 rounded-full" />
+                        <span className="w-1.5 h-1.5 bg-risda-border rounded-full" />
                         <span>{selectedAd.category || 'KERJA'}</span>
-                        <span className="w-1.5 h-1.5 bg-white/20 rounded-full" />
+                        <span className="w-1.5 h-1.5 bg-risda-border rounded-full" />
                         <span>{selectedAd.state || 'MALAYSIA'}</span>
                       </div>
 
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg ${
-                              (effectiveContext === 'keputusan' || (effectiveContext === 'dashboard' && dashboardModalView === 'keputusan')) ? 'bg-blue-500 shadow-blue-500/20' : 'bg-risda-orange shadow-risda-orange/20'
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-md ${
+                              (effectiveContext === 'keputusan' || (effectiveContext === 'dashboard' && dashboardModalView === 'keputusan')) ? 'bg-blue-600 text-white' : 'bg-risda-orange text-white'
                             }`}>
-                              <FileText size={24} className={(effectiveContext === 'keputusan' || (effectiveContext === 'dashboard' && dashboardModalView === 'keputusan')) ? 'text-white' : 'text-black'} />
+                              <FileText size={24} className="text-white" />
                             </div>
                             <div className="flex flex-col">
-                              <div className={`text-[10px] font-black uppercase tracking-[4px] ${
-                                (effectiveContext === 'keputusan' || (effectiveContext === 'dashboard' && dashboardModalView === 'keputusan')) ? 'text-blue-400' : 'text-risda-orange'
+                              <div className={`text-xs font-black uppercase tracking-[2px] ${
+                                (effectiveContext === 'keputusan' || (effectiveContext === 'dashboard' && dashboardModalView === 'keputusan')) ? 'text-blue-600 dark:text-blue-400' : 'text-risda-orange'
                               }`}>
                                 {effectiveContext === 'keputusan'
                                   ? 'Keputusan Rasmi Perolehan'
@@ -965,24 +1056,24 @@ export default function ProjectFilters({
                             </div>
                           </div>
                         </div>
-                        <h2 className="text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{selectedAd.title}</h2>
+                        <h2 className="text-2xl md:text-3xl font-black text-risda-text leading-tight tracking-tight uppercase">{selectedAd.title}</h2>
                       </div>
 
                       {/* Beautiful Unified Download Bar with Contextual Buttons */}
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#0a0f1d] p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-2xl text-left">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-risda-card-muted p-5 sm:p-6 rounded-3xl border border-risda-border shadow-sm text-left">
                         <div className="flex items-center gap-4 w-full sm:w-auto">
-                          <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
+                          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-md shrink-0">
                             <Download size={20} className="stroke-[3]" />
                           </div>
                           <div className="text-left">
-                            <p className="text-xs sm:text-sm font-black text-white uppercase tracking-widest leading-none mb-1.5">
+                            <p className="text-xs sm:text-sm font-black text-risda-text uppercase tracking-widest leading-none mb-1.5">
                               {effectiveContext === 'dashboard' 
                                 ? 'MUAT TURUN DOKUMEN (IKLAN & KEPUTUSAN)' 
                                 : effectiveContext === 'keputusan' 
                                   ? 'MUAT TURUN KEPUTUSAN RASMI' 
                                   : 'MUAT TURUN IKLAN SEBUT HARGA'}
                             </p>
-                            <p className="text-[9px] text-slate-400 font-semibold tracking-wide">
+                            <p className="text-[10px] text-risda-muted font-medium tracking-wide">
                               {effectiveContext === 'dashboard'
                                 ? 'Sila pilih PDF Iklan Sebut Harga atau PDF Keputusan Rasmi.'
                                 : 'Pilih format untuk simpanan rasmi atau perkongsian.'}
@@ -1004,7 +1095,7 @@ export default function ProjectFilters({
                                     toast.error('Gagal menjana PDF Iklan', { id: t });
                                   }
                                 }}
-                                className="flex-1 sm:flex-initial px-5 py-3.5 bg-risda-orange hover:bg-risda-orange/80 text-black rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 sm:flex-initial px-5 py-3.5 bg-risda-orange hover:brightness-110 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
                               >
                                 <Download size={14} className="stroke-[3]" /> PDF IKLAN
                               </button>
@@ -1026,7 +1117,7 @@ export default function ProjectFilters({
                                     toast.error('Gagal menjana PDF Keputusan', { id: t });
                                   }
                                 }}
-                                className="flex-1 sm:flex-initial px-5 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 sm:flex-initial px-5 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
                               >
                                 <Download size={14} className="stroke-[3]" /> PDF KEPUTUSAN
                               </button>
@@ -1052,7 +1143,7 @@ export default function ProjectFilters({
                                     toast.error('Gagal menjana PDF Keputusan', { id: t });
                                   }
                                 }}
-                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
                               >
                                 <Download size={14} className="stroke-[3]" /> PDF KEPUTUSAN
                               </button>
@@ -1073,7 +1164,7 @@ export default function ProjectFilters({
                                     toast.error('Gagal menjana Word file');
                                   }
                                 }}
-                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
                               >
                                 <FileText size={14} className="stroke-[3]" /> WORD
                               </button>
@@ -1091,7 +1182,7 @@ export default function ProjectFilters({
                                     toast.error('Gagal menjana PDF Iklan', { id: t });
                                   }
                                 }}
-                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
                               >
                                 <Download size={14} className="stroke-[3]" /> PDF IKLAN
                               </button>
@@ -1104,7 +1195,7 @@ export default function ProjectFilters({
                                     toast.error('Gagal menjana Word file');
                                   }
                                 }}
-                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
                               >
                                 <FileText size={14} className="stroke-[3]" /> WORD
                               </button>
@@ -1115,20 +1206,20 @@ export default function ProjectFilters({
 
                       {/* View Selector for Dashboard or Active Ads */}
                       {effectiveContext === 'dashboard' ? (
-                        <div className="flex justify-start border-b border-white/5 pb-2">
-                          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 gap-1">
+                        <div className="flex justify-start border-b border-risda-border pb-2">
+                          <div className="flex bg-risda-card-muted p-1 rounded-2xl border border-risda-border gap-1">
                             <button 
                               onClick={() => setDashboardModalView('iklan')} 
-                              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
-                                dashboardModalView === 'iklan' ? 'bg-[#ff9c3a] text-black shadow-md font-black' : 'text-slate-400 hover:text-white'
+                              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                                dashboardModalView === 'iklan' ? 'bg-risda-orange text-white shadow-sm font-bold' : 'text-risda-muted hover:text-risda-text'
                               }`}
                             >
                               📄 Papar Iklan Sebut Harga
                             </button>
                             <button 
                               onClick={() => setDashboardModalView('keputusan')} 
-                              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
-                                dashboardModalView === 'keputusan' ? 'bg-blue-500 text-white shadow-md font-black' : 'text-slate-400 hover:text-white'
+                              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                                dashboardModalView === 'keputusan' ? 'bg-blue-600 text-white shadow-sm font-bold' : 'text-risda-muted hover:text-risda-text'
                               }`}
                             >
                               🏆 Papar Keputusan Rasmi
@@ -1136,20 +1227,20 @@ export default function ProjectFilters({
                           </div>
                         </div>
                       ) : effectiveContext === 'projek' ? (
-                        <div className="flex justify-start border-b border-white/5 pb-2">
-                          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
+                        <div className="flex justify-start border-b border-risda-border pb-2">
+                          <div className="flex bg-risda-card-muted p-1 rounded-2xl border border-risda-border gap-1">
                             <button 
                               onClick={() => setAdViewFormat('preview')} 
-                              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
-                                adViewFormat === 'preview' ? 'bg-[#ff9c3a] text-black shadow-md font-black' : 'text-slate-400 hover:text-white'
+                              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                                adViewFormat === 'preview' ? 'bg-risda-orange text-white shadow-sm font-bold' : 'text-risda-muted hover:text-risda-text'
                               }`}
                             >
                               Papar Format PDF Iklan
                             </button>
                             <button 
                               onClick={() => setAdViewFormat('data')} 
-                              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
-                                adViewFormat === 'data' ? 'bg-[#ff9c3a] text-black shadow-md font-black' : 'text-slate-400 hover:text-white'
+                              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                                adViewFormat === 'data' ? 'bg-risda-orange text-white shadow-sm font-bold' : 'text-risda-muted hover:text-risda-text'
                               }`}
                             >
                               Papar Maklumat Terperinci
@@ -1163,8 +1254,8 @@ export default function ProjectFilters({
                         /* Active Ad Display */
                         adViewFormat === 'preview' ? (
                           /* High Fidelity KENYATAAN SEBUT HARGA A4 PDF View */
-                          <div className="relative mx-auto w-full max-w-2xl px-1 sm:px-0 bg-[#0d121c]">
-                            <div className="bg-white p-4 sm:p-8 md:p-12 border-[6px] border-double border-[#003399] tracking-tight relative text-black font-sans w-full max-w-full overflow-hidden shadow-2xl">
+                          <div className="relative mx-auto w-full max-w-2xl px-1 sm:px-0 bg-risda-card-muted rounded-2xl p-2 sm:p-4 border border-risda-border shadow-inner">
+                            <div className="bg-white p-4 sm:p-8 md:p-12 border-[6px] border-double border-[#003399] tracking-tight relative text-black font-sans w-full max-w-full overflow-hidden shadow-xl rounded-sm">
                               {/* Watermark Logo */}
                               <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
                                 <img src="/PUBLIC/intrologo_RISDA.png" alt="watermark" className="w-[85%] max-w-[360px] object-contain select-none" />
@@ -1292,7 +1383,7 @@ export default function ProjectFilters({
                             {selectedAd.licenseRequirements && (
                               <div className="bg-risda-orange/5 border border-risda-orange/20 p-6 rounded-3xl space-y-2 text-left">
                                  <h4 className="text-[10px] font-black text-risda-orange uppercase tracking-[4px]">Keperluan Lesen Pelantikan</h4>
-                                 <p className="text-xs text-white leading-relaxed uppercase">{selectedAd.licenseRequirements}</p>
+                                 <p className="text-xs text-risda-text font-medium leading-relaxed uppercase">{selectedAd.licenseRequirements}</p>
                               </div>
                             )}
 
@@ -1300,15 +1391,15 @@ export default function ProjectFilters({
                               <div className="space-y-4 text-left">
                                 <h4 className="text-[10px] font-black text-risda-gold uppercase tracking-[4px]">Sijil & Lesen Berdaftar</h4>
                                 <div className="flex flex-wrap gap-2">
-                                  {selectedAd.licenses.cidbSpkk && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">CIDB (SPKK)</span>}
-                                  {selectedAd.licenses.cidbPkk && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">CIDB (PKK)</span>}
-                                  {selectedAd.licenses.stb && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">STB</span>}
-                                  {selectedAd.licenses.mof && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">MOF</span>}
-                                  {selectedAd.licenses.tcc && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">TCC</span>}
-                                  {selectedAd.licenses.pukonsa && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">PUKONSA</span>}
-                                  {selectedAd.licenses.kuhean && <span className="px-3 py-1.5 bg-risda-orange text-black rounded-lg text-[9px] font-black uppercase tracking-widest">KUHEAN</span>}
+                                  {selectedAd.licenses.cidbSpkk && <span className="px-3 py-1.5 bg-[#C26B4D] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm">CIDB (SPKK)</span>}
+                                  {selectedAd.licenses.cidbPkk && <span className="px-3 py-1.5 bg-[#6B7052] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm">CIDB (PKK)</span>}
+                                  {selectedAd.licenses.stb && <span className="px-3 py-1.5 bg-[#7C8262] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm">STB</span>}
+                                  {selectedAd.licenses.mof && <span className="px-3 py-1.5 bg-[#9E5D42] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm">MOF</span>}
+                                  {selectedAd.licenses.tcc && <span className="px-3 py-1.5 bg-[#556B2F] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm">TCC</span>}
+                                  {selectedAd.licenses.pukonsa && <span className="px-3 py-1.5 bg-[#8C7B65] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm">PUKONSA</span>}
+                                  {selectedAd.licenses.kuhean && <span className="px-3 py-1.5 bg-[#8C7B65] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm">KUHEAN</span>}
                                   {selectedAd.licenses.others && (
-                                    <span className="px-3 py-1.5 bg-white/10 border border-white/10 text-white rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                    <span className="px-3 py-1.5 bg-risda-card-muted border border-risda-border text-risda-text rounded-lg text-[9px] font-black uppercase tracking-widest">
                                       {selectedAd.licenses.others}
                                     </span>
                                   )}
@@ -1317,35 +1408,35 @@ export default function ProjectFilters({
                             )}
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-                              <div className="space-y-2 bg-white/5 p-6 rounded-3xl border border-white/5">
+                              <div className="space-y-2 bg-risda-card-muted p-6 rounded-3xl border border-risda-border">
                                 <p className="text-[9px] font-black text-risda-muted uppercase tracking-[3px]">Status Perolehan</p>
                                 <span className={`px-3 py-1 rounded text-[10px] font-black uppercase ${
-                                  selectedAd.status === 'AKTIF' ? 'text-green-400' : 
-                                  selectedAd.status === 'BATAL' ? 'text-red-400' : 
-                                  'text-blue-400'
+                                  selectedAd.status === 'AKTIF' ? 'text-green-600 dark:text-green-400' : 
+                                  selectedAd.status === 'BATAL' ? 'text-red-600 dark:text-red-400' : 
+                                  'text-blue-600 dark:text-blue-400'
                                 }`}>
                                   {selectedAd.status}
                                 </span>
                               </div>
-                              <div className="space-y-2 bg-white/5 p-6 rounded-3xl border border-white/5">
+                              <div className="space-y-2 bg-risda-card-muted p-6 rounded-3xl border border-risda-border">
                                 <p className="text-[9px] font-black text-risda-muted uppercase tracking-[3px]">Tarikh Tutup Penyerahan</p>
-                                <p className="text-lg font-black text-red-500 tracking-tight">{formatDate(selectedAd.closingDate)}</p>
+                                <p className="text-lg font-black text-red-600 dark:text-red-400 tracking-tight">{formatDate(selectedAd.closingDate)}</p>
                                 <p className="text-[10px] font-bold text-risda-muted uppercase tracking-widest">{selectedAd.closingTime || '12:00 PM'}</p>
                               </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-                              <div className="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/5">
+                              <div className="space-y-4 bg-risda-card-muted p-6 rounded-3xl border border-risda-border">
                                 <h4 className="text-[10px] font-black text-risda-orange uppercase tracking-[4px]">Lawatan Tapak</h4>
                                 <div className="space-y-1">
-                                  <p className="text-white font-bold text-sm">{formatDate(selectedAd.visitDate)}</p>
+                                  <p className="text-risda-text font-bold text-sm">{formatDate(selectedAd.visitDate)}</p>
                                   <p className="text-risda-muted text-[10px] uppercase font-bold">{selectedAd.visitVenue || '-'}</p>
                                 </div>
                               </div>
-                              <div className="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/5">
-                                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[4px]">Taklimat Tapak</h4>
+                              <div className="space-y-4 bg-risda-card-muted p-6 rounded-3xl border border-risda-border">
+                                <h4 className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[4px]">Taklimat Tapak</h4>
                                 <div className="space-y-1">
-                                  <p className="text-white font-bold text-sm">{formatDate(selectedAd.briefingDate)}</p>
+                                  <p className="text-risda-text font-bold text-sm">{formatDate(selectedAd.briefingDate)}</p>
                                   <p className="text-risda-muted text-[10px] uppercase font-bold">{selectedAd.briefingVenue || '-'}</p>
                                 </div>
                               </div>
@@ -1353,18 +1444,18 @@ export default function ProjectFilters({
 
                             <div className="space-y-6 text-left">
                               <h4 className="text-[10px] font-black text-risda-gold uppercase tracking-[4px]">Pemerolehan Dokumen</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/5 p-8 rounded-3xl border border-white/5">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-risda-card-muted p-8 rounded-3xl border border-risda-border">
                                 <div>
                                   <p className="text-risda-muted text-[9px] uppercase font-bold mb-1">Tarikh Mula</p>
-                                  <p className="text-white font-bold text-base">{formatDate(selectedAd.docStartDate)}</p>
+                                  <p className="text-risda-text font-bold text-base">{formatDate(selectedAd.docStartDate)}</p>
                                 </div>
                                 <div>
                                   <p className="text-risda-muted text-[9px] uppercase font-bold mb-1">Tarikh Akhir</p>
-                                  <p className="text-white font-bold text-base">{formatDate(selectedAd.docEndDate)}</p>
+                                  <p className="text-risda-text font-bold text-base">{formatDate(selectedAd.docEndDate)}</p>
                                 </div>
-                                <div className="md:col-span-2 pt-4 border-t border-white/5 text-left">
+                                <div className="md:col-span-2 pt-4 border-t border-risda-border text-left">
                                   <p className="text-risda-muted text-[9px] uppercase font-bold mb-2">Tempat / Kaunter</p>
-                                  <p className="text-white font-black text-sm uppercase leading-relaxed">{selectedAd.docVenue || '-'}</p>
+                                  <p className="text-risda-text font-black text-sm uppercase leading-relaxed">{selectedAd.docVenue || '-'}</p>
                                 </div>
                               </div>
                             </div>
@@ -1373,8 +1464,8 @@ export default function ProjectFilters({
                       ) : (
                         /* Completed Ad (Keputusan/Hebahan) Display - Always Portrait White Sheet style! */
                         <div className="space-y-8">
-                          <div className="relative mx-auto w-full max-w-2xl px-1 sm:px-0 bg-[#0d121c]">
-                            <div className="bg-white p-4 sm:p-6 md:p-14 border-[6px] border-double border-slate-900 rounded-none shadow-2xl text-black font-sans w-full overflow-hidden">
+                          <div className="relative mx-auto w-full max-w-2xl px-1 sm:px-0 bg-risda-card-muted rounded-2xl p-2 sm:p-4 border border-risda-border shadow-inner">
+                            <div className="bg-white p-4 sm:p-6 md:p-14 border-[6px] border-double border-slate-900 rounded-none shadow-xl text-black font-sans w-full overflow-hidden">
                                 <div className="text-[7px] md:text-[10px] font-black text-right mb-4 md:mb-12 uppercase tracking-tighter opacity-80">URUSETIA PEROLEHAN PRD {selectedAd.office?.toUpperCase()}</div>
                                 
                                 <div className="flex flex-col items-center mb-6 md:mb-12">
@@ -1447,11 +1538,11 @@ export default function ProjectFilters({
                       {/* Decorum Logs system footer in active layout */}
                       {selectedAd.status !== 'SELESAI (KEPUTUSAN)' && (
                         <div className="pt-10 border-t border-risda-border flex flex-wrap gap-4 text-left">
-                           <div className="bg-white/5 px-6 py-4 rounded-xl border border-white/5 flex items-center gap-4 flex-1 min-w-[200px]">
-                              <Shield size={20} className="text-[#ff9c3a]" />
+                           <div className="bg-risda-card-muted px-6 py-4 rounded-xl border border-risda-border flex items-center gap-4 flex-1 min-w-[200px]">
+                              <Shield size={20} className="text-risda-orange" />
                               <div>
-                                 <p className="text-[10px] font-black text-white uppercase tracking-widest font-poppins">SMART LOG PEROLEHAN</p>
-                                 <p className="text-[9px] text-risda-muted leading-relaxed">Pendaftaran digital yang selamat, telus dan sah di bawah urusetia RISDA.</p>
+                                 <p className="text-xs font-black text-risda-text uppercase tracking-widest font-poppins">SMART LOG PEROLEHAN</p>
+                                 <p className="text-[10px] text-risda-muted leading-relaxed">Pendaftaran digital yang selamat, telus dan sah di bawah urusetia RISDA.</p>
                               </div>
                            </div>
                         </div>
@@ -1460,7 +1551,7 @@ export default function ProjectFilters({
 
                     {/* Column 3 - QR Code & Dismissible Banner (Only for active or cancelled/briefing ads) */}
                     {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) ? (
-                      <div className="p-8 md:p-14 bg-black/15 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-white/10 lg:col-span-1">
+                      <div className="p-8 md:p-14 bg-risda-card-muted/50 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-risda-border lg:col-span-1">
                         <div className="w-full space-y-6">
                           
                           {/* Floating Helpful Banner exactly matching the user's uploaded image style */}
@@ -1468,27 +1559,27 @@ export default function ProjectFilters({
                             <motion.div 
                               initial={{ opacity: 0, y: -10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className="relative bg-slate-900 border border-white/10 p-5 rounded-2xl flex items-start gap-3 shadow-2xl text-left"
+                              className="relative bg-risda-card border border-risda-border p-5 rounded-2xl flex items-start gap-3 shadow-md text-left"
                             >
-                              <div className="flex-1 text-[9px] font-black text-slate-300 leading-relaxed uppercase tracking-wider">
+                              <div className="flex-1 text-[10px] font-bold text-risda-text leading-relaxed uppercase tracking-wider">
                                 SILA RUJUK LAMPIRAN SIJIL TAWARAN ATAU HUBUNGI PEJABAT RISDA NEGERI/DAERAH YANG BERKAITAN UNTUK MAKLUMAT LANJUT.
                               </div>
                               <button 
                                 onClick={() => setShowHelpTip(false)}
-                                className="text-slate-500 hover:text-white p-1 rounded bg-[#0d121c] transition-all hover:scale-105 shrink-0"
+                                className="text-risda-muted hover:text-risda-text p-1.5 rounded-lg bg-risda-card-muted transition-all shrink-0"
                                 title="Tutup Makluman"
                               >
-                                <X size={12} className="stroke-[2.5]" />
+                                <X size={14} className="stroke-[2.5]" />
                               </button>
                             </motion.div>
                           )}
 
-                          <div className="border-b border-white/5 pb-4 text-center">
-                            <h4 className="text-sm font-black text-white uppercase tracking-widest leading-none">PENDAFTARAN SEGERA</h4>
+                          <div className="border-b border-risda-border pb-4 text-center">
+                            <h4 className="text-sm font-bold text-risda-text uppercase tracking-widest leading-none">PENDAFTARAN SEGERA</h4>
                             <p className="text-[10px] text-risda-orange uppercase tracking-[3px] mt-1.5 font-bold">Imbas QR Kod</p>
                           </div>
                           
-                          <div className="relative mx-auto max-w-[220px] aspect-square bg-[#0d121c] p-4 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] group overflow-hidden flex items-center justify-center">
+                          <div className="relative mx-auto max-w-[220px] aspect-square bg-white p-4 rounded-3xl border border-risda-border shadow-md group overflow-hidden flex items-center justify-center">
                             <div className="absolute inset-0 bg-gradient-to-t from-risda-orange/10 via-transparent to-transparent opacity-80 group-hover:scale-110 transition-transform duration-500" />
                             <img 
                               src={qrCodeUrl || `/api/qr-code.png?adId=${selectedAd.id}&origin=${encodeURIComponent(window.location.origin)}`} 
@@ -1498,23 +1589,23 @@ export default function ProjectFilters({
                             />
                           </div>
 
-                          <div className="space-y-3 bg-white/5 p-5 rounded-2xl border border-white/5 text-left">
-                            <p className="text-[11px] text-white/95 font-bold leading-relaxed uppercase">
+                          <div className="space-y-3 bg-risda-card-muted p-5 rounded-2xl border border-risda-border text-left">
+                            <p className="text-[11px] text-risda-text font-bold leading-relaxed uppercase">
                               Kontraktor diminta untuk mengimbas QR Code ini untuk pendaftaran taklimat tapak digital secara terus menggunakan telefon pintar.
                             </p>
-                            <div className="h-px bg-white/5" />
+                            <div className="h-px bg-risda-border" />
                             <p className="text-[10px] text-risda-muted leading-relaxed uppercase">
                               Pastikan anda berada di lokasi taklimat pada tarikh dan masa yang ditetapkan bersendirian. Mohon untuk mengimbas kod qr yang ada pada iklan bagi tujuan pendaftaran secara digital dari iklan di keluarkan atau sehari sebelum hari taklimat tapak.
                             </p>
                           </div>
                         </div>
 
-                        <div className="w-full pt-6 border-t border-white/5 text-center">
-                          <p className="text-[9px] text-white/40 tracking-[2px] font-black uppercase">SMART LOG SYSTEM</p>
+                        <div className="w-full pt-6 border-t border-risda-border text-center">
+                          <p className="text-[9px] text-risda-muted tracking-[2px] font-bold uppercase">SMART LOG SYSTEM</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="p-8 md:p-14 bg-black/15 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-white/10 lg:col-span-1">
+                      <div className="p-8 md:p-14 bg-risda-card-muted/50 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-risda-border lg:col-span-1">
                         <div className="w-full space-y-6">
                           
                           {/* Floating Helpful Banner exactly matching the user's uploaded image style */}
@@ -1522,14 +1613,14 @@ export default function ProjectFilters({
                             <motion.div 
                               initial={{ opacity: 0, y: -10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className="relative bg-slate-900 border border-white/10 p-5 rounded-2xl flex items-start gap-3 shadow-2xl text-left"
+                              className="relative bg-risda-card border border-risda-border p-5 rounded-2xl flex items-start gap-3 shadow-md text-left"
                             >
-                              <div className="flex-1 text-[9px] font-black text-slate-300 leading-relaxed uppercase tracking-wider">
+                              <div className="flex-1 text-[9px] font-bold text-risda-text-secondary leading-relaxed uppercase tracking-wider">
                                 SILA RUJUK LAMPIRAN SIJIL TAWARAN ATAU HUBUNGI PEJABAT RISDA NEGERI/DAERAH YANG BERKAITAN UNTUK MAKLUMAT LANJUT.
                               </div>
                               <button 
                                 onClick={() => setShowHelpTip(false)}
-                                className="text-slate-500 hover:text-white p-1 rounded bg-[#0d121c] transition-all hover:scale-105 shrink-0"
+                                className="text-risda-muted hover:text-risda-text p-1 rounded bg-risda-card-muted transition-all hover:scale-105 shrink-0"
                                 title="Tutup Makluman"
                               >
                                 <X size={12} className="stroke-[2.5]" />
@@ -1537,23 +1628,23 @@ export default function ProjectFilters({
                             </motion.div>
                           )}
 
-                          <div className="border-b border-white/5 pb-4 text-center">
-                            <h4 className="text-sm font-black text-white uppercase tracking-widest leading-none">MAKLUMAT KEPUTUSAN</h4>
-                            <p className="text-[10px] text-blue-400 uppercase tracking-[3px] mt-1.5 font-bold">RASMI PEROLEHAN</p>
+                          <div className="border-b border-risda-border pb-4 text-center">
+                            <h4 className="text-sm font-bold text-risda-text uppercase tracking-widest leading-none">MAKLUMAT KEPUTUSAN</h4>
+                            <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase tracking-[3px] mt-1.5 font-bold">RASMI PEROLEHAN</p>
                           </div>
                           
                           <div className="space-y-4 text-left">
-                            <div className="bg-blue-500/5 p-4 rounded-2xl border border-blue-500/10 text-[11px] text-white/80 uppercase font-medium leading-relaxed">
+                            <div className="bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20 text-[11px] text-blue-700 dark:text-blue-300 uppercase font-medium leading-relaxed">
                               Sebut harga ini telah selesai dinilai dan keputusan rasmi telah dikeluarkan oleh jawatankuasa perolehan RISDA.
                             </div>
-                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-[10px] text-risda-muted uppercase leading-relaxed">
+                            <div className="bg-risda-card-muted p-4 rounded-2xl border border-risda-border text-[10px] text-risda-muted uppercase leading-relaxed">
                               Sila rujuk lampiran sijil tawaran atau hubungi Pejabat RISDA Negeri/Daerah yang berkaitan untuk maklumat lanjut.
                             </div>
                           </div>
                         </div>
 
-                        <div className="w-full pt-6 border-t border-white/5 text-center">
-                          <p className="text-[9px] text-white/40 tracking-[2px] font-black uppercase">SMART LOG SYSTEM</p>
+                        <div className="w-full pt-6 border-t border-risda-border text-center">
+                          <p className="text-[9px] text-risda-muted tracking-[2px] font-bold uppercase">SMART LOG SYSTEM</p>
                         </div>
                       </div>
                     )}

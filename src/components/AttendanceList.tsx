@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import AttendanceForm from './AttendanceForm';
 import { toast } from 'react-hot-toast';
 import { isWithinUserScope } from '../lib/scopeUtils';
+import Pagination from './Pagination';
 
 const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
@@ -56,6 +57,14 @@ export default function AttendanceList() {
   const [projects, setProjects] = useState<string[]>([]);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, projectFilter, yearFilter]);
 
   const handleResendEmail = async (record: any) => {
     if (!record.email || !record.email.trim() || record.email.trim() === '-') {
@@ -251,6 +260,11 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
     return matchesSearch && matchesProject && matchesYear;
   });
 
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredAttendance.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedAttendance = filteredAttendance.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+
   const groupedAttendance = filteredAttendance.reduce((acc: any, record) => {
     if (!record.adTitle) return acc; // Only show records with valid projects
     const projectTitle = record.adTitle;
@@ -366,149 +380,176 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
 
   return (
     <div className="space-y-8 p-8 w-full">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight">Data Kehadiran</h1>
-          <p className="text-[10px] text-risda-muted font-black uppercase tracking-[4px]">
-            {isAdmin ? 'SEMUA REKOD' : `REKOD PEJABAT: ${userOffice || 'TIDAK DITETAPKAN'}`}
-          </p>
-        </div>
+      <div className="bg-risda-card border border-risda-border rounded-2xl md:rounded-[24px] p-6 md:p-8 shadow-sm relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-risda-orange rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
+                <Users size={28} />
+              </div>
+              <div>
+                <p className="text-[10px] text-risda-orange font-black uppercase tracking-[6px] mb-1">Pengurusan Data</p>
+                <h2 className="text-2xl md:text-3xl font-black text-risda-text uppercase tracking-tight leading-none">Data Kehadiran</h2>
+                <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[3px] mt-1.5">
+                  {isAdmin ? 'SEMUA REKOD' : `REKOD PEJABAT: ${userOffice || 'TIDAK DITETAPKAN'}`}
+                </p>
+              </div>
+            </div>
+          </div>
 
-        <div className="flex flex-col sm:flex-row items-end gap-4 w-full md:w-auto">
-          <div className="flex flex-col gap-1 w-full sm:w-64">
-            <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Carian</label>
+        <div className="flex flex-wrap items-end gap-4 flex-1 max-w-4xl justify-end">
+          <div className="flex flex-col gap-2 min-w-[220px] flex-1">
+            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Carian</label>
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-risda-muted group-focus-within:text-risda-orange transition-colors" size={16} />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-risda-muted group-focus-within:text-risda-orange transition-colors" size={16} />
               <input 
                 type="text"
-                placeholder="Syarikat atau Wakil..."
+                placeholder="SYARIKAT ATAU WAKIL..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-risda-card border border-risda-border rounded-xl py-3 pl-12 pr-6 text-xs text-white focus:outline-none focus:border-risda-orange/50 transition-all shadow-inner"
+                className="bg-risda-card border border-risda-border rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-risda-text uppercase focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full tracking-wider shadow-sm"
               />
             </div>
           </div>
           
-          <div className="flex flex-col gap-1 w-full sm:w-64">
-            <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tapis Projek</label>
-            <select 
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-6 text-xs text-white focus:outline-none focus:border-risda-orange/50 transition-all shadow-inner appearance-none cursor-pointer"
-            >
-              <option value="">Semua Projek</option>
-              {projects.map(proj => (
-                <option key={proj} value={proj}>{proj}</option>
-              ))}
-            </select>
+          <div className="flex flex-col gap-2 w-52">
+            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tapis Projek</label>
+            <div className="relative">
+              <select 
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+                className="bg-risda-card border border-risda-border rounded-xl py-3 px-3 pr-8 text-xs font-bold text-risda-text uppercase focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full appearance-none cursor-pointer tracking-wider shadow-sm"
+              >
+                <option value="" className="bg-risda-card text-risda-text">SEMUA PROJEK</option>
+                {projects.map(proj => (
+                  <option key={proj} value={proj} className="bg-risda-card text-risda-text uppercase">{proj}</option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-risda-text">
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1 w-full sm:w-32">
-            <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Pilih Tahun</label>
-            <select 
-              value={yearFilter}
-              onChange={(e) => setYearFilter(e.target.value)}
-              className="bg-risda-card border border-risda-border rounded-xl py-3 px-6 text-xs text-white focus:outline-none focus:border-risda-orange/50 transition-all shadow-inner appearance-none cursor-pointer"
-            >
-              <option value="ALL">Semua Tahun</option>
-              {years.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
+          <div className="flex flex-col gap-2 w-36">
+            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Pilih Tahun</label>
+            <div className="relative">
+              <select 
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+                className="bg-risda-card border border-risda-border rounded-xl py-3 px-3 pr-8 text-xs font-bold text-risda-text uppercase focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full appearance-none cursor-pointer tracking-wider shadow-sm"
+              >
+                <option value="ALL" className="bg-risda-card text-risda-text">SEMUA TAHUN</option>
+                {years.map(year => (
+                  <option key={year} value={year} className="bg-risda-card text-risda-text">{year}</option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-risda-text">
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 bg-risda-orange/10 border border-risda-orange/20 px-6 py-3 rounded-xl shadow-lg shrink-0 w-full sm:w-auto h-11 justify-center mt-auto">
-            <Users size={18} className="text-risda-orange" />
-            <span className="text-sm font-black text-white">{filteredAttendance.length}</span>
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1 opacity-0 hidden sm:block">Jumlah</label>
+            <div className="flex items-center gap-2.5 bg-risda-card border border-risda-border hover:border-risda-orange/50 px-5 py-3 rounded-xl shadow-sm shrink-0 h-[42px] justify-center">
+              <Users size={16} className="text-risda-orange" />
+              <span className="text-xs font-black text-risda-text">{filteredAttendance.length}</span>
+            </div>
           </div>
         </div>
       </div>
+    </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-full py-20 text-center text-risda-muted animate-pulse font-black uppercase tracking-[4px]">Menyelaras Data...</div>
+          <div className="col-span-full py-20 text-center text-risda-muted animate-pulse font-bold uppercase tracking-[4px]">Menyelaras Data...</div>
         ) : filteredAttendance.length === 0 ? (
-          <div className="col-span-full py-20 text-center text-risda-muted font-black uppercase tracking-[4px] bg-risda-card rounded-[40px] border border-risda-border border-dashed">
+          <div className="col-span-full py-20 text-center text-risda-muted font-bold uppercase tracking-[4px] bg-risda-card rounded-[40px] border border-risda-border border-dashed">
             {searchTerm ? 'Tiada Padanan Carian' : 'Tiada Rekod Kehadiran'}
           </div>
-        ) : filteredAttendance.map((record, idx) => (
+        ) : paginatedAttendance.map((record, idx) => (
           <motion.div 
             key={record.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.02, duration: 0.3 }}
-            className="bg-risda-card border border-white/5 hover:border-white/10 rounded-3xl p-6 flex flex-col justify-between space-y-4 shadow-lg relative overflow-hidden transition-all duration-300 group"
+            className="h-full bg-risda-card border border-risda-border hover:border-risda-orange/40 rounded-3xl p-6 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md relative overflow-hidden transition-all duration-300 group"
           >
-            <div className="space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="p-3 bg-white/5 rounded-2xl text-risda-gold border border-white/5 group-hover:bg-risda-gold/10 group-hover:text-risda-orange transition-all duration-300">
-                  <Building2 size={20} />
+            <div className="space-y-4 flex-1 flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between">
+                  <div className="p-3 bg-risda-card-muted rounded-2xl text-risda-gold border border-risda-border group-hover:bg-risda-orange/10 group-hover:text-risda-orange transition-all duration-300">
+                    <Building2 size={20} />
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className="px-2.5 py-1 bg-risda-orange/15 border border-risda-orange/30 text-[9px] font-bold text-risda-orange rounded-md uppercase tracking-wider font-mono">
+                      SIRI NO: {record.docSeriesNo || '-'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1.5">
-                  <span className="px-2.5 py-1 bg-risda-orange/15 border border-risda-orange/30 text-[9px] font-black text-risda-orange rounded-md uppercase tracking-wider font-mono">
-                    SIRI NO: {record.docSeriesNo || '-'}
-                  </span>
+
+                <div className="space-y-2 mt-4">
+                  <h3 className="text-sm font-bold text-risda-text uppercase tracking-tight leading-snug group-hover:text-risda-orange transition-colors duration-300 line-clamp-2 min-h-[2.5rem] flex items-center">
+                    {record.companyName}
+                  </h3>
+                  
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[10px] text-risda-text font-bold uppercase flex items-center gap-2">
+                      <User size={12} className="text-risda-orange shrink-0" />
+                      <span>{record.ownerName}</span>
+                    </p>
+                    
+                    {record.icNumber && (
+                      <p className="text-[10px] text-risda-muted font-medium flex items-center gap-2">
+                        <span className="text-[9px] font-bold text-risda-muted font-mono shrink-0">KP:</span>
+                        <span className="font-mono">{record.icNumber}</span>
+                      </p>
+                    )}
+
+                    <p className="text-[10px] text-risda-text-secondary font-medium flex items-center gap-2">
+                      <Phone size={12} className="text-risda-orange shrink-0" />
+                      <span className="font-mono">{record.phoneNumber}</span>
+                    </p>
+                    
+                    {record.email && record.email !== '-' && (
+                      <p className="text-[10px] text-risda-text-secondary font-medium flex items-center gap-2 truncate">
+                        <Mail size={12} className="text-risda-orange shrink-0" />
+                        <span className="truncate select-all">{record.email}</span>
+                      </p>
+                    )}
+                    
+                    <p className="text-[9px] text-risda-muted font-medium flex items-center gap-2 pt-1">
+                      <Calendar size={11} className="text-risda-muted shrink-0" />
+                      <span>DAFTAR: {formatDate(record.timestamp)}</span>
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h3 className="text-sm font-black text-white uppercase tracking-tight leading-snug group-hover:text-risda-gold transition-colors duration-300">
-                  {record.companyName}
-                </h3>
-                
-                <div className="space-y-1.5 pt-1">
-                  <p className="text-[10px] text-white/80 font-bold uppercase flex items-center gap-2">
-                    <User size={12} className="text-risda-gold shrink-0" />
-                    <span>{record.ownerName}</span>
-                  </p>
-                  
-                  {record.icNumber && (
-                    <p className="text-[10px] text-white/50 font-bold flex items-center gap-2">
-                      <span className="text-[9px] font-black text-risda-muted font-mono shrink-0">KP:</span>
-                      <span className="font-mono">{record.icNumber}</span>
-                    </p>
-                  )}
-
-                  <p className="text-[10px] text-white/60 font-bold flex items-center gap-2">
-                    <Phone size={12} className="text-risda-orange shrink-0" />
-                    <span className="font-mono">{record.phoneNumber}</span>
-                  </p>
-                  
-                  {record.email && record.email !== '-' && (
-                    <p className="text-[10px] text-white/60 font-bold flex items-center gap-2 truncate">
-                      <Mail size={12} className="text-risda-orange shrink-0" />
-                      <span className="truncate select-all">{record.email}</span>
-                    </p>
-                  )}
-                  
-                  <p className="text-[9px] text-risda-muted font-semibold flex items-center gap-2 pt-1">
-                    <Calendar size={11} className="text-risda-muted shrink-0" />
-                    <span>DAFTAR: {formatDate(record.timestamp)}</span>
-                  </p>
-                </div>
-              </div>
-
-              {record.companyAddress && record.companyAddress !== '-' && (
-                <div className="pt-2 border-t border-white/5">
+              <div className="pt-2 border-t border-risda-border min-h-[44px] flex items-center">
+                {record.companyAddress && record.companyAddress !== '-' ? (
                   <p className="text-[10px] text-risda-muted italic leading-relaxed line-clamp-2">
                     {record.companyAddress}
                   </p>
-                </div>
-              )}
+                ) : (
+                  <p className="text-[10px] text-risda-muted/50 italic">Alamat tidak dinyatakan</p>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-col gap-3 pt-3 border-t border-white/5">
-              {record.adTitle && (
-                <div className="bg-black/30 px-3 py-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
-                  <span className="text-[7px] font-black text-risda-orange uppercase tracking-widest">Sebut Harga</span>
-                  <span className="text-[9px] font-black text-white uppercase tracking-tight line-clamp-1">{record.adTitle}</span>
-                </div>
-              )}
+            <div className="flex flex-col gap-3 pt-3 border-t border-risda-border mt-auto">
+              <div className="bg-risda-card-muted px-3 py-2 rounded-xl border border-risda-border flex flex-col justify-center min-h-[46px]">
+                <span className="text-[7px] font-bold text-risda-orange uppercase tracking-widest">Sebut Harga</span>
+                <span className="text-[9px] font-bold text-risda-text uppercase tracking-tight line-clamp-1">
+                  {record.adTitle || 'Iklan Tidak Dinyatakan'}
+                </span>
+              </div>
 
               <div className="flex items-center justify-end gap-2">
                 <button 
                   onClick={() => setPreviewRecord(record)}
-                  className="px-3 py-2 bg-white/5 hover:bg-risda-gold/20 text-risda-muted hover:text-risda-gold rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                  className="px-3 py-2 bg-risda-card-muted hover:bg-risda-orange/15 text-risda-text hover:text-risda-orange rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-risda-border"
                   title="Lihat Butiran Syarikat"
                 >
                   <Eye size={13} /> Detail
@@ -516,10 +557,10 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                 <button 
                   onClick={() => handleResendEmail(record)}
                   disabled={resendingId === record.id}
-                  className={`px-3 py-2 bg-white/5 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                  className={`px-3 py-2 bg-risda-card-muted rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-risda-border ${
                     resendingId === record.id 
-                      ? 'opacity-50 cursor-not-allowed text-white/30' 
-                      : 'hover:bg-blue-500/20 text-risda-muted hover:text-blue-400'
+                      ? 'opacity-50 cursor-not-allowed text-risda-muted' 
+                      : 'hover:bg-blue-500/15 text-risda-text hover:text-blue-600 dark:hover:text-blue-400'
                   }`}
                   title="Hantar Semula E-mel Pendaftaran"
                 >
@@ -535,7 +576,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                 </button>
                 <button 
                   onClick={() => handleDelete(record.id)}
-                  className="px-3 py-2 bg-white/5 hover:bg-red-500/20 text-risda-muted hover:text-red-500 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                  className="px-3 py-2 bg-risda-card-muted hover:bg-red-500/15 text-risda-text hover:text-red-600 dark:hover:text-red-400 rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-risda-border"
                   title="Padam Rekod Kehadiran"
                 >
                   <Trash2 size={13} /> Padam
@@ -546,6 +587,25 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
         ))}
       </div>
 
+      {/* Pagination Controls */}
+      {!loading && filteredAttendance.length > 0 && (
+        <Pagination
+          currentPage={safeCurrentPage}
+          totalItems={filteredAttendance.length}
+          pageSize={pageSize}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+          pageSizeOptions={[12, 24, 48]}
+          itemName="rekod kehadiran"
+        />
+      )}
+
       <AnimatePresence>
         {previewRecord && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
@@ -553,24 +613,24 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                exit={{ opacity: 0 }}
-               className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                onClick={() => setPreviewRecord(null)}
             />
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-risda-card border border-risda-border w-full max-w-2xl rounded-[40px] overflow-hidden relative z-10 shadow-2xl shadow-black/50"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-risda-card border border-risda-border w-full max-w-2xl rounded-[32px] overflow-hidden relative z-10 shadow-2xl"
             >
               {/* Header */}
-              <div className="p-6 sm:p-8 border-b border-white/5 flex items-center justify-between">
+              <div className="p-6 sm:p-8 border-b border-risda-border flex items-center justify-between">
                 <div className="space-y-1">
                   <span className="text-[10px] font-black text-risda-orange uppercase tracking-[3px]">Pratonton Butiran</span>
-                  <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight">Maklumat Berdaftar</h3>
+                  <h3 className="text-lg sm:text-2xl font-black text-risda-text uppercase tracking-tight">Maklumat Berdaftar</h3>
                 </div>
                 <button 
                   onClick={() => setPreviewRecord(null)}
-                  className="p-3 bg-white/5 hover:bg-white/10 text-risda-muted hover:text-white rounded-full transition-all"
+                  className="p-3 bg-risda-card-muted hover:bg-risda-border text-risda-muted hover:text-risda-text rounded-full transition-all"
                 >
                   <X size={18} />
                 </button>
@@ -579,14 +639,14 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
               {/* Content */}
               <div className="p-6 sm:p-8 space-y-8 max-h-[70vh] overflow-y-auto">
                 {/* Project Header */}
-                <div className="bg-black/30 p-6 rounded-[24px] border border-white/5 space-y-3">
+                <div className="bg-risda-card-muted p-6 rounded-[24px] border border-risda-border space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-mono text-risda-gold uppercase tracking-[2px] font-bold">Projek Sebut Harga</span>
+                    <span className="text-[9px] font-mono text-risda-orange uppercase tracking-[2px] font-bold">Projek Sebut Harga</span>
                     <span className="bg-risda-orange/15 border border-risda-orange/30 text-risda-orange font-mono text-xs px-3 py-1 rounded-full font-bold">
                       SIRI NO: {previewRecord.docSeriesNo || '-'}
                     </span>
                   </div>
-                  <h4 className="text-white text-sm sm:text-base font-black uppercase leading-snug">
+                  <h4 className="text-risda-text text-sm sm:text-base font-black uppercase tracking-tight leading-snug">
                     {previewRecord.adTitle || '-'}
                   </h4>
                   <div className="text-[9px] font-mono text-risda-muted uppercase">
@@ -597,19 +657,19 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Left Column - Company Info */}
                   <div className="space-y-4">
-                    <h5 className="text-[10px] font-black text-risda-gold uppercase tracking-[2px]">Profil Syarikat</h5>
+                    <h5 className="text-[10px] font-black text-risda-orange uppercase tracking-[2px]">Profil Syarikat</h5>
                     
                     <div className="space-y-3">
-                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
-                        <span className="text-[8px] font-black text-risda-muted uppercase">Nama Syarikat</span>
-                        <span className="text-white text-xs font-black uppercase tracking-wide leading-tight">
+                      <div className="flex flex-col gap-1 bg-risda-card p-4 rounded-2xl border border-risda-border">
+                        <span className="text-[8px] font-bold text-risda-muted uppercase">Nama Syarikat</span>
+                        <span className="text-risda-text text-xs font-bold uppercase tracking-wide leading-tight">
                           {previewRecord.companyName}
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
-                        <span className="text-[8px] font-black text-risda-muted uppercase">Alamat Syarikat</span>
-                        <span className="text-white text-xs font-medium uppercase leading-relaxed whitespace-pre-line">
+                      <div className="flex flex-col gap-1 bg-risda-card p-4 rounded-2xl border border-risda-border">
+                        <span className="text-[8px] font-bold text-risda-muted uppercase">Alamat Syarikat</span>
+                        <span className="text-risda-text text-xs font-medium uppercase leading-relaxed whitespace-pre-line">
                           {previewRecord.companyAddress || 'Tiada Alamat'}
                         </span>
                       </div>
@@ -618,42 +678,42 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
 
                   {/* Right Column - Representative Info */}
                   <div className="space-y-4">
-                    <h5 className="text-[10px] font-black text-risda-gold uppercase tracking-[2px]">Maklumat Wakil / Pemilik</h5>
+                    <h5 className="text-[10px] font-black text-risda-orange uppercase tracking-[2px]">Maklumat Wakil / Pemilik</h5>
                     
                     <div className="space-y-3">
-                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
+                      <div className="flex flex-col gap-1 bg-risda-card p-4 rounded-2xl border border-risda-border">
                         <div className="flex items-center gap-2">
                           <User size={12} className="text-risda-orange" />
-                          <span className="text-[8px] font-black text-risda-muted uppercase">Nama Penuh</span>
+                          <span className="text-[8px] font-bold text-risda-muted uppercase">Nama Penuh</span>
                         </div>
-                        <span className="text-white text-xs font-bold uppercase">
+                        <span className="text-risda-text text-xs font-bold uppercase">
                           {previewRecord.ownerName}
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
-                        <span className="text-[8px] font-black text-risda-muted uppercase">No. Kad Pengenalan</span>
-                        <span className="text-white text-xs font-mono font-bold">
+                      <div className="flex flex-col gap-1 bg-risda-card p-4 rounded-2xl border border-risda-border">
+                        <span className="text-[8px] font-bold text-risda-muted uppercase">No. Kad Pengenalan</span>
+                        <span className="text-risda-text text-xs font-mono font-bold">
                           {previewRecord.icNumber || '-'}
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
+                      <div className="flex flex-col gap-1 bg-risda-card p-4 rounded-2xl border border-risda-border">
                         <div className="flex items-center gap-2">
                           <Phone size={12} className="text-risda-orange" />
-                          <span className="text-[8px] font-black text-risda-muted uppercase">No. Telefon Bimbit</span>
+                          <span className="text-[8px] font-bold text-risda-muted uppercase">No. Telefon Bimbit</span>
                         </div>
-                        <span className="text-white text-xs font-mono font-bold">
+                        <span className="text-risda-text text-xs font-mono font-bold">
                           {previewRecord.phoneNumber}
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1 bg-black/20 p-4 rounded-2xl border border-white/5">
+                      <div className="flex flex-col gap-1 bg-risda-card p-4 rounded-2xl border border-risda-border">
                         <div className="flex items-center gap-2">
                           <Mail size={12} className="text-risda-orange" />
-                          <span className="text-[8px] font-black text-risda-muted uppercase">E-mel</span>
+                          <span className="text-[8px] font-bold text-risda-muted uppercase">E-mel</span>
                         </div>
-                        <span className="text-white text-xs font-mono select-all">
+                        <span className="text-risda-text text-xs font-mono select-all">
                           {previewRecord.email || '-'}
                         </span>
                       </div>
@@ -663,18 +723,18 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
 
                 {/* Sijil / Dokumen Section */}
                 <div className="space-y-4">
-                  <div className="bg-black/20 p-5 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
+                  <div className="bg-risda-card-muted p-5 rounded-2xl border border-risda-border flex items-center justify-between gap-4">
                     <div className="space-y-1">
-                      <span className="text-[8px] font-black text-risda-muted uppercase">Sijil CIDB & SSM Pembekal</span>
-                      <p className="text-white text-xs font-bold">
+                      <span className="text-[8px] font-bold text-risda-muted uppercase">Sijil CIDB &amp; SSM Pembekal</span>
+                      <p className="text-risda-text text-xs font-bold">
                         {previewRecord.hasCertificate ? 'Dokumen Sijil Telah Dimuat Naik' : 'Tiada Sijil Dimuat Naik'}
                       </p>
                       {previewRecord.certificateName && (
-                        <span className="text-[9px] text-risda-gold italic font-mono block mt-1">{previewRecord.certificateName}</span>
+                        <span className="text-[9px] text-risda-orange italic font-mono block mt-1">{previewRecord.certificateName}</span>
                       )}
                     </div>
                     {previewRecord.hasCertificate && (
-                      <span className="bg-green-500/10 text-green-400 border border-green-500/20 text-[9px] font-bold px-3 py-1.5 rounded-lg shrink-0 uppercase tracking-widest">
+                      <span className="bg-green-500/15 text-green-600 dark:text-green-400 border border-green-500/30 text-[9px] font-bold px-3 py-1.5 rounded-lg shrink-0 uppercase tracking-widest">
                         Lengkap
                       </span>
                     )}
@@ -682,14 +742,13 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
 
                   {/* Inline Document/Image Attachment Viewer */}
                   {previewRecord.certificatesBase64 && Object.keys(previewRecord.certificatesBase64).length > 0 ? (
-                    <div className="space-y-4 pt-4 border-t border-white/5">
-                      <h5 className="text-[10px] font-black text-risda-gold uppercase tracking-[2px]">Dokumen / Sijil Tempelan Kontraktor</h5>
+                    <div className="space-y-4 pt-4 border-t border-risda-border">
+                      <h5 className="text-[10px] font-black text-risda-orange uppercase tracking-[2px]">Dokumen / Sijil Tempelan Kontraktor</h5>
                       <div className="grid grid-cols-1 gap-4">
                         {Object.entries(previewRecord.certificatesBase64).map(([key, base64Str]: [string, any]) => {
                           const isImage = typeof base64Str === 'string' && base64Str.startsWith('data:image/');
                           const isPdf = typeof base64Str === 'string' && base64Str.startsWith('data:application/pdf');
                           
-                          // Find descriptive name for the certificate key
                           const fileLabel = key === 'cidb' ? 'Sijil CIDB' :
                                             key === 'stb' ? 'Sijil Taraf Bumiputera' :
                                             key === 'mof' ? 'Kementerian Kewangan (MOF)' :
@@ -700,14 +759,14 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                           const fileName = previewRecord.certificates?.[key] || `${fileLabel}.webp`;
 
                           return (
-                            <div key={key} className="bg-black/30 p-4 rounded-2xl border border-white/5 space-y-3">
+                            <div key={key} className="bg-risda-card-muted p-4 rounded-2xl border border-risda-border space-y-3">
                               <div className="flex items-center justify-between">
                                 <div className="flex flex-col">
-                                  <span className="text-[8px] font-black text-risda-orange uppercase tracking-wider">{fileLabel}</span>
-                                  <span className="text-white text-[11px] font-bold uppercase truncate max-w-[250px] sm:max-w-md">{fileName}</span>
+                                  <span className="text-[8px] font-bold text-risda-orange uppercase tracking-wider">{fileLabel}</span>
+                                  <span className="text-risda-text text-[11px] font-bold uppercase truncate max-w-[250px] sm:max-w-md">{fileName}</span>
                                   {previewRecord.certificateExpiries?.[key] && (
-                                    <span className="text-emerald-400 text-[9px] font-mono font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                                      <Calendar size={10} className="text-risda-gold" />
+                                    <span className="text-green-600 dark:text-green-400 text-[9px] font-mono font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
+                                      <Calendar size={10} className="text-risda-orange" />
                                       TAMAT TEMPOH: {formatDate(previewRecord.certificateExpiries[key])}
                                     </span>
                                   )}
@@ -722,13 +781,13 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                                     link.click();
                                     document.body.removeChild(link);
                                   }}
-                                  className="px-3 py-1.5 bg-risda-orange/15 hover:bg-risda-orange/30 border border-risda-orange/20 text-risda-orange text-[9px] font-black uppercase tracking-wider rounded-lg transition-all"
+                                  className="px-3 py-1.5 bg-risda-orange/15 hover:bg-risda-orange/25 border border-risda-orange/30 text-risda-orange text-[9px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer"
                                 >
                                   Muat Turun
                                 </button>
                               </div>
                               {isImage ? (
-                                <div className="relative group rounded-xl overflow-hidden border border-white/5 bg-black/40 p-2 max-h-[300px] flex items-center justify-center">
+                                <div className="relative group rounded-xl overflow-hidden border border-risda-border bg-risda-card p-2 max-h-[300px] flex items-center justify-center">
                                   <img 
                                     src={base64Str} 
                                     alt={fileName} 
@@ -737,12 +796,12 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                                   />
                                 </div>
                               ) : isPdf ? (
-                                <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center justify-between text-xs">
+                                <div className="bg-risda-card p-4 rounded-xl border border-risda-border flex items-center justify-between text-xs">
                                   <span className="text-risda-muted font-mono">{fileName} (Dokumen PDF)</span>
-                                  <span className="text-risda-gold font-bold">PDF</span>
+                                  <span className="text-risda-orange font-bold">PDF</span>
                                 </div>
                               ) : (
-                                <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center justify-between text-xs">
+                                <div className="bg-risda-card p-4 rounded-xl border border-risda-border flex items-center justify-between text-xs">
                                   <span className="text-risda-muted font-mono">{fileName} (Format tersimpan)</span>
                                 </div>
                               )}
@@ -752,7 +811,7 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
                       </div>
                     </div>
                   ) : previewRecord.hasCertificate ? (
-                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center text-risda-muted text-[10px] font-bold uppercase tracking-wider">
+                    <div className="p-4 bg-risda-card-muted rounded-2xl border border-risda-border text-center text-risda-muted text-[10px] font-bold uppercase tracking-wider">
                       Sijil sedia ada disimpan secara berasingan. Sila hubungi pembekal jika imej lampiran fizikal tidak dipaparkan.
                     </div>
                   ) : null}
@@ -760,10 +819,10 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
               </div>
 
               {/* Footer */}
-              <div className="p-6 bg-black/20 border-t border-white/5 flex justify-end">
+              <div className="p-6 bg-risda-card-muted border-t border-risda-border flex justify-end">
                 <button 
                   onClick={() => setPreviewRecord(null)}
-                  className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold hover:scale-95 transition-all uppercase tracking-wide"
+                  className="px-6 py-2.5 bg-risda-card hover:bg-risda-border border border-risda-border text-risda-text rounded-xl text-xs font-bold hover:scale-95 transition-all uppercase tracking-wide cursor-pointer"
                 >
                   Tutup Pratonton
                 </button>

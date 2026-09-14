@@ -1,185 +1,1090 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
 @import "tailwindcss";
 
 @theme {
   --color-risda-dark: var(--risda-dark);
   --color-risda-sidebar: var(--risda-sidebar);
   --color-risda-card: var(--risda-card);
+  --color-risda-card-muted: var(--risda-card-muted);
   --color-risda-orange: var(--risda-orange);
+  --color-risda-orange-hover: var(--risda-orange-hover);
   --color-risda-gold: var(--risda-gold);
   --color-risda-gold-light: var(--risda-gold-light);
   --color-risda-accent: var(--risda-accent);
+  --color-risda-terracotta: var(--risda-terracotta);
+  --color-risda-terracotta-soft: var(--risda-terracotta-soft);
+  --color-risda-olive: var(--risda-olive);
+  --color-risda-olive-soft: var(--risda-olive-soft);
   --color-risda-orange-glow: var(--risda-orange-glow);
   --color-risda-border: var(--risda-border);
+  --color-risda-border-light: var(--risda-border-light);
   --color-risda-text-secondary: var(--risda-text-secondary);
   --color-risda-muted: var(--risda-muted);
   --color-risda-text: var(--risda-text);
   
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-poppins: "Poppins", sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-poppins: "Plus Jakarta Sans", sans-serif;
 }
 
-:root {
-  /* Modern Theme: Luxury Royal Blue (High-Contrast, Solid & Sleek) */
-  --risda-dark: #070d1e;
-  --risda-sidebar: #030611;
-  --risda-card: #0d162d;
-  --risda-orange: #2563eb;
-  --risda-gold: #38bdf8;
-  --risda-gold-light: #eff6ff;
-  --risda-accent: #1d4ed8;
-  --risda-orange-glow: rgba(37, 99, 235, 0.25);
-  --risda-border: rgba(37, 99, 235, 0.25);
-  --risda-text: #ffffff;
-  --risda-text-secondary: #e2e8f0;
-  --risda-muted: #94a3b8;
-  --risda-glow-color: rgba(37, 99, 235, 0.12);
-  --risda-gradient-color: rgba(37, 99, 235, 0.06);
+.font-editorial-heading,
+.font-editorial-title {
+  font-family: var(--font-sans) !important;
+  font-style: normal !important;
+}
+
+:root, .executive-theme {
+  /* Executive Dashboard Theme: Modern Cool Surface (executive.png) + Royal Blue + Slate */
+  --risda-dark: #F5F7FA;            /* Background: Putih Kelabu #F5F7FA */
+  --risda-sidebar: #061B3A;         /* Sidebar: Navy Gelap #061B3A */
+  --risda-card: #F1F5F9;            /* Card matching executive.png */
+  --risda-card-muted: #E2E8F0;      /* Card Secondary Surface */
+  --risda-orange: #1557B0;          /* Primary: Royal Blue #1557B0 */
+  --risda-orange-hover: #0D47A1;    /* Royal Blue Hover */
+  --risda-gold: #F4B41A;            /* Accent / Highlight: Gold #F4B41A */
+  --risda-gold-light: #FEF9C3;      /* Gold tint wash */
+  --risda-accent: #2563EB;          /* Secondary: Blue #2563EB */
+  --risda-terracotta: #F4B41A;
+  --risda-terracotta-soft: #FFFBEB;
+  --risda-olive: #16A34A;           /* Berjaya: Green #16A34A */
+  --risda-olive-soft: #DCFCE7;
+  --risda-orange-glow: rgba(21, 87, 176, 0.2);
+  --risda-border: #94A3B8;          /* Border: Solid High-Definition Slate #94A3B8 */
+  --risda-border-light: #CBD5E1;
+  --risda-text: #0F172A;            /* Tulisan utama: Dark Slate-900 (High-Contrast) */
+  --risda-text-secondary: #334155;  /* Tulisan kedua: Dark Slate-700 (Clear & Legible) */
+  --risda-muted: #475569;           /* Muted text: Slate-600 (Easily Readable) */
+  --risda-glow-color: rgba(21, 87, 176, 0.04);
+  --risda-gradient-color: rgba(244, 180, 26, 0.03);
+  color-scheme: light;
+}
+
+.natural-theme {
+  /* Earthy Natural Palette: Clean Organic Surface (tona semula jadi.png) + Sage + Terracotta */
+  --risda-dark: #FAF8F5;            /* Soft warm paper canvas, soothing & clean */
+  --risda-sidebar: #F5F2EA;         /* Gentle natural sidebar surface */
+  --risda-card: #FFFFFF;            /* Pure crisp light card matching tona semula jadi.png */
+  --risda-card-muted: #F4F1E8;      /* Secondary soft surface */
+  --risda-orange: #4D5639;          /* Deep sage olive primary accent (High Contrast) */
+  --risda-orange-hover: #3E452E;    /* Deep olive hover */
+  --risda-gold: #A3482A;            /* Rich warm terracotta secondary highlight (High Contrast) */
+  --risda-gold-light: #FBF0EB;      /* Warm terracotta wash */
+  --risda-accent: #3E452E;          /* Deep olive accent */
+  --risda-terracotta: #A3482A;      /* Rich terracotta */
+  --risda-terracotta-soft: #FBF0EB;
+  --risda-olive: #4D5639;           /* Deep sage olive */
+  --risda-olive-soft: #EEF2E6;
+  --risda-orange-glow: rgba(77, 86, 57, 0.16);
+  --risda-border: #9E9484;          /* Solid high-clarity earthy border #9E9484 */
+  --risda-border-light: #C4BCAD;    /* Understated separator */
+  --risda-text: #161811;            /* Ultra-crisp deep charcoal graphite (High Contrast) */
+  --risda-text-secondary: #2E3024;  /* High-clarity secondary graphite */
+  --risda-muted: #4C503D;           /* High-clarity muted metadata */
+  --risda-glow-color: rgba(77, 86, 57, 0.05);
+  --risda-gradient-color: rgba(163, 72, 42, 0.03);
+  color-scheme: light;
 }
 
 .custom-theme {
-  /* Classic Theme: Elegant Gold Blue (Timeless Deep Navy-Blue & Pure Gold) */
-  --risda-dark: #040916;
-  --risda-sidebar: #010308;
-  --risda-card: #091124;
-  --risda-orange: #d4af37;
-  --risda-gold: #f3d060;
-  --risda-gold-light: #fdf6e2;
-  --risda-accent: #b8901c;
-  --risda-orange-glow: rgba(212, 175, 55, 0.25);
-  --risda-border: rgba(212, 175, 55, 0.25);
-  --risda-text: #ffffff;
-  --risda-text-secondary: #f1f5f9;
-  --risda-muted: #cbd5e1;
-  --risda-glow-color: rgba(212, 175, 55, 0.12);
-  --risda-gradient-color: rgba(212, 175, 55, 0.06);
-}
-
-.emerald-theme {
-  /* Corporate RISDA Theme: Emerald Green & Gold */
-  --risda-dark: #04140e;
-  --risda-sidebar: #010805;
-  --risda-card: #081e15;
-  --risda-orange: #10b981;
-  --risda-gold: #f59e0b;
-  --risda-gold-light: #fef3c7;
-  --risda-accent: #059669;
-  --risda-orange-glow: rgba(16, 185, 129, 0.25);
-  --risda-border: rgba(16, 185, 129, 0.25);
-  --risda-text: #ffffff;
-  --risda-text-secondary: #e6f4ea;
-  --risda-muted: #a7f3d0;
-  --risda-glow-color: rgba(16, 185, 129, 0.12);
-  --risda-gradient-color: rgba(16, 185, 129, 0.06);
-}
-
-.sunset-theme {
-  /* Sunset Theme: Deep Charcoal & Warm Orange/Red */
-  --risda-dark: #120909;
-  --risda-sidebar: #090303;
-  --risda-card: #1d1010;
-  --risda-orange: #ef4444;
-  --risda-gold: #f97316;
-  --risda-gold-light: #ffedd5;
-  --risda-accent: #b91c1c;
-  --risda-orange-glow: rgba(239, 68, 68, 0.25);
-  --risda-border: rgba(239, 68, 68, 0.25);
-  --risda-text: #ffffff;
-  --risda-text-secondary: #fee2e2;
-  --risda-muted: #fca5a5;
-  --risda-glow-color: rgba(239, 68, 68, 0.12);
-  --risda-gradient-color: rgba(239, 68, 68, 0.06);
-}
-
-.black-theme {
-  /* Hitam Solid & Tulisan Putih (Solid Black & Pure White Text Theme) */
-  --risda-dark: #000000;
-  --risda-sidebar: #050505;
-  --risda-card: #0a0a0c;
-  --risda-orange: #3b82f6;
-  --risda-gold: #f59e0b;
-  --risda-gold-light: #fef3c7;
-  --risda-accent: #60a5fa;
-  --risda-orange-glow: rgba(59, 130, 246, 0.25);
-  --risda-border: #27272a;
-  --risda-text: #ffffff;
-  --risda-text-secondary: #f8fafc;
-  --risda-muted: #cbd5e1;
-  --risda-glow-color: rgba(255, 255, 255, 0.05);
-  --risda-gradient-color: rgba(255, 255, 255, 0.02);
+  /* Diraja Emas: Imperial Gold & Deep Obsidian Navy (diraja emas.png) */
+  --risda-dark: #050814;            /* Obsidian Navy canvas */
+  --risda-sidebar: #050812;         /* Deep Obsidian sidebar */
+  --risda-card: #0B1528;            /* Obsidian card matching diraja emas.png */
+  --risda-card-muted: #070E1C;      /* Deep obsidian secondary surface */
+  --risda-orange: #F4B41A;          /* Warm Imperial Gold */
+  --risda-orange-hover: #D99B0F;
+  --risda-gold: #F4B41A;            /* Pure Gold Accent */
+  --risda-gold-light: #FEF9C3;
+  --risda-accent: #D99B0F;
+  --risda-terracotta: #F59E0B;
+  --risda-terracotta-soft: #FEF3C7;
+  --risda-olive: #10B981;
+  --risda-olive-soft: #E0F2FE;
+  --risda-orange-glow: rgba(244, 180, 26, 0.2);
+  --risda-border: #3A4E75;          /* Solid high-definition metallic border #3A4E75 */
+  --risda-border-light: #253554;
+  --risda-text: #FFFFFF;            /* Crisp Pure White */
+  --risda-text-secondary: #E2E8F0;  /* Bright White-Silver */
+  --risda-muted: #CBD5E1;           /* Crisp Light Slate */
+  --risda-glow-color: rgba(244, 180, 26, 0.08);
+  --risda-gradient-color: rgba(244, 180, 26, 0.04);
   color-scheme: dark;
 }
 
-.black-theme body {
-  background-color: #000000 !important;
-  background-image: none !important;
-  color: #ffffff !important;
+/* Typography Helpers */
+.font-editorial-heading {
+  font-family: var(--font-serif);
+  font-style: italic;
+  letter-spacing: -0.015em;
 }
 
-/* Black theme card and panel overrides */
-.black-theme .glass-card {
-  background-color: #0a0a0c !important;
-  border-color: #27272a !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.9) !important;
+.font-editorial-title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 700;
 }
 
-.black-theme .technical-grid {
+/* ==========================================================================
+   1. EXECUTIVE DASHBOARD THEME (Navy + Royal Blue + Gold + White)
+   Rasmi, Premium & Kemas untuk Sistem Perolehan
+   ========================================================================== */
+.executive-theme body {
+  background-color: #F5F7FA !important;
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    radial-gradient(circle at 50% -20%, rgba(21, 87, 176, 0.05) 0%, transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(244, 180, 26, 0.03) 0%, transparent 40%) !important;
+  color: #172033 !important;
 }
 
-/* Contrast rules for Black Theme text - strictly white & crisp light tones */
-.black-theme .text-white,
-.black-theme .text-slate-100,
-.black-theme .text-slate-200,
-.black-theme .text-slate-300,
-.black-theme .text-gray-100,
-.black-theme .text-gray-200,
-.black-theme .text-gray-300 {
-  color: #ffffff !important;
+/* Executive Header: Navy #0B2A5B */
+.executive-theme header {
+  background-color: #0B2A5B !important;
+  border-bottom: 1px solid #163668 !important;
+  color: #FFFFFF !important;
 }
 
-.black-theme .text-slate-400,
-.black-theme .text-slate-500,
-.black-theme .text-gray-400,
-.black-theme .text-gray-500 {
-  color: #cbd5e1 !important;
+.executive-theme header .text-risda-text,
+.executive-theme header .text-white,
+.executive-theme header h1,
+.executive-theme header h2,
+.executive-theme header h3 {
+  color: #FFFFFF !important;
 }
 
-/* Dark background element overrides in Black Theme */
-.black-theme .bg-slate-900,
-.black-theme .bg-slate-950,
-.black-theme .bg-black\/40,
-.black-theme .bg-black\/50,
-.black-theme .bg-black\/60,
-.black-theme .bg-black\/80,
-.black-theme .bg-white\/5,
-.black-theme .bg-white\/10 {
-  background-color: #0d0d10 !important;
-  border-color: #27272a !important;
+.executive-theme header .text-risda-text-secondary {
+  color: #CBD5E1 !important;
 }
 
-.black-theme .border-white\/5,
-.black-theme .border-white\/10,
-.black-theme .border-white\/20,
-.black-theme .border-slate-800,
-.black-theme .border-slate-700 {
-  border-color: #27272a !important;
+.executive-theme header .text-risda-muted {
+  color: #94A3B8 !important;
 }
 
-/* Inputs, Selects & Textareas in Black Theme */
-.black-theme input,
-.black-theme select,
-.black-theme textarea {
-  background-color: #050507 !important;
-  color: #ffffff !important;
-  border-color: #3f3f46 !important;
+.executive-theme header .text-risda-gold {
+  color: #F4B41A !important;
 }
 
-.black-theme input::placeholder,
-.black-theme textarea::placeholder {
-  color: #9ca3af !important;
+.executive-theme header .bg-risda-card:not(.header-dropdown-solid):not([class*="shadow-2xl"]):not([class*="z-50"]):not([class*="z-[100]"]),
+.executive-theme header .bg-black\/40:not(.header-dropdown-solid):not([class*="shadow-2xl"]):not([class*="z-50"]):not([class*="z-[100]"]),
+.executive-theme header .bg-black\/50:not(.header-dropdown-solid):not([class*="shadow-2xl"]):not([class*="z-50"]):not([class*="z-[100]"]),
+.executive-theme header .bg-white\/5:not(.header-dropdown-solid):not([class*="shadow-2xl"]):not([class*="z-50"]):not([class*="z-[100]"]),
+.executive-theme header .bg-white\/10:not(.header-dropdown-solid):not([class*="shadow-2xl"]):not([class*="z-50"]):not([class*="z-[100]"]) {
+  background-color: rgba(255, 255, 255, 0.09) !important;
+  border-color: #1A3C72 !important;
+  color: #FFFFFF !important;
+}
+
+/* Floating Dropdown Menus in Header - 100% Solid Opaque, High-Contrast & Beautiful */
+.header-dropdown-solid,
+header .header-dropdown-solid,
+.executive-theme .header-dropdown-solid,
+.executive-theme header .header-dropdown-solid,
+header [class*="shadow-2xl"]:not(button) {
+  background-color: #061D38 !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1.5px solid #1E3F73 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(30, 63, 115, 0.8) !important;
+  opacity: 1 !important;
+}
+
+.natural-theme .header-dropdown-solid,
+.natural-theme header .header-dropdown-solid {
+  background-color: #172414 !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1.5px solid #3B4A28 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(59, 74, 40, 0.8) !important;
+  opacity: 1 !important;
+}
+
+.custom-theme .header-dropdown-solid,
+.custom-theme header .header-dropdown-solid {
+  background-color: #080E1C !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1.5px solid #233352 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(35, 51, 82, 0.8) !important;
+  opacity: 1 !important;
+}
+
+/* Ensure all text and elements inside header dropdowns are 100% opaque and sharp */
+.header-dropdown-solid *,
+.header-dropdown-solid p,
+.header-dropdown-solid span,
+.header-dropdown-solid button {
+  opacity: 1;
+}
+
+.executive-theme header input {
+  background-color: rgba(255, 255, 255, 0.09) !important;
+  border-color: #1A3C72 !important;
+  color: #FFFFFF !important;
+}
+
+.executive-theme header input::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* Executive Sidebar: Navy Gelap #061B3A */
+.executive-theme aside,
+.executive-theme .sidebar-pillar {
+  background-color: #061B3A !important;
+  border-right: 1px solid #142B50 !important;
+  color: #FFFFFF !important;
+}
+
+.executive-theme aside .text-risda-text {
+  color: #FFFFFF !important;
+}
+
+.executive-theme aside .text-risda-text-secondary {
+  color: #CBD5E1 !important;
+}
+
+.executive-theme aside .text-risda-muted {
+  color: #94A3B8 !important;
+}
+
+.executive-theme aside .text-risda-gold {
+  color: #F4B41A !important;
+}
+
+.executive-theme aside button {
+  color: #CBD5E1 !important;
+}
+
+.executive-theme aside button:hover:not(.sidebar-item-active):not(.sidebar-item-active-text) {
+  color: #FFFFFF !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.executive-theme aside button:hover:not(.sidebar-item-active):not(.sidebar-item-active-text) * {
+  color: #FFFFFF !important;
+}
+
+.executive-theme .sidebar-item-active,
+.executive-theme .sidebar-item-active-text {
+  background: linear-gradient(135deg, #1557B0 0%, #1D4ED8 100%) !important;
+  color: #FFFFFF !important;
+  border-left: 4px solid #F4B41A !important;
+  box-shadow: 0 4px 14px rgba(21, 87, 176, 0.35) !important;
+}
+
+.executive-theme .sidebar-item-active *,
+.executive-theme .sidebar-item-active-text * {
+  color: #FFFFFF !important;
+}
+
+.executive-theme aside .bg-risda-card {
+  background-color: #0A244E !important;
+  border-color: #1A386D !important;
+  color: #FFFFFF !important;
+}
+
+/* Executive Main Cards & Surfaces: Modern Cool Surface (executive.png) */
+.executive-theme .glass-card,
+.executive-theme .risda-card,
+.executive-theme .bg-risda-card:not(header *):not(aside *),
+.executive-theme .bg-risda-card-muted:not(aside *):not(header *):not(button):not(input):not(select),
+.executive-theme .bg-black\/45:not(header *):not(aside *),
+.executive-theme .bg-black\/40:not(header *):not(aside *),
+.executive-theme .bg-black\/50:not(header *):not(aside *),
+.executive-theme .bg-black\/60:not(header *):not(aside *),
+.executive-theme .bg-black\/80:not(header *):not(aside *):not([class*="fixed"] *),
+.executive-theme .bg-white\/5:not(header *):not(aside *),
+.executive-theme .bg-white\/10:not(header *):not(aside *),
+.executive-theme [class*="rounded-2xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span),
+.executive-theme [class*="rounded-3xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span),
+.executive-theme [class*="rounded-\[24px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
+.executive-theme [class*="rounded-\[32px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
+.executive-theme [class*="rounded-\[36px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
+.executive-theme [class*="rounded-\[40px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]) {
+  background-image: url('/executive.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-color: #F1F5F9 !important;
+  border: 1.5px solid #94A3B8 !important;
+  color: #0F172A !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+}
+
+.executive-theme .glass-card:hover,
+.executive-theme .bg-risda-card:hover:not(header *):not(aside *) {
+  border-color: #1557B0 !important;
+  box-shadow: 0 8px 30px rgba(21, 87, 176, 0.12), 0 2px 6px rgba(21, 87, 176, 0.08) !important;
+}
+
+.executive-theme button.bg-risda-card-muted,
+.executive-theme button[class*="bg-risda-card-muted"] {
+  background-image: none !important;
+  background-color: #E2E8F0 !important;
+  color: #0F172A !important;
+  border: 1.5px solid #94A3B8 !important;
+}
+
+.executive-theme .border-white\/5:not(header *):not(aside *),
+.executive-theme .border-white\/10:not(header *):not(aside *),
+.executive-theme .border-white\/15:not(header *):not(aside *),
+.executive-theme .border-white\/20:not(header *):not(aside *),
+.executive-theme .border-risda-border:not(header *):not(aside *) {
+  border-color: #94A3B8 !important;
+}
+
+/* Executive Typography */
+.executive-theme h1:not(header *):not(aside *),
+.executive-theme h2:not(header *):not(aside *),
+.executive-theme h3:not(header *):not(aside *),
+.executive-theme h4:not(header *):not(aside *) {
+  color: #0F172A !important;
+}
+
+.executive-theme .text-risda-text:not(header *):not(aside *) {
+  color: #0F172A !important;
+}
+
+.executive-theme .text-risda-text-secondary:not(header *):not(aside *) {
+  color: #334155 !important;
+}
+
+.executive-theme .text-risda-muted:not(header *):not(aside *) {
+  color: #475569 !important;
+}
+
+.executive-theme .text-slate-100:not(header *):not(aside *),
+.executive-theme .text-slate-200:not(header *):not(aside *),
+.executive-theme .text-slate-300:not(header *):not(aside *) {
+  color: #0F172A !important;
+}
+
+.executive-theme .text-slate-400:not(header *):not(aside *),
+.executive-theme .text-slate-500:not(header *):not(aside *) {
+  color: #475569 !important;
+}
+
+.executive-theme .text-white:not(button):not(button *):not([class*="btn"]):not([class*="btn"] *):not([class*="tag"]):not([class*="tag"] *):not([class*="badge"]):not([class*="badge"] *):not([class*="bg-[#"]):not([class*="bg-risda-orange"]):not([class*="bg-risda-orange"] *):not([class*="bg-risda-gold"]):not([class*="bg-risda-gold"] *):not([class*="bg-gradient"]):not([class*="bg-gradient"] *):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-purple"]):not(header *):not(aside *) {
+  color: #0F172A !important;
+}
+
+/* Executive Inputs */
+.executive-theme input:not(header *):not(aside *),
+.executive-theme select:not(header *):not(aside *),
+.executive-theme textarea:not(header *):not(aside *) {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1.5px solid #94A3B8 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.executive-theme input:hover:not(header *):not(aside *),
+.executive-theme select:hover:not(header *):not(aside *),
+.executive-theme textarea:hover:not(header *):not(aside *) {
+  border-color: #64748B !important;
+}
+
+.executive-theme input:focus:not(header *):not(aside *),
+.executive-theme select:focus:not(header *):not(aside *),
+.executive-theme textarea:focus:not(header *):not(aside *) {
+  border-color: #1557B0 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(21, 87, 176, 0.18) !important;
+}
+
+.executive-theme main input::placeholder,
+.executive-theme main textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* Executive Primary Buttons */
+.executive-theme .btn-gold {
+  background: linear-gradient(135deg, #1557B0 0%, #1D4ED8 100%) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 4px 14px rgba(21, 87, 176, 0.25) !important;
+}
+
+.executive-theme .btn-gold:hover {
+  background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%) !important;
+  box-shadow: 0 6px 18px rgba(21, 87, 176, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+
+.executive-theme .btn-gold * {
+  color: #FFFFFF !important;
+}
+
+/* Executive Badges */
+.executive-theme .badge-status-aktif {
+  background-color: #DCFCE7 !important;
+  color: #16A34A !important;
+  border: 1px solid #86EFAC !important;
+  font-weight: 800 !important;
+}
+
+.executive-theme .badge-status-tutup,
+.executive-theme .badge-status-selesai {
+  background-color: #DBEAFE !important;
+  color: #1E40AF !important;
+  border: 1px solid #93C5FD !important;
+  font-weight: 800 !important;
+}
+
+.executive-theme .badge-status-batal {
+  background-color: #FEE2E2 !important;
+  color: #DC2626 !important;
+  border: 1px solid #FCA5A5 !important;
+  font-weight: 800 !important;
+}
+
+/* Executive Theme Component Enhancements */
+.executive-theme .btn-action-primary {
+  background: linear-gradient(135deg, #1557B0 0%, #1D4ED8 100%) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 4px 14px rgba(21, 87, 176, 0.25) !important;
+}
+.executive-theme .btn-action-primary:hover {
+  background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%) !important;
+  box-shadow: 0 6px 18px rgba(21, 87, 176, 0.35) !important;
+}
+.executive-theme .btn-action-primary * {
+  color: #FFFFFF !important;
+}
+
+.executive-theme .badge-header-pill {
+  background-color: #EFF6FF !important;
+  color: #1D4ED8 !important;
+  border-color: #BFDBFE !important;
+}
+.executive-theme .badge-header-pill * {
+  color: #1D4ED8 !important;
+}
+
+.executive-theme .badge-live-pill {
+  background-color: #EFF6FF !important;
+  border-color: #BFDBFE !important;
+}
+.executive-theme .badge-live-pill span {
+  color: #1D4ED8 !important;
+}
+
+.executive-theme .allocation-subtab-btn {
+  background-color: #F1F5F9 !important;
+  color: #475569 !important;
+  border-color: #CBD5E1 !important;
+}
+.executive-theme .allocation-subtab-btn:hover {
+  background-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+.executive-theme .active-allocation-subtab {
+  background: linear-gradient(135deg, #1557B0 0%, #1D4ED8 100%) !important;
+  color: #FFFFFF !important;
+  border-color: #1557B0 !important;
+  box-shadow: 0 4px 14px rgba(21, 87, 176, 0.25) !important;
+}
+.executive-theme .active-allocation-subtab * {
+  color: #FFFFFF !important;
+}
+
+.executive-theme .supplier-tab-group {
+  background-color: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+}
+.executive-theme .supplier-tab-btn {
+  color: #475569 !important;
+}
+.executive-theme .supplier-tab-btn:hover {
+  color: #0F172A !important;
+}
+.executive-theme .active-supplier-tab {
+  background: #1557B0 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(21, 87, 176, 0.3) !important;
+}
+.executive-theme .active-supplier-tab * {
+  color: #FFFFFF !important;
+}
+
+.executive-theme .project-filter-stat-card {
+  background-color: #FFFFFF !important;
+  border: 1.5px solid #94A3B8 !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+}
+.executive-theme .project-filter-stat-card:hover {
+  border-color: #1557B0 !important;
+  box-shadow: 0 6px 16px rgba(21, 87, 176, 0.12) !important;
+}
+
+/* ==========================================================================
+   2. NATURAL THEME (Earthy Sage & Warm Terracotta)
+   ========================================================================== */
+.natural-theme body {
+  background-color: #FAF8F5 !important;
+  background-image: 
+    radial-gradient(circle at 50% -20%, rgba(85, 94, 64, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 0% 0%, rgba(179, 82, 50, 0.04) 0%, transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(85, 94, 64, 0.06) 0%, transparent 30%) !important;
+  color: #1C1D18 !important;
+}
+
+/* Natural Main Cards & Surfaces: Clean Organic Surface (tona semula jadi.png) */
+.natural-theme .glass-card,
+.natural-theme .risda-card,
+.natural-theme .bg-risda-card:not(aside *),
+.natural-theme .bg-risda-card-muted:not(aside *):not(button):not(input):not(select),
+.natural-theme .bg-black\/45:not(aside *),
+.natural-theme .bg-black\/40:not(aside *),
+.natural-theme .bg-black\/50:not(aside *),
+.natural-theme .bg-black\/60:not(aside *),
+.natural-theme .bg-black\/80:not(aside *):not([class*="fixed"] *),
+.natural-theme .bg-white\/5:not(aside *),
+.natural-theme .bg-white\/10:not(aside *),
+.natural-theme [class*="rounded-2xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span),
+.natural-theme [class*="rounded-3xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span),
+.natural-theme [class*="rounded-\[24px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
+.natural-theme [class*="rounded-\[32px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
+.natural-theme [class*="rounded-\[40px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]) {
+  background-image: url('/tona-semula-jadi.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-color: #FFFFFF !important;
+  border: 1.5px solid #9E9484 !important;
+  color: #161811 !important;
+  box-shadow: 0 4px 16px rgba(45, 45, 38, 0.07), 0 1px 3px rgba(45, 45, 38, 0.04) !important;
+}
+
+.natural-theme .glass-card:hover,
+.natural-theme .bg-risda-card:hover:not(aside *) {
+  border-color: #4D5639 !important;
+  box-shadow: 0 8px 30px rgba(77, 86, 57, 0.12) !important;
+}
+
+.natural-theme button.bg-risda-card-muted,
+.natural-theme button[class*="bg-risda-card-muted"] {
+  background-image: none !important;
+  background-color: #EFECE3 !important;
+  color: #161811 !important;
+  border: 1.5px solid #9E9484 !important;
+}
+
+.natural-theme .border-white\/5,
+.natural-theme .border-white\/10,
+.natural-theme .border-white\/15,
+.natural-theme .border-white\/20,
+.natural-theme .border-risda-border {
+  border-color: #9E9484 !important;
+}
+
+.natural-theme h1,
+.natural-theme h2,
+.natural-theme h3,
+.natural-theme h4 {
+  color: #161811 !important;
+}
+
+.natural-theme .text-risda-text {
+  color: #161811 !important;
+}
+
+.natural-theme .text-risda-text-secondary {
+  color: #2E3024 !important;
+}
+
+.natural-theme .text-risda-muted {
+  color: #4C503D !important;
+}
+
+.natural-theme .text-white:not(button):not(button *):not([class*="btn"]):not([class*="btn"] *):not([class*="tag"]):not([class*="tag"] *):not([class*="badge"]):not([class*="badge"] *):not([class*="bg-[#"]):not([class*="bg-risda-orange"]):not([class*="bg-risda-orange"] *):not([class*="bg-risda-gold"]):not([class*="bg-risda-gold"] *):not([class*="bg-gradient"]):not([class*="bg-gradient"] *):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-purple"]):not([class*="bg-slate-8"]):not([class*="bg-slate-9"]) {
+  color: #161811 !important;
+}
+
+.natural-theme .text-slate-100,
+.natural-theme .text-slate-200,
+.natural-theme .text-slate-300 {
+  color: #161811 !important;
+}
+
+.natural-theme .text-slate-400,
+.natural-theme .text-slate-500 {
+  color: #4C503D !important;
+}
+
+.natural-theme table th:not(aside *) {
+  background-color: #F5F2EA !important;
+  color: #161811 !important;
+  border-color: #D1C9BC !important;
+}
+
+.natural-theme table td:not(aside *) {
+  border-color: #E2DCD2 !important;
+  color: #161811 !important;
+}
+
+.natural-theme input,
+.natural-theme select,
+.natural-theme textarea {
+  background-color: #FFFFFF !important;
+  color: #161811 !important;
+  border: 1.5px solid #9E9484 !important;
+  box-shadow: 0 1px 2px rgba(45, 45, 38, 0.04) !important;
+}
+
+.natural-theme input:hover,
+.natural-theme select:hover,
+.natural-theme textarea:hover {
+  border-color: #78796C !important;
+}
+
+.natural-theme input:focus,
+.natural-theme select:focus,
+.natural-theme textarea:focus {
+  border-color: #4D5639 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(77, 86, 57, 0.18) !important;
+}
+
+.natural-theme input::placeholder,
+.natural-theme textarea::placeholder {
+  color: #78796C !important;
+}
+
+.natural-theme .btn-gold {
+  background: linear-gradient(135deg, #555E40 0%, #444C32 100%) !important;
+  color: #FAF9F6 !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 4px 14px rgba(68, 76, 50, 0.25) !important;
+}
+
+.natural-theme .btn-gold:hover {
+  background: linear-gradient(135deg, #606A49 0%, #4D5639 100%) !important;
+  box-shadow: 0 6px 20px rgba(68, 76, 50, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+
+.natural-theme .btn-gold * {
+  color: #FAF9F6 !important;
+}
+
+.natural-theme aside {
+  background-color: #F5F2EA !important;
+  border-right: 1px solid #DFD9CE !important;
+}
+
+/* Ensure no scrollbar appears on the sidebar panel */
+aside, aside * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+.natural-theme .sidebar-item-active,
+.natural-theme .sidebar-item-active-text {
+  background-color: #EEF2E6 !important;
+  color: #242918 !important;
+  border-left: 4px solid #555E40 !important;
+  box-shadow: inset 4px 0 12px rgba(85, 94, 64, 0.08) !important;
+}
+
+/* Natural Theme Component Enhancements */
+.natural-theme .btn-action-primary {
+  background: linear-gradient(135deg, #555E40 0%, #444C32 100%) !important;
+  color: #FAF9F6 !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 4px 14px rgba(68, 76, 50, 0.25) !important;
+}
+.natural-theme .btn-action-primary:hover {
+  background: linear-gradient(135deg, #606A49 0%, #4D5639 100%) !important;
+  box-shadow: 0 6px 20px rgba(68, 76, 50, 0.35) !important;
+}
+.natural-theme .btn-action-primary * {
+  color: #FAF9F6 !important;
+}
+
+.natural-theme .badge-header-pill {
+  background-color: #F5F2EA !important;
+  color: #4D5639 !important;
+  border-color: #D1C9BC !important;
+}
+.natural-theme .badge-header-pill * {
+  color: #4D5639 !important;
+}
+
+.natural-theme .badge-live-pill {
+  background-color: #F5F2EA !important;
+  border-color: #D1C9BC !important;
+}
+.natural-theme .badge-live-pill span {
+  color: #4D5639 !important;
+}
+
+.natural-theme .allocation-subtab-btn {
+  background-color: #F5F2EA !important;
+  color: #78796C !important;
+  border-color: #D1C9BC !important;
+}
+.natural-theme .allocation-subtab-btn:hover {
+  background-color: #EBE6DA !important;
+  color: #161811 !important;
+}
+.natural-theme .active-allocation-subtab {
+  background: linear-gradient(135deg, #555E40 0%, #444C32 100%) !important;
+  color: #FAF9F6 !important;
+  border-color: #444C32 !important;
+  box-shadow: 0 4px 14px rgba(68, 76, 50, 0.25) !important;
+}
+.natural-theme .active-allocation-subtab * {
+  color: #FAF9F6 !important;
+}
+
+.natural-theme .supplier-tab-group {
+  background-color: #F5F2EA !important;
+  border-color: #D1C9BC !important;
+}
+.natural-theme .supplier-tab-btn {
+  color: #78796C !important;
+}
+.natural-theme .supplier-tab-btn:hover {
+  color: #161811 !important;
+}
+.natural-theme .active-supplier-tab {
+  background: #4D5639 !important;
+  color: #FAF9F6 !important;
+  box-shadow: 0 2px 8px rgba(77, 86, 57, 0.3) !important;
+}
+.natural-theme .active-supplier-tab * {
+  color: #FAF9F6 !important;
+}
+
+.natural-theme .project-filter-stat-card {
+  background-color: #FAF8F5 !important;
+  border: 1.5px solid #9E9484 !important;
+  box-shadow: 0 2px 8px rgba(45, 45, 38, 0.06) !important;
+}
+.natural-theme .project-filter-stat-card:hover {
+  border-color: #4D5639 !important;
+  box-shadow: 0 6px 16px rgba(77, 86, 57, 0.12) !important;
+}
+
+/* ==========================================================================
+   3. DIRAJA EMAS (.custom-theme) - Imperial Gold & Obsidian
+   Kombinasi Premium, Tulisan Jelas & Kontras Tinggi
+   ========================================================================== */
+.custom-theme body {
+  background-color: #0A0F1D !important;
+  color: #FFFFFF !important;
+  background-image: 
+    radial-gradient(circle at 50% -20%, rgba(244, 180, 26, 0.1) 0%, transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(217, 155, 15, 0.05) 0%, transparent 40%) !important;
+}
+
+.custom-theme aside {
+  background-color: #050812 !important;
+  border-right: 1px solid #1A2438 !important;
+}
+
+.custom-theme aside button {
+  color: #CBD5E1 !important;
+}
+
+.custom-theme aside button:hover:not(.sidebar-item-active):not(.sidebar-item-active-text) {
+  color: #FFFFFF !important;
+  background-color: rgba(244, 180, 26, 0.12) !important;
+}
+
+.custom-theme .sidebar-item-active,
+.custom-theme .sidebar-item-active-text {
+  background: linear-gradient(135deg, rgba(244, 180, 26, 0.35) 0%, rgba(217, 155, 15, 0.15) 100%) !important;
+  color: #FFFFFF !important;
+  border-left: 4px solid #F4B41A !important;
+  box-shadow: 0 4px 14px rgba(244, 180, 26, 0.25) !important;
+}
+
+.custom-theme .sidebar-item-active *,
+.custom-theme .sidebar-item-active-text * {
+  color: #FFFFFF !important;
+}
+
+/* Diraja Emas Main Cards & Surfaces: Deep Obsidian Navy (diraja-emas.png) */
+.custom-theme .glass-card,
+.custom-theme .risda-card,
+.custom-theme .bg-risda-card:not(header *):not(aside *),
+.custom-theme [class*="bg-risda-card"]:not(header *):not(aside *):not(input):not(select),
+.custom-theme .bg-risda-card-muted:not(aside *):not(header *):not(button):not(input):not(select),
+.custom-theme [class*="bg-risda-card-muted"]:not(aside *):not(header *):not(button):not(input):not(select),
+.custom-theme .bg-black\/45:not(header *):not(aside *),
+.custom-theme .bg-black\/40:not(header *):not(aside *),
+.custom-theme .bg-black\/50:not(header *):not(aside *),
+.custom-theme .bg-black\/60:not(header *):not(aside *),
+.custom-theme .bg-black\/80:not(header *):not(aside *):not([class*="fixed"] *),
+.custom-theme [class*="bg-black/"]:not(header *):not(aside *):not(button):not(input):not(select):not([class*="fixed"]),
+.custom-theme .bg-white\/5:not(header *):not(aside *):not(button):not(button *):not(span):not(a),
+.custom-theme .bg-white\/10:not(header *):not(aside *):not(button):not(button *):not(span):not(a),
+.custom-theme [class*="rounded-2xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(a),
+.custom-theme [class*="rounded-3xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(a),
+.custom-theme [class*="rounded-\[20px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
+.custom-theme [class*="rounded-\[24px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
+.custom-theme [class*="rounded-\[32px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
+.custom-theme [class*="rounded-\[36px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
+.custom-theme [class*="rounded-\[40px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]) {
+  background-image: url('/diraja-emas.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-color: #0B1528 !important;
+  border: 1.5px solid #3A4E75 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 8px 32px rgba(4, 8, 18, 0.65), 0 2px 6px rgba(4, 8, 18, 0.4) !important;
+}
+
+.custom-theme .glass-card:hover,
+.custom-theme .bg-risda-card:hover:not(header *):not(aside *),
+.custom-theme button.bg-risda-card:hover:not(header *):not(aside *) {
+  border-color: #F4B41A !important;
+  box-shadow: 0 12px 40px rgba(4, 8, 18, 0.85), 0 0 14px rgba(244, 180, 26, 0.35) !important;
+}
+
+.custom-theme button.bg-risda-card-muted,
+.custom-theme button[class*="bg-risda-card-muted"] {
+  background-image: none !important;
+  background-color: #0E1C35 !important;
+  color: #FFFFFF !important;
+  border: 1.5px solid #3A4E75 !important;
+}
+
+.custom-theme .border-white\/5,
+.custom-theme .border-white\/10,
+.custom-theme .border-white\/15,
+.custom-theme .border-white\/20,
+.custom-theme .border-risda-border {
+  border-color: #3A4E75 !important;
+}
+
+/* Diraja Emas Typography: High Contrast Crisp Pure White & Imperial Gold */
+.custom-theme h1,
+.custom-theme h2,
+.custom-theme h3,
+.custom-theme h4,
+.custom-theme .text-white,
+.custom-theme .text-slate-100,
+.custom-theme .text-slate-200,
+.custom-theme .text-slate-300 {
+  color: #FFFFFF !important;
+}
+
+.custom-theme .text-risda-text {
+  color: #FFFFFF !important;
+}
+
+.custom-theme .text-risda-text-secondary {
+  color: #E2E8F0 !important;
+}
+
+.custom-theme .text-risda-muted,
+.custom-theme .text-slate-400,
+.custom-theme .text-slate-500 {
+  color: #CBD5E1 !important;
+}
+
+.custom-theme .text-risda-gold {
+  color: #F4B41A !important;
+}
+
+.custom-theme table th:not(aside *) {
+  background-color: #070E1C !important;
+  color: #F4B41A !important;
+  border-color: #1E2B45 !important;
+}
+
+.custom-theme table td:not(aside *) {
+  border-color: #1E2B45 !important;
+  color: #FFFFFF !important;
+}
+
+.custom-theme table tr:hover:not(aside *) {
+  background-color: rgba(244, 180, 26, 0.05) !important;
+}
+
+.custom-theme input,
+.custom-theme select,
+.custom-theme textarea {
+  background-color: #070E1C !important;
+  color: #FFFFFF !important;
+  border: 1.5px solid #3A4E75 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+
+.custom-theme input:hover,
+.custom-theme select:hover,
+.custom-theme textarea:hover {
+  border-color: #5570A5 !important;
+}
+
+.custom-theme input::placeholder,
+.custom-theme textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+.custom-theme input:focus,
+.custom-theme select:focus,
+.custom-theme textarea:focus {
+  border-color: #F4B41A !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(244, 180, 26, 0.3) !important;
+}
+
+/* Custom Theme Component Enhancements */
+.custom-theme .btn-action-primary {
+  background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%) !important;
+  color: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3) !important;
+}
+.custom-theme .btn-action-primary:hover {
+  background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%) !important;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45) !important;
+}
+.custom-theme .btn-action-primary * {
+  color: #000000 !important;
+}
+
+.custom-theme .badge-header-pill {
+  background-color: rgba(244, 180, 26, 0.12) !important;
+  color: #F4B41A !important;
+  border-color: rgba(244, 180, 26, 0.3) !important;
+}
+.custom-theme .badge-header-pill * {
+  color: #F4B41A !important;
+}
+
+.custom-theme .badge-live-pill {
+  background-color: rgba(244, 180, 26, 0.12) !important;
+  border-color: rgba(244, 180, 26, 0.3) !important;
+}
+.custom-theme .badge-live-pill span {
+  color: #F4B41A !important;
+}
+
+.custom-theme .allocation-subtab-btn {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #94A3B8 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+.custom-theme .allocation-subtab-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #FFFFFF !important;
+}
+.custom-theme .active-allocation-subtab {
+  background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%) !important;
+  color: #000000 !important;
+  border-color: #F59E0B !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3) !important;
+}
+.custom-theme .active-allocation-subtab * {
+  color: #000000 !important;
+}
+
+.custom-theme .supplier-tab-group {
+  background-color: rgba(0, 0, 0, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+.custom-theme .supplier-tab-btn {
+  color: #94A3B8 !important;
+}
+.custom-theme .supplier-tab-btn:hover {
+  color: #FFFFFF !important;
+}
+.custom-theme .active-supplier-tab {
+  background: #F4B41A !important;
+  color: #000000 !important;
+  box-shadow: 0 2px 8px rgba(244, 180, 26, 0.3) !important;
+}
+.custom-theme .active-supplier-tab * {
+  color: #000000 !important;
+}
+
+.custom-theme .project-filter-stat-card {
+  background-color: #070E1C !important;
+  border: 1.5px solid #3A4E75 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+}
+.custom-theme .project-filter-stat-card:hover {
+  border-color: #F4B41A !important;
+  box-shadow: 0 6px 18px rgba(244, 180, 26, 0.25) !important;
+}
+
+/* ==========================================================================
+   5. COMMON BADGES & BUTTONS
+   ========================================================================== */
+.badge-status-aktif {
+  background-color: #DCFCE7 !important;
+  color: #16A34A !important;
+  border: 1px solid #86EFAC !important;
+  font-weight: 800 !important;
+}
+
+.badge-status-tutup,
+.badge-status-selesai {
+  background-color: #DBEAFE !important;
+  color: #1E40AF !important;
+  border: 1px solid #93C5FD !important;
+  font-weight: 800 !important;
+}
+
+.badge-status-batal {
+  background-color: #FEE2E2 !important;
+  color: #DC2626 !important;
+  border: 1px solid #FCA5A5 !important;
+  font-weight: 800 !important;
+}
+
+/* Distinct CIDB & License Tags - Always Crisp White Text */
+.tag-cidb-spkk {
+  background-color: #1557B0 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #0D47A1 !important;
+  font-weight: 700 !important;
+}
+
+.tag-cidb-pkk {
+  background-color: #2563EB !important;
+  color: #FFFFFF !important;
+  border: 1px solid #1D4ED8 !important;
+  font-weight: 700 !important;
+}
+
+.tag-cidb-stb {
+  background-color: #D97706 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #B45309 !important;
+  font-weight: 700 !important;
+}
+
+.tag-cidb-mof {
+  background-color: #4F46E5 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #4338CA !important;
+  font-weight: 700 !important;
+}
+
+.tag-license-earth {
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
+  border: 1px solid #334155 !important;
+  font-weight: 700 !important;
 }
 
 @layer base {
@@ -197,9 +1102,14 @@
 
 @layer components {
   .glass-card {
-    @apply bg-risda-card backdrop-blur-xl border border-risda-border rounded-[24px];
-    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-    @apply hover:border-risda-orange/20 transition-all duration-500;
+    @apply bg-risda-card backdrop-blur-xl rounded-[24px];
+    border: 1.5px solid var(--risda-border) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    @apply hover:border-risda-orange/60 transition-all duration-300;
+  }
+
+  .solid-card {
+    border: 1.5px solid var(--risda-border) !important;
   }
   
   .technical-grid {
@@ -236,6 +1146,13 @@
   .btn-gold {
     @apply bg-gradient-to-br from-risda-gold via-risda-orange to-risda-accent text-white font-black uppercase tracking-[2px] px-8 py-4 rounded-xl transition-all duration-300 hover:brightness-110 hover:shadow-[0_10px_30px_rgba(0,176,255,0.3)] active:scale-[0.98] flex items-center justify-center gap-2 text-[10px];
     @apply border border-white/20;
+  }
+
+  .btn-action-primary {
+    @apply bg-gradient-to-r from-risda-orange to-risda-gold text-white font-black tracking-wider transition-all duration-300 active:scale-95;
+  }
+  .btn-action-primary * {
+    color: #FFFFFF !important;
   }
 
   .sidebar-item-active {
@@ -433,5 +1350,23 @@ body {
     border-top: 1.5px solid #000000 !important;
     padding-top: 10px !important;
   }
+}
+
+@keyframes laserScan {
+  0% {
+    top: 5%;
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 95%;
+    opacity: 0.2;
+  }
+}
+
+.animate-scan {
+  animation: laserScan 2s ease-in-out infinite alternate;
 }
 

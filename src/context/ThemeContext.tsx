@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-type Theme = 'dark' | 'custom' | 'emerald' | 'sunset' | 'black';
+export type Theme = 'executive' | 'natural' | 'custom';
 
 interface ThemeContextType {
   theme: Theme;
@@ -12,21 +12,22 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('risda-theme');
-    return (saved as Theme) || 'dark';
+    if (saved && ['executive', 'natural', 'custom'].includes(saved)) {
+      return saved as Theme;
+    }
+    return 'executive';
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.classList.remove('custom-theme', 'emerald-theme', 'sunset-theme', 'light-theme', 'black-theme');
+    root.classList.remove('executive-theme', 'natural-theme', 'custom-theme', 'emerald-theme', 'light-theme', 'black-theme', 'dark-theme');
     
-    if (theme === 'custom') {
+    if (theme === 'executive') {
+      root.classList.add('executive-theme');
+    } else if (theme === 'natural') {
+      root.classList.add('natural-theme');
+    } else if (theme === 'custom') {
       root.classList.add('custom-theme');
-    } else if (theme === 'emerald') {
-      root.classList.add('emerald-theme');
-    } else if (theme === 'sunset') {
-      root.classList.add('sunset-theme');
-    } else if (theme === 'black') {
-      root.classList.add('black-theme');
     }
     
     localStorage.setItem('risda-theme', theme);

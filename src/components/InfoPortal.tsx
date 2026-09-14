@@ -4,20 +4,22 @@ import { Info, Target, Zap, Cpu, Bell } from 'lucide-react';
 export default function InfoPortal() {
   return (
     <div className="space-y-8 p-8 w-full max-w-5xl mx-auto">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-2 mb-10"
-      >
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-risda-orange/10 border border-risda-orange/20 rounded-full w-fit mb-2">
-          <Info size={14} className="text-risda-orange" />
-          <span className="text-[10px] font-black text-risda-orange uppercase tracking-[2px]">Informasi Rasmi</span>
+      <div className="bg-risda-card border border-risda-border rounded-2xl md:rounded-[24px] p-6 md:p-8 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-risda-orange rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
+              <Info size={28} />
+            </div>
+            <div>
+              <p className="text-[10px] text-risda-orange font-black uppercase tracking-[6px] mb-1">Portal Maklumat</p>
+              <h2 className="text-2xl md:text-3xl font-black text-risda-text uppercase tracking-tight leading-none">Info Portal</h2>
+              <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[3px] mt-1.5">
+                Pusat Rujukan Maklumat Rasmi Inisiatif Digital & Pendaftaran Sebut Harga RISDA
+              </p>
+            </div>
+          </div>
         </div>
-        <h2 className="text-4xl lg:text-6xl font-black text-white uppercase tracking-tight leading-none">Info Portal</h2>
-        <p className="text-base lg:text-lg text-white/70 font-medium max-w-3xl leading-relaxed mt-4">
-          Pusat rujukan maklumat rasmi mengenai inisiatif digital dan ekosistem pendaftaran tapak sebut harga RISDA.
-        </p>
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-12">
@@ -25,15 +27,15 @@ export default function InfoPortal() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            className="glass-card p-10 rounded-[32px] border border-white/5 relative overflow-hidden"
+            className="bg-risda-card p-10 rounded-[32px] border border-risda-border shadow-sm relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-64 h-64 bg-risda-orange/5 blur-[100px] pointer-events-none" />
             
-            <h3 className="text-xl font-black text-risda-orange uppercase tracking-[2px] mb-6 border-l-4 border-risda-orange pl-6">
+            <h3 className="text-xl lg:text-2xl font-black text-risda-orange uppercase tracking-wide mb-6 border-l-4 border-risda-orange pl-6">
               Mengenai Sistem
             </h3>
             
-            <p className="text-lg lg:text-xl text-white/80 leading-relaxed font-semibold">
+            <p className="text-lg lg:text-xl text-risda-text leading-relaxed font-semibold">
               Sistem ini merupakan inisiatif perintis yang dibangunkan untuk mendigitalkan proses perolehan di peringkat agensi. 
               Ia memfokuskan kepada ketelusan dan kecekapan dalam pengurusan sebut harga, terutamanya bagi 
               aktiviti lawatan tapak yang memerlukan pengesahan fizikal dan digital yang kukuh.
@@ -80,7 +82,7 @@ export default function InfoPortal() {
         transition={{ delay: 0.7 }}
         className="pt-12 text-center"
       >
-        <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[4px] opacity-30">
+        <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[4px]">
           Hak Cipta Terpelihara © 2024 RISDA Digital Ecosystem
         </p>
       </motion.div>
@@ -94,13 +96,13 @@ function GoalCard({ icon: Icon, title, description, delay }: any) {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="glass-card p-8 rounded-3xl border border-white/5 bg-gradient-to-br from-risda-card to-black hover:border-risda-orange/30 transition-all group"
+      className="h-full bg-risda-card p-8 rounded-3xl border border-risda-border hover:border-risda-orange/40 shadow-sm transition-all group flex flex-col justify-start"
     >
-      <div className="w-14 h-14 bg-risda-orange/10 rounded-2xl flex items-center justify-center text-risda-orange mb-6 group-hover:scale-110 transition-transform">
+      <div className="w-14 h-14 bg-risda-orange/15 rounded-2xl flex items-center justify-center text-risda-orange mb-6 group-hover:scale-110 transition-transform shrink-0">
         <Icon size={28} />
       </div>
-      <h4 className="text-xl font-black text-white uppercase tracking-tight mb-4 group-hover:text-risda-gold transition-colors">{title}</h4>
-      <p className="text-sm text-white/60 leading-relaxed font-semibold uppercase tracking-[2px]">{description}</p>
+      <h4 className="text-xl font-bold text-risda-text uppercase tracking-tight mb-4 group-hover:text-risda-gold transition-colors">{title}</h4>
+      <p className="text-sm text-risda-muted leading-relaxed font-semibold uppercase tracking-[2px] mt-auto">{description}</p>
     </motion.div>
   );
 }

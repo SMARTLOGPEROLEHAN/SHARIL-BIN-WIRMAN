@@ -34,6 +34,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { isWithinUserScope } from '../lib/scopeUtils';
 import toast from 'react-hot-toast';
+import Pagination from './Pagination';
 
 export interface OrderItem {
   id: string;
@@ -157,6 +158,14 @@ export default function OrderRequestManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('SEMUA');
   const [filterStatus, setFilterStatus] = useState<string>('SEMUA');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterCategory, filterStatus]);
 
   // Modal for add/edit form
   const [showModal, setShowModal] = useState(false);
@@ -1394,6 +1403,11 @@ export default function OrderRequestManagement() {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedRequests = filteredRequests.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+
   const totalEstimatedAmount = filteredRequests.reduce((sum, r) => sum + (Number(r.estimatedAmount) || 0), 0);
   const sentToFinanceCount = requests.filter(r => r.financeStatus === 'DIHANTAR').length;
 
@@ -1702,7 +1716,7 @@ export default function OrderRequestManagement() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-risda-orange/10 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-risda-orange/10 border border-risda-orange/30 text-risda-orange text-[10px] font-black uppercase tracking-widest mb-3">
+            <div className="badge-header-pill inline-flex items-center gap-2 px-3 py-1 rounded-full bg-risda-orange/10 border border-risda-orange/30 text-risda-orange text-[10px] font-black uppercase tracking-widest mb-3">
               <ShoppingBag size={12} /> Modul Pengurusan Perolehan & Kajian Pasaran
             </div>
             <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">
@@ -1716,7 +1730,7 @@ export default function OrderRequestManagement() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleOpenNewOrderFlow}
-              className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-risda-orange to-risda-gold text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_10px_25px_rgba(0,176,255,0.3)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className="btn-action-primary flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-risda-orange to-risda-gold text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_10px_25px_rgba(0,176,255,0.3)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
               <Plus size={16} className="stroke-[3]" /> TAMBAH PESANAN BARU
             </button>
@@ -1726,15 +1740,15 @@ export default function OrderRequestManagement() {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-risda-card/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+        <div className="h-full flex flex-col justify-between bg-risda-card border border-risda-border rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between text-xs text-risda-muted font-black uppercase">
             <span>Jumlah Borang Pesanan</span>
             <ShoppingBag size={18} className="text-risda-orange" />
           </div>
-          <div className="text-2xl font-black text-white mt-2">{filteredRequests.length} Rekod</div>
+          <div className="text-2xl font-black text-risda-text mt-2">{filteredRequests.length} Rekod</div>
         </div>
 
-        <div className="bg-risda-card/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+        <div className="h-full flex flex-col justify-between bg-risda-card border border-risda-border rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between text-xs text-risda-muted font-black uppercase">
             <span>Anggaran Nilai Keseluruhan</span>
             <DollarSign size={18} className="text-risda-gold" />
@@ -1744,12 +1758,12 @@ export default function OrderRequestManagement() {
           </div>
         </div>
 
-        <div className="bg-risda-card/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+        <div className="h-full flex flex-col justify-between bg-risda-card border border-risda-border rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between text-xs text-risda-muted font-black uppercase">
             <span>Status Integrasi Kewangan</span>
-            <ShieldCheck size={18} className="text-emerald-400" />
+            <ShieldCheck size={18} className="text-emerald-500 dark:text-emerald-400" />
           </div>
-          <div className="text-2xl font-black text-emerald-400 mt-2">
+          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
             {sentToFinanceCount} / {requests.length} Dihantar
           </div>
         </div>
@@ -1835,14 +1849,14 @@ export default function OrderRequestManagement() {
             </div>
             <button
               onClick={handleOpenNewOrderFlow}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-risda-orange to-risda-gold text-white font-black text-xs uppercase rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className="btn-action-primary inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-risda-orange to-risda-gold text-white font-black text-xs uppercase rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
               <Plus size={14} /> TAMBAH PESANAN BARU
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
-            {filteredRequests.map((req) => {
+            {paginatedRequests.map((req) => {
               const isSent = req.financeStatus === 'DIHANTAR';
               const isExpanded = !!expandedItemTables[req.id!];
 
@@ -2137,6 +2151,25 @@ export default function OrderRequestManagement() {
               );
             })}
           </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!loading && filteredRequests.length > 0 && (
+          <Pagination
+            currentPage={safeCurrentPage}
+            totalItems={filteredRequests.length}
+            pageSize={pageSize}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+            pageSizeOptions={[5, 10, 20]}
+            itemName="permohonan pesanan"
+          />
         )}
       </div>
 

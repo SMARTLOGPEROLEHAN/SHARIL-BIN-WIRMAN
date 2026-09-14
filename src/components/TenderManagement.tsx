@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { exportResultToPDF } from '../lib/exportUtils';
 import { motion, AnimatePresence } from 'motion/react';
+import Pagination from './Pagination';
 
 const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
@@ -169,6 +170,14 @@ export default function TenderManagement() {
     year: currentYear,
     status: 'SEMUA'
   });
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, search]);
   
   // Ad Detail Viewing Modal State
   const [selectedAdDetail, setSelectedAdDetail] = useState<Advertisement | null>(null);
@@ -869,79 +878,90 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
       return matchesUserScope && matchesSearch && matchesState && matchesOffice && matchesStatus && matchesYear;
     });
 
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredAds.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedAds = filteredAds.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+
   if (!isStaff) return <div className="p-20 text-center">Tiada Kebenaran.</div>;
 
   return (
-    <div className="space-y-6 md:space-y-8 p-4 md:p-8 w-full">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
-        <div className="space-y-1 md:space-y-2">
-          <h1 className="text-xl md:text-3xl font-black text-white uppercase tracking-tight">Katalog Sebut Harga</h1>
-          <p className="text-[8px] md:text-[10px] text-risda-muted font-black uppercase tracking-[3px] md:tracking-[4px]">
-            {isAdmin ? 'SEMUA PEJABAT' : `PEJABAT: ${userOffice || 'TIDAK DITETAPKAN'}`}
-          </p>
+    <div className="space-y-8 p-4 md:p-8 w-full">
+      <div className="bg-risda-card border border-risda-border rounded-2xl md:rounded-[24px] p-6 md:p-8 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-risda-orange rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
+              <FileText size={28} />
+            </div>
+            <div>
+              <p className="text-[10px] text-risda-orange font-black uppercase tracking-[6px] mb-1">Pengurusan Sebut Harga</p>
+              <h1 className="text-2xl md:text-3xl font-black text-risda-text uppercase tracking-tight leading-none">Katalog Sebut Harga</h1>
+              <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[3px] mt-1.5">
+                {isAdmin ? 'SEMUA PEJABAT' : `PEJABAT: ${userOffice || 'TIDAK DITETAPKAN'}`}
+              </p>
+            </div>
+          </div>
         </div>
         {isStaff && (
           <button 
             onClick={() => { resetForm(); setShowModal(true); }}
-            className="btn-gold flex items-center justify-center gap-2 py-3 px-4 md:py-4 md:px-6 w-full sm:w-auto"
+            className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-risda-orange text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-risda-orange-hover active:scale-95 transition-all shadow-md group cursor-pointer self-start md:self-auto"
           >
-            <Plus size={18} />
-            <span className="text-[11px] md:text-sm">Tambah Iklan</span>
+            <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+            <span>Tambah Iklan</span>
           </button>
         )}
       </div>
 
-      <div className="space-y-12">
+      <div className="space-y-6">
         {/* Search Bar */}
-        <div className="flex flex-col md:flex-row gap-8 items-end">
-          <div className="flex-1 relative">
-            <Search size={22} className="absolute left-0 top-1/2 -translate-y-1/2 text-risda-muted" />
-            <input 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari No Sebut Harga atau Nama Projek..."
-              className="w-full bg-transparent border-b-2 border-white/10 rounded-none py-6 pl-10 pr-6 text-sm md:text-base text-white focus:border-risda-orange outline-none transition-all placeholder:text-risda-muted/50 font-black uppercase tracking-widest"
-            />
-          </div>
+        <div className="relative group w-full">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-risda-muted group-focus-within:text-risda-orange transition-colors" size={16} />
+          <input 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="CARI NO SEBUT HARGA ATAU NAMA PROJEK..."
+            className="w-full bg-risda-card border border-risda-border rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-risda-text uppercase focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all placeholder:text-risda-muted/60 tracking-wider shadow-sm"
+          />
         </div>
 
         {/* Filters Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Status Filter */}
-          <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] px-1 opacity-80">Status</label>
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Status</label>
             <div className="relative">
               <select 
                 value={filters.status}
                 onChange={(e) => setFilters({...filters, status: e.target.value})}
-                className="bg-transparent border-b-2 border-white/10 rounded-none py-5 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5"
+                className="bg-risda-card border border-risda-border rounded-xl py-3 px-3 pr-8 text-xs font-bold text-risda-text uppercase focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full appearance-none cursor-pointer tracking-wider shadow-sm"
               >
-                <option value="SEMUA">SEMUA STATUS</option>
-                <option value="AKTIF">AKTIF</option>
-                <option value="BATAL">BATAL</option>
-                <option value="SELESAI (KEPUTUSAN)">KEPUTUSAN RASMI</option>
+                <option value="SEMUA" className="bg-risda-card text-risda-text">SEMUA STATUS</option>
+                <option value="AKTIF" className="bg-risda-card text-risda-text">AKTIF</option>
+                <option value="BATAL" className="bg-risda-card text-risda-text">BATAL</option>
+                <option value="SELESAI (KEPUTUSAN)" className="bg-risda-card text-risda-text">KEPUTUSAN RASMI</option>
               </select>
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-risda-text">
                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
             </div>
           </div>
 
           {/* Year Filter */}
-          <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] px-1 opacity-80">Tahun</label>
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tahun</label>
             <div className="relative">
               <select 
                 value={filters.year}
                 onChange={(e) => setFilters({...filters, year: e.target.value})}
-                className="bg-transparent border-b-2 border-white/10 rounded-none py-5 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5"
+                className="bg-risda-card border border-risda-border rounded-xl py-3 px-3 pr-8 text-xs font-bold text-risda-text uppercase focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full appearance-none cursor-pointer tracking-wider shadow-sm"
               >
-                <option value="ALL">SEMUA TAHUN</option>
+                <option value="ALL" className="bg-risda-card text-risda-text">SEMUA TAHUN</option>
                 {years.map(year => (
-                  <option key={year} value={year}>{year}</option>
+                  <option key={year} value={year} className="bg-risda-card text-risda-text">{year}</option>
                 ))}
               </select>
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-risda-text">
                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
             </div>
@@ -950,43 +970,43 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
           {/* District/Office Filter - Visible for Admin */}
           {isAdmin && (
             <>
-              <div className="flex flex-col gap-3">
-                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] px-1 opacity-80">Negeri</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Negeri</label>
                 <div className="relative">
                   <select 
                     value={filters.state}
                     onChange={(e) => setFilters({...filters, state: e.target.value, office: ''})}
-                    className="bg-transparent border-b-2 border-white/10 rounded-none py-5 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5"
+                    className="bg-risda-card border border-risda-border rounded-xl py-3 px-3 pr-8 text-xs font-bold text-risda-text uppercase focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full appearance-none cursor-pointer tracking-wider shadow-sm"
                   >
-                    <option value="">SEMUA NEGERI</option>
+                    <option value="" className="bg-risda-card text-risda-text">SEMUA NEGERI</option>
                     {Array.from(new Set(locations.map(l => l.state))).sort().map(state => (
-                      <option key={state} value={state}>{state}</option>
+                      <option key={state} value={state} className="bg-risda-card text-risda-text">{state}</option>
                     ))}
                   </select>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-risda-text">
                     <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3">
-                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] px-1 opacity-80">Pejabat</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Pejabat</label>
                 <div className="relative">
                   <select 
                     value={filters.office}
                     onChange={(e) => setFilters({...filters, office: e.target.value})}
-                    className="bg-transparent border-b-2 border-white/10 rounded-none py-5 px-1 text-[13px] font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer hover:bg-white/5"
+                    className="bg-risda-card border border-risda-border rounded-xl py-3 px-3 pr-8 text-xs font-bold text-risda-text uppercase focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full appearance-none cursor-pointer tracking-wider shadow-sm"
                   >
-                    <option value="">SEMUA PEJABAT</option>
+                    <option value="" className="bg-risda-card text-risda-text">SEMUA PEJABAT</option>
                     {Array.from(new Set(locations
                       .filter(l => !filters.state || l.state === filters.state)
                       .map(l => l.office?.trim().toUpperCase())
                       .filter(Boolean)
                     )).sort().map(office => (
-                      <option key={office} value={office}>{office}</option>
+                      <option key={office} value={office} className="bg-risda-card text-risda-text">{office}</option>
                     ))}
                   </select>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-risda-text">
                     <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                 </div>
@@ -1002,7 +1022,7 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
           <div className="py-20 text-center text-risda-muted animate-pulse font-black uppercase tracking-[4px]">Memuatkan Senarai...</div>
         ) : filteredAds.length === 0 ? (
           <div className="py-20 text-center text-risda-muted font-black uppercase tracking-[4px]">Tiada Iklan Ditemui</div>
-        ) : filteredAds.map((ad) => {
+        ) : paginatedAds.map((ad) => {
           const itemDate = ad.visitDate || ad.closingDate || ad.createdAt;
           const itemYear = itemDate ? new Date(itemDate).getFullYear() : 0;
           const currentYear = new Date().getFullYear();
@@ -1011,7 +1031,7 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
           return (
           <div key={ad.id} className="glass-card p-5 rounded-2xl space-y-4 border border-white/5">
             <div className="flex justify-between items-start gap-2">
-              <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest leading-none shrink-0 ${
+              <span className={`inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider leading-none shrink-0 whitespace-nowrap ${
                 displayStatus === 'AKTIF' ? 'bg-green-500/20 text-green-400 border border-green-400/30' : 
                 displayStatus === 'BATAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
                 'bg-blue-500/20 text-blue-400 border border-blue-400/30'
@@ -1103,7 +1123,7 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                 <tr>
                   <td colSpan={5} className="py-20 text-center text-risda-muted font-black uppercase tracking-[4px]">Tiada Iklan Ditemui</td>
                 </tr>
-              ) : filteredAds.map((ad) => {
+              ) : paginatedAds.map((ad) => {
                 const itemDate = ad.visitDate || ad.closingDate || ad.createdAt;
                 const itemYear = itemDate ? new Date(itemDate).getFullYear() : 0;
                 const currentYear = new Date().getFullYear();
@@ -1111,8 +1131,8 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
 
                 return (
                 <tr key={ad.id} className="group hover:bg-white/[0.02] transition-colors">
-                  <td className="px-8 py-8">
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest leading-none ${
+                  <td className="px-8 py-8 whitespace-nowrap">
+                    <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider leading-none whitespace-nowrap ${
                       displayStatus === 'AKTIF' ? 'bg-green-500/20 text-green-400 border border-green-400/30' : 
                       displayStatus === 'BATAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
                       'bg-blue-500/20 text-blue-400 border border-blue-400/30'
@@ -1196,6 +1216,25 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {!loading && filteredAds.length > 0 && (
+        <Pagination
+          currentPage={safeCurrentPage}
+          totalItems={filteredAds.length}
+          pageSize={pageSize}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+          pageSizeOptions={[10, 20, 50]}
+          itemName="iklan sebut harga"
+        />
+      )}
 
       {/* Modal for Add/Edit */}
       <AnimatePresence>
@@ -1603,57 +1642,57 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-risda-card border border-white/5 w-full max-w-6xl rounded-[40px] overflow-y-auto md:overflow-hidden relative z-10 shadow-2xl flex flex-col md:flex-row h-[90vh] md:h-[80vh] min-h-[550px] max-h-[85vh] scrollbar-thin scrollbar-thumb-white/10"
+              className="bg-risda-card border border-risda-border w-full max-w-6xl rounded-[32px] overflow-y-auto md:overflow-hidden relative z-10 shadow-2xl flex flex-col md:flex-row h-[90vh] md:h-[80vh] min-h-[550px] max-h-[85vh]"
             >
               {/* Left Side: Participant List */}
-              <div className={`flex flex-col border-r border-white/5 transition-all duration-500 ${pendingWinner ? 'w-full md:w-[60%]' : 'w-full'}`}>
-                <div className="p-8 border-b border-white/5 bg-black/20">
+              <div className={`flex flex-col border-r border-risda-border transition-all duration-500 ${pendingWinner ? 'w-full md:w-[60%]' : 'w-full'}`}>
+                <div className="p-6 md:p-8 border-b border-risda-border bg-risda-card-muted">
                   <div className="flex items-center justify-between gap-6 mb-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center text-black">
+                      <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-sm">
                         <Users size={24} />
                       </div>
                       <div>
-                        <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none mb-1">Pilih Pemenang</h3>
-                        <p className="text-[9px] text-risda-muted font-bold uppercase tracking-[3px]">Resolusi Akhir Sebut Harga</p>
+                        <h3 className="text-xl font-bold text-risda-text uppercase tracking-tight leading-none mb-1">Pilih Pemenang</h3>
+                        <p className="text-[10px] text-risda-orange font-bold uppercase tracking-wider">Resolusi Akhir Sebut Harga</p>
                       </div>
                     </div>
                     {!pendingWinner && (
                       <button 
                         onClick={() => setShowWinnerModal(false)}
-                        className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-white/50 hover:text-white transition-all"
+                        className="p-3 bg-risda-card hover:bg-risda-border rounded-xl text-risda-muted hover:text-risda-text transition-all border border-risda-border"
                       >
                         <X size={20} />
                       </button>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-4 bg-risda-card p-4 rounded-xl border border-risda-border shadow-sm">
                      <div className="flex-1">
-                       <p className="text-[9px] font-mono text-risda-gold font-bold uppercase tracking-widest mb-1 opacity-50">{selectedAdForWinner.tenderNo}</p>
-                       <h4 className="text-xs font-black text-white uppercase leading-tight">{selectedAdForWinner.title}</h4>
+                       <p className="text-[10px] font-mono text-risda-orange font-bold uppercase tracking-wider mb-1">{selectedAdForWinner.tenderNo}</p>
+                       <h4 className="text-xs md:text-sm font-bold text-risda-text uppercase leading-snug">{selectedAdForWinner.title}</h4>
                      </div>
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-4">
                   {/* Dedicated Sebutharga Semula Option Card */}
                   <div className={`p-5 rounded-2xl border transition-all ${
                     pendingWinner?.isReTender 
                       ? 'bg-amber-500/20 border-amber-500 border-2' 
-                      : 'bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-600/10 border-amber-500/30 hover:border-amber-400/50'
+                      : 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500'
                   }`}>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-xl flex items-center justify-center shrink-0 border border-amber-500/30">
+                        <div className="w-10 h-10 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center shrink-0 border border-amber-500/30">
                           <RotateCcw size={20} className={pendingWinner?.isReTender ? "animate-spin" : ""} />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h5 className="text-xs font-black text-amber-300 uppercase tracking-wide">Pilihan: Sebutharga Semula</h5>
-                            <span className="bg-amber-500/20 text-amber-300 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Keputusan Rasmi</span>
+                            <h5 className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wide">Pilihan: Sebutharga Semula</h5>
+                            <span className="bg-amber-500/20 text-amber-800 dark:text-amber-300 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Keputusan Rasmi</span>
                           </div>
-                          <p className="text-[10px] text-risda-muted font-medium mt-0.5">
+                          <p className="text-xs text-risda-muted font-medium mt-0.5">
                             Gunakan pilihan ini sekiranya tiada pembekal terpilih/layak atau sebut harga perlu diproses semula.
                           </p>
                         </div>
@@ -1662,65 +1701,65 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                         <button 
                           type="button"
                           onClick={handleSelectReTender}
-                          className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 shrink-0 flex items-center justify-center gap-2"
+                          className="w-full sm:w-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md active:scale-95 shrink-0 flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <RotateCcw size={14} />
                           <span>Pilih Sebutharga Semula</span>
                         </button>
                       )}
                       {pendingWinner?.isReTender && (
-                        <div className="w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center text-slate-950 font-bold shrink-0">
+                        <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
                           <CheckCircle size={18} />
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between mb-2 pt-2 border-t border-white/5">
-                    <h5 className="text-[10px] font-black text-risda-orange uppercase tracking-[3px]">Senarai Peserta Selesai Taklimat</h5>
-                    <span className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{attendees.length} SYARIKAT</span>
+                  <div className="flex items-center justify-between mb-2 pt-2 border-t border-risda-border">
+                    <h5 className="text-xs font-bold text-risda-orange uppercase tracking-wider">Senarai Peserta Selesai Taklimat</h5>
+                    <span className="text-xs text-risda-muted font-bold uppercase tracking-wider">{attendees.length} SYARIKAT</span>
                   </div>
                   {loadingAttendees ? (
                     <div className="py-20 text-center">
                       <div className="w-10 h-10 border-2 border-risda-orange/10 border-t-risda-orange rounded-full animate-spin mx-auto mb-4" />
-                      <p className="text-risda-muted font-black uppercase tracking-[4px] text-[9px] animate-pulse">Menyelaras Senarai...</p>
+                      <p className="text-risda-muted font-bold uppercase tracking-wider text-xs animate-pulse">Menyelaras Senarai...</p>
                     </div>
                   ) : attendees.length === 0 ? (
-                    <div className="py-12 text-center border border-dashed border-white/5 rounded-3xl flex flex-col items-center gap-4">
-                      <AlertCircle size={32} className="text-white/20" />
+                    <div className="py-12 text-center border border-dashed border-risda-border rounded-2xl flex flex-col items-center gap-4 bg-risda-card-muted">
+                      <AlertCircle size={32} className="text-risda-muted" />
                       <div className="space-y-1">
-                        <p className="text-risda-muted font-black uppercase tracking-[3px] text-[10px]">Tiada rekod kehadiran dijumpai</p>
-                        <p className="text-white/40 text-[9px]">Anda boleh menggunakan butang "Pilih Sebutharga Semula" di atas untuk menetapkan keputusan rasmi.</p>
+                        <p className="text-risda-text font-bold uppercase tracking-wider text-xs">Tiada rekod kehadiran dijumpai</p>
+                        <p className="text-risda-muted text-xs">Anda boleh menggunakan butang "Pilih Sebutharga Semula" di atas untuk menetapkan keputusan rasmi.</p>
                       </div>
                     </div>
                   ) : (
                     attendees.map((attendee: any) => (
                       <div 
                         key={attendee.id} 
-                        className={`p-6 border transition-all relative overflow-hidden flex items-center justify-between group rounded-2xl ${
+                        className={`p-5 border transition-all relative overflow-hidden flex items-center justify-between group rounded-2xl ${
                           pendingWinner?.id === attendee.id 
-                            ? 'bg-risda-orange/20 border-risda-orange border-2' 
-                            : 'bg-white/5 border-white/5 hover:border-white/20'
+                            ? 'bg-risda-orange/15 border-risda-orange border-2' 
+                            : 'bg-risda-card border-risda-border hover:border-risda-orange/40 shadow-sm'
                         }`}
                       >
                         <div className="relative z-10 flex-1 min-w-0">
-                          <h5 className="text-sm font-black text-white uppercase mb-1 truncate">{attendee.companyName}</h5>
-                          <div className="flex items-center gap-4 text-[9px] text-risda-muted font-bold uppercase tracking-widest">
-                             <span className="text-white/40 italic">{attendee.ownerName || attendee.representativeName}</span>
-                             <span className="opacity-20">•</span>
-                             <span className="text-risda-gold">{attendee.phoneNumber}</span>
+                          <h5 className="text-xs md:text-sm font-bold text-risda-text uppercase mb-1 truncate">{attendee.companyName}</h5>
+                          <div className="flex items-center gap-3 text-xs text-risda-muted font-medium uppercase tracking-wider">
+                             <span>{attendee.ownerName || attendee.representativeName}</span>
+                             <span className="opacity-40">•</span>
+                             <span className="text-risda-orange font-bold">{attendee.phoneNumber}</span>
                           </div>
                         </div>
                         {!pendingWinner && (
                           <button 
                             onClick={() => handleSelectWinnerPreview(attendee)}
-                            className="shrink-0 px-6 py-3 bg-risda-orange text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ml-4"
+                            className="shrink-0 px-5 py-2.5 bg-risda-orange hover:brightness-110 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md active:scale-95 ml-4 cursor-pointer"
                           >
                             Pilih
                           </button>
                         )}
                         {pendingWinner?.id === attendee.id && (
-                          <div className="w-8 h-8 bg-risda-orange rounded-full flex items-center justify-center text-black">
+                          <div className="w-8 h-8 bg-risda-orange rounded-full flex items-center justify-center text-white">
                             <CheckCircle size={18} />
                           </div>
                         )}
@@ -1737,152 +1776,155 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                     initial={{ x: 300, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 300, opacity: 0 }}
-                    className="w-full md:w-[40%] bg-black/40 p-6 md:p-8 flex flex-col h-auto md:h-full border-t md:border-t-0 md:border-l border-white/5 overflow-hidden"
+                    className="w-full md:w-[40%] bg-risda-card-muted p-6 md:p-8 flex flex-col h-auto md:h-full border-t md:border-t-0 md:border-l border-risda-border overflow-hidden"
                   >
-                    <div className="flex-1 overflow-y-auto space-y-8 pr-3 scrollbar-thin scrollbar-thumb-risda-orange/40 hover:scrollbar-thumb-risda-orange/60 scrollbar-track-white/5 scroll-smooth pb-12">
+                    <div className="flex-1 overflow-y-auto space-y-6 pr-3 pb-12">
                       <div className="text-center space-y-2">
-                        <div className={`inline-flex px-3 py-1 border rounded-full text-[9px] font-black uppercase tracking-widest ${
+                        <div className={`inline-flex px-3 py-1 border rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           pendingWinner.isReTender 
-                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' 
-                            : 'bg-risda-orange/10 border-risda-orange/20 text-risda-orange'
+                            ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300' 
+                            : 'bg-risda-orange/15 border-risda-orange/30 text-risda-orange'
                         }`}>
                           {pendingWinner.isReTender ? 'Keputusan Rasmi Sebutharga Semula' : 'Langkah Pengesahan'}
                         </div>
-                        <h3 className="text-xl font-black text-white uppercase">
+                        <h3 className="text-lg md:text-xl font-bold text-risda-text uppercase">
                           {pendingWinner.isReTender ? 'Sebutharga Semula' : 'Maklumat Kontrak'}
                         </h3>
-                        <p className={`text-[10px] font-bold uppercase tracking-widest italic ${
-                          pendingWinner.isReTender ? 'text-amber-400' : 'text-risda-muted'
+                        <p className={`text-xs font-bold uppercase tracking-wider ${
+                          pendingWinner.isReTender ? 'text-amber-700 dark:text-amber-300' : 'text-risda-muted'
                         }`}>{pendingWinner.companyName}</p>
                       </div>
 
-                      <div className="space-y-6">
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Keputusan Rasmi</label>
+                      <div className="space-y-5">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-risda-orange uppercase tracking-wider block">Tarikh Keputusan Rasmi</label>
                           <input 
                             type="date"
                             value={winnerDates.decisionDate}
                             onChange={(e) => setWinnerDates({...winnerDates, decisionDate: e.target.value})}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
+                            className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs md:text-sm text-risda-text outline-none focus:border-risda-orange transition-all font-mono"
                           />
-                          <span className="text-[9px] text-risda-muted font-bold block px-1">Format: DD/MM/YYYY (Pilih atau isi tarikh keputusan rasmi)</span>
+                          <span className="text-[10px] text-risda-muted block">Format: DD/MM/YYYY (Pilih atau isi tarikh keputusan rasmi)</span>
                         </div>
 
                         {pendingWinner.isReTender ? (
                           <>
-                            <div className="space-y-2">
-                              <label className="text-[9px] font-black text-amber-400 uppercase tracking-[3px] px-1">Catatan / Sebab Sebutharga Semula</label>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider block">Catatan / Sebab Sebutharga Semula</label>
                               <input 
                                 type="text"
                                 placeholder="Contoh: Tiada pembekal mematuhi spesifikasi / Syarikat tidak mencukupi"
                                 value={winnerDates.remarks}
                                 onChange={(e) => setWinnerDates({...winnerDates, remarks: e.target.value})}
-                                className="w-full bg-white/5 border border-amber-500/30 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-amber-400 transition-all"
+                                className="w-full bg-risda-card border border-amber-500/40 rounded-xl py-3 px-4 text-xs md:text-sm text-risda-text outline-none focus:border-amber-500 transition-all"
                               />
                             </div>
-                            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-300 font-bold uppercase tracking-wide leading-relaxed">
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-800 dark:text-amber-200 font-medium leading-relaxed">
                               ℹ️ Keputusan ini akan direkodkan secara rasmi sebagai SEBUTHARGA SEMULA bagi iklan sebut harga ini dan dipaparkan dalam laporan serta carian awam.
                             </div>
                           </>
                         ) : (
                           <>
-                            <div className="space-y-2">
-                              <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Mula Kerja</label>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-risda-orange uppercase tracking-wider block">Tarikh Mula Kerja</label>
                               <input 
                                 type="date"
                                 value={winnerDates.startDate}
                                 onChange={(e) => setWinnerDates({...winnerDates, startDate: e.target.value})}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
+                                className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs md:text-sm text-risda-text outline-none focus:border-risda-orange transition-all font-mono"
                               />
                             </div>
-                            <div className="space-y-2">
-                              <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tarikh Akhir Kerja</label>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-risda-orange uppercase tracking-wider block">Tarikh Akhir Kerja</label>
                               <input 
                                 type="date"
                                 value={winnerDates.endDate}
                                 onChange={(e) => setWinnerDates({...winnerDates, endDate: e.target.value})}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all"
+                                className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs md:text-sm text-risda-text outline-none focus:border-risda-orange transition-all font-mono"
                               />
                             </div>
 
                             {winnerDates.startDate && winnerDates.endDate && (
                               <div className="p-3.5 bg-risda-orange/10 border border-risda-orange/30 rounded-xl flex items-center justify-between">
-                                <span className="text-[10px] font-black text-risda-orange uppercase tracking-wider">Tempoh Siap Kerja (Auto-Kiraan)</span>
-                                <span className="text-xs font-black text-white bg-risda-orange/20 px-3 py-1 rounded-lg border border-risda-orange/40">
+                                <span className="text-xs font-bold text-risda-orange uppercase tracking-wider">Tempoh Siap Kerja</span>
+                                <span className="text-xs font-bold text-risda-text bg-risda-card px-3 py-1 rounded-lg border border-risda-border">
                                   {calculateTempohSiapKerja(winnerDates.startDate, winnerDates.endDate) || '-'}
                                 </span>
                               </div>
                             )}
-                            <div className="space-y-2">
-                              <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Harga Perolehan Terpilih / Nilai Keputusan (RM)</label>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-risda-orange uppercase tracking-wider block">Harga Perolehan Terpilih / Nilai Keputusan (RM)</label>
                               <input 
                                 type="number"
                                 placeholder="Contoh: 125000"
                                 value={winnerDates.winningPrice}
                                 onChange={(e) => setWinnerDates({...winnerDates, winningPrice: e.target.value})}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-5 text-sm text-white outline-none focus:border-risda-orange/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs md:text-sm text-risda-text outline-none focus:border-risda-orange transition-all font-mono"
                               />
                             </div>
 
-
-                            <div className="p-5 bg-white/5 rounded-2xl border border-white/5">
-                              <p className="text-[9px] text-risda-muted font-bold uppercase tracking-[2px] mb-1">Tempat Kerja (Auto)</p>
-                              <p className="text-[11px] text-white font-black uppercase italic leading-tight">{selectedAdForWinner?.visitVenue || selectedAdForWinner?.docVenue || '-'}</p>
+                            <div className="p-4 bg-risda-card rounded-xl border border-risda-border">
+                              <p className="text-[10px] text-risda-muted font-bold uppercase tracking-wider mb-1">Tempat Kerja (Auto)</p>
+                              <p className="text-xs text-risda-text font-bold uppercase leading-snug">{selectedAdForWinner?.visitVenue || selectedAdForWinner?.docVenue || '-'}</p>
                             </div>
 
-                            <div className="pt-2 space-y-4">
-                              <label className="text-[9px] font-black text-risda-orange uppercase tracking-[3px] px-1">Pilihan Hebahan Autonotifikasi</label>
-                              <div className="flex flex-col gap-3">
+                            <div className="pt-2 space-y-3">
+                              <label className="text-xs font-bold text-risda-orange uppercase tracking-wider block">Pilihan Hebahan Autonotifikasi</label>
+                              <div className="flex flex-col gap-2.5">
                                 <button
+                                  type="button"
                                   onClick={() => setNotifyPrefs(prev => ({ ...prev, whatsapp: !prev.whatsapp }))}
-                                  className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
+                                  className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
                                     notifyPrefs.whatsapp 
-                                      ? 'bg-green-500/20 border-green-500/50 text-green-400' 
-                                      : 'bg-white/5 border-white/10 text-white/30'
+                                      ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300' 
+                                      : 'bg-risda-card border-risda-border text-risda-muted hover:text-risda-text'
                                   }`}
                                 >
-                                  <div className={`p-2 rounded-lg ${notifyPrefs.whatsapp ? 'bg-green-500 text-black' : 'bg-white/10 text-white/30'}`}>
+                                  <div className={`p-2 rounded-lg ${notifyPrefs.whatsapp ? 'bg-emerald-600 text-white' : 'bg-risda-card-muted text-risda-muted'}`}>
                                     <MessageCircle size={16} />
                                   </div>
-                                  <span className="text-[11px] font-black uppercase tracking-[2px]">Hebahan WhatsApp</span>
+                                  <span className="text-xs font-bold uppercase tracking-wider">Hebahan WhatsApp</span>
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => setNotifyPrefs(prev => ({ ...prev, email: !prev.email }))}
-                                  className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
+                                  className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
                                     notifyPrefs.email 
-                                      ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' 
-                                      : 'bg-white/5 border-white/10 text-white/30'
+                                      ? 'bg-blue-500/15 border-blue-500 text-blue-700 dark:text-blue-300' 
+                                      : 'bg-risda-card border-risda-border text-risda-muted hover:text-risda-text'
                                   }`}
                                 >
-                                  <div className={`p-2 rounded-lg ${notifyPrefs.email ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/30'}`}>
+                                  <div className={`p-2 rounded-lg ${notifyPrefs.email ? 'bg-blue-600 text-white' : 'bg-risda-card-muted text-risda-muted'}`}>
                                     <Mail size={16} />
                                   </div>
-                                  <span className="text-[11px] font-black uppercase tracking-[2px]">Hebahan Emel</span>
+                                  <span className="text-xs font-bold uppercase tracking-wider">Hebahan Emel</span>
                                 </button>
                               </div>
                             </div>
                           </>
                         )}
 
-                        {/* Action buttons inside scrolling container to ensure they are always visible and clickable */}
-                        <div className="pt-6 flex flex-col gap-3 border-t border-white/5">
+                        {/* Action buttons */}
+                        <div className="pt-4 flex flex-col gap-2.5 border-t border-risda-border">
                           <button 
+                            type="button"
                             onClick={handleConfirmWinner}
-                            className={`w-full py-5 rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 ${
+                            className={`w-full py-4 rounded-xl text-xs font-bold uppercase tracking-wider shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
                               pendingWinner.isReTender
-                                ? 'bg-amber-500 text-slate-950 shadow-amber-500/20'
-                                : 'bg-risda-orange text-black shadow-risda-orange/10'
+                                ? 'bg-amber-500 text-white shadow-amber-500/20'
+                                : 'bg-risda-orange text-white shadow-risda-orange/20'
                             }`}
                           >
-                            {pendingWinner.isReTender ? <RotateCcw size={18} /> : <Send size={18} />}
+                            {pendingWinner.isReTender ? <RotateCcw size={16} /> : <Send size={16} />}
                             {pendingWinner.isReTender ? 'Simpan & Sahkan Sebutharga Semula' : 'Simpan & Hebah Keputusan'}
                           </button>
                           <button 
+                            type="button"
                             onClick={() => {
                               setPendingWinner(null);
                               setWinnerDates({ startDate: '', endDate: '', winningPrice: '', location: '', decisionDate: '', remarks: '' });
                             }}
-                            className="w-full py-4 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-risda-muted hover:text-white rounded-2xl transition-all"
+                            className="w-full py-3 bg-risda-card hover:bg-risda-border text-xs font-bold uppercase tracking-wider text-risda-muted hover:text-risda-text rounded-xl transition-all border border-risda-border cursor-pointer"
                           >
                             Kembali ke Senarai
                           </button>
@@ -1905,49 +1947,49 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-3xl bg-[#0B132B] border border-white/10 rounded-2xl shadow-2xl overflow-hidden my-8"
+              className="relative w-full max-w-3xl bg-risda-card border border-risda-border rounded-2xl shadow-2xl overflow-hidden my-8"
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/5">
+              <div className="flex items-center justify-between p-6 border-b border-risda-border bg-risda-card-muted">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-risda-orange/20 border border-risda-orange/30 rounded-xl text-risda-gold">
+                  <div className="p-3 bg-risda-orange/15 border border-risda-orange/30 rounded-xl text-risda-orange">
                     <FileText size={22} />
                   </div>
                   <div>
-                    <div className="text-[10px] font-mono font-bold text-risda-gold uppercase tracking-widest">{selectedAdDetail.tenderNo}</div>
-                    <h3 className="text-lg font-black text-white uppercase tracking-tight">Butiran Iklan Sebut Harga</h3>
+                    <div className="text-xs font-mono font-bold text-risda-orange uppercase tracking-wider">{selectedAdDetail.tenderNo}</div>
+                    <h3 className="text-base md:text-lg font-bold text-risda-text uppercase tracking-tight">Butiran Iklan Sebut Harga</h3>
                   </div>
                 </div>
                 <button 
                   onClick={() => setSelectedAdDetail(null)}
-                  className="p-2.5 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all"
+                  className="p-2.5 text-risda-muted hover:text-risda-text bg-risda-card hover:bg-risda-border border border-risda-border rounded-xl transition-all cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {/* Content Body */}
-              <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+              <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
                 {/* Status Badge & Office */}
-                <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-risda-card-muted border border-risda-border rounded-xl">
                   <div>
-                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block mb-1">Status Iklan</span>
-                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                      isAdWinnerFinalized(selectedAdDetail) ? 'bg-blue-500/20 text-blue-400 border border-blue-400/30' :
-                      selectedAdDetail.status === 'AKTIF' ? 'bg-green-500/20 text-green-400 border border-green-400/30' :
-                      'bg-red-500/20 text-red-400 border border-red-500/30'
+                    <span className="text-[10px] font-bold text-risda-muted uppercase tracking-wider block mb-1">Status Iklan</span>
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                      isAdWinnerFinalized(selectedAdDetail) ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-400/40' :
+                      selectedAdDetail.status === 'AKTIF' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/40' :
+                      'bg-red-500/15 text-red-700 dark:text-red-300 border border-red-400/40'
                     }`}>
                       {isAdWinnerFinalized(selectedAdDetail) ? 'KEPUTUSAN RASMI (SELESAI)' : selectedAdDetail.status}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block mb-1">Pejabat / Negeri</span>
-                    <span className="text-xs font-black text-white uppercase">{selectedAdDetail.office || 'SELURUH RISDA'} - {selectedAdDetail.state || 'MALAYSIA'}</span>
+                    <span className="text-[10px] font-bold text-risda-muted uppercase tracking-wider block mb-1">Pejabat / Negeri</span>
+                    <span className="text-xs md:text-sm font-bold text-risda-text uppercase">{selectedAdDetail.office || 'SELURUH RISDA'} - {selectedAdDetail.state || 'MALAYSIA'}</span>
                   </div>
                   {selectedAdDetail.category && (
                     <div>
-                      <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block mb-1">Kategori</span>
-                      <span className="inline-block px-2.5 py-1 text-[10px] font-black text-white bg-risda-orange/20 border border-risda-orange/30 rounded-lg uppercase">
+                      <span className="text-[10px] font-bold text-risda-muted uppercase tracking-wider block mb-1">Kategori</span>
+                      <span className="inline-block px-2.5 py-1 text-xs font-bold text-risda-orange bg-risda-orange/10 border border-risda-orange/30 rounded-lg uppercase">
                         {selectedAdDetail.category}
                       </span>
                     </div>
@@ -1956,53 +1998,53 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
 
                 {/* Title */}
                 <div>
-                  <h4 className="text-[10px] font-black text-risda-muted uppercase tracking-widest mb-1">Tajuk Sebut Harga / Kerja</h4>
-                  <div className="p-4 bg-white/5 border border-white/10 rounded-xl text-sm font-black text-white uppercase leading-relaxed">
+                  <h4 className="text-xs font-bold text-risda-muted uppercase tracking-wider mb-1">Tajuk Sebut Harga / Kerja</h4>
+                  <div className="p-4 bg-risda-card-muted border border-risda-border rounded-xl text-xs md:text-sm font-bold text-risda-text uppercase leading-relaxed">
                     {selectedAdDetail.title}
                   </div>
                 </div>
 
                 {/* Finalized Winner Details Section if applicable */}
                 {selectedAdDetail.winner && (
-                  <div className="p-5 bg-gradient-to-br from-blue-900/30 via-blue-950/20 to-transparent border border-blue-500/30 rounded-2xl space-y-4">
+                  <div className="p-5 bg-blue-500/10 border border-blue-500/30 rounded-2xl space-y-4">
                     <div className="flex items-center gap-2 border-b border-blue-500/20 pb-3">
-                      <CheckCircle className="text-blue-400" size={20} />
-                      <h5 className="text-sm font-black text-blue-400 uppercase tracking-wider">Keputusan Rasmi Pemenang Lantikan Kontraktor</h5>
+                      <CheckCircle className="text-blue-600 dark:text-blue-400" size={20} />
+                      <h5 className="text-sm font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">Keputusan Rasmi Pemenang Lantikan Kontraktor</h5>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                       <div>
-                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Syarikat Pemenang</span>
-                        <span className="font-black text-white uppercase text-sm block">{selectedAdDetail.winner.companyName}</span>
+                        <span className="text-[10px] font-bold text-risda-muted uppercase block mb-0.5">Syarikat Pemenang</span>
+                        <span className="font-bold text-risda-text uppercase text-sm block">{selectedAdDetail.winner.companyName}</span>
                       </div>
                       <div>
-                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Nama Pemilik / Wakil</span>
-                        <span className="font-black text-white uppercase block">{selectedAdDetail.winner.ownerName || '-'}</span>
+                        <span className="text-[10px] font-bold text-risda-muted uppercase block mb-0.5">Nama Pemilik / Wakil</span>
+                        <span className="font-bold text-risda-text uppercase block">{selectedAdDetail.winner.ownerName || '-'}</span>
                       </div>
                       <div>
-                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Harga Lantikan / Tawaran</span>
-                        <span className="font-mono font-black text-amber-400 text-sm block">
+                        <span className="text-[10px] font-bold text-risda-muted uppercase block mb-0.5">Harga Lantikan / Tawaran</span>
+                        <span className="font-mono font-bold text-risda-orange text-sm block">
                           {selectedAdDetail.winner.winningPrice ? `RM ${Number(selectedAdDetail.winner.winningPrice).toLocaleString('ms-MY', { minimumFractionDigits: 2 })}` : '-'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Tempoh Kontrak / Pelaksanaan</span>
-                        <span className="font-black text-white uppercase block">
+                        <span className="text-[10px] font-bold text-risda-muted uppercase block mb-0.5">Tempoh Kontrak / Pelaksanaan</span>
+                        <span className="font-bold text-risda-text uppercase block">
                           {formatDate(selectedAdDetail.winner.contractStartDate)} SEHINGGA {formatDate(selectedAdDetail.winner.contractEndDate)}
                         </span>
                         {(calculateTempohSiapKerja(selectedAdDetail.winner.contractStartDate, selectedAdDetail.winner.contractEndDate) || selectedAdDetail.winner.tempohSiapKerja || selectedAdDetail.tempohSiapKerja) && (
-                          <span className="inline-block mt-1 px-2 py-0.5 bg-risda-orange/20 border border-risda-orange/40 rounded text-[10px] font-black text-risda-gold uppercase">
+                          <span className="inline-block mt-1 px-2 py-0.5 bg-risda-orange/15 border border-risda-orange/30 rounded text-xs font-bold text-risda-orange uppercase">
                             TEMPOH: {calculateTempohSiapKerja(selectedAdDetail.winner.contractStartDate, selectedAdDetail.winner.contractEndDate) || selectedAdDetail.winner.tempohSiapKerja || selectedAdDetail.tempohSiapKerja}
                           </span>
                         )}
                       </div>
                       <div>
-                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Lokasi Kerja</span>
-                        <span className="font-black text-white uppercase block">{selectedAdDetail.winner.location || selectedAdDetail.visitVenue || selectedAdDetail.docVenue || '-'}</span>
+                        <span className="text-[10px] font-bold text-risda-muted uppercase block mb-0.5">Lokasi Kerja</span>
+                        <span className="font-bold text-risda-text uppercase block">{selectedAdDetail.winner.location || selectedAdDetail.visitVenue || selectedAdDetail.docVenue || '-'}</span>
                       </div>
                       <div>
-                        <span className="text-[9px] font-black text-risda-muted uppercase block mb-0.5">Tarikh Keputusan</span>
-                        <span className="font-black text-white uppercase block">{formatDate(getNormalizedDecisionDate(selectedAdDetail))}</span>
+                        <span className="text-[10px] font-bold text-risda-muted uppercase block mb-0.5">Tarikh Keputusan</span>
+                        <span className="font-bold text-risda-text uppercase block">{formatDate(getNormalizedDecisionDate(selectedAdDetail))}</span>
                       </div>
                     </div>
                   </div>
@@ -2010,22 +2052,22 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
 
                 {/* Important Dates & Venues Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-1">
-                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block">Tarikh Tutup Iklan</span>
-                    <span className="font-black text-white uppercase block text-sm">{formatDate(selectedAdDetail.closingDate)}</span>
-                    <span className="text-[10px] text-risda-gold font-black uppercase block">Masa: 12:00 PM</span>
+                  <div className="p-4 bg-risda-card-muted border border-risda-border rounded-xl space-y-1">
+                    <span className="text-[10px] font-bold text-risda-muted uppercase tracking-wider block">Tarikh Tutup Iklan</span>
+                    <span className="font-bold text-risda-text uppercase block text-sm">{formatDate(selectedAdDetail.closingDate)}</span>
+                    <span className="text-xs text-risda-orange font-bold uppercase block">Masa: 12:00 PM</span>
                   </div>
-                  <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-1">
-                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-wider block">Lokasi Lawatan Tapak / Dokumen</span>
-                    <span className="font-black text-white uppercase block">{selectedAdDetail.visitVenue || selectedAdDetail.docVenue || selectedAdDetail.briefingVenue || '-'}</span>
+                  <div className="p-4 bg-risda-card-muted border border-risda-border rounded-xl space-y-1">
+                    <span className="text-[10px] font-bold text-risda-muted uppercase tracking-wider block">Lokasi Lawatan Tapak / Dokumen</span>
+                    <span className="font-bold text-risda-text uppercase block">{selectedAdDetail.visitVenue || selectedAdDetail.docVenue || selectedAdDetail.briefingVenue || '-'}</span>
                   </div>
                 </div>
 
                 {/* License Requirements */}
                 {selectedAdDetail.licenseRequirements && (
                   <div>
-                    <h5 className="text-[10px] font-black text-risda-muted uppercase tracking-widest mb-1">Syarat Kelayakan / Kod Bidang</h5>
-                    <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl text-xs font-semibold text-white/80 uppercase">
+                    <h5 className="text-xs font-bold text-risda-muted uppercase tracking-wider mb-1">Syarat Kelayakan / Kod Bidang</h5>
+                    <div className="p-4 bg-risda-card-muted border border-risda-border rounded-xl text-xs font-semibold text-risda-text uppercase">
                       {selectedAdDetail.licenseRequirements}
                     </div>
                   </div>
@@ -2033,7 +2075,7 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
               </div>
 
               {/* Footer Actions */}
-              <div className="p-6 border-t border-white/10 bg-white/5 flex flex-wrap items-center justify-between gap-3">
+              <div className="p-6 border-t border-risda-border bg-risda-card-muted flex flex-wrap items-center justify-between gap-3">
                 {selectedAdDetail.winner && (
                   <button
                     onClick={async () => {
@@ -2052,14 +2094,14 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                         toast.error('Gagal memuat turun PDF');
                       }
                     }}
-                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider rounded-xl flex items-center gap-2 transition-all"
+                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-sm"
                   >
                     <Download size={14} /> Muat Turun PDF Keputusan
                   </button>
                 )}
                 <button
                   onClick={() => setSelectedAdDetail(null)}
-                  className="ml-auto px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all"
+                  className="ml-auto px-6 py-2.5 bg-risda-card hover:bg-risda-border text-risda-text border border-risda-border text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
                 >
                   Tutup
                 </button>

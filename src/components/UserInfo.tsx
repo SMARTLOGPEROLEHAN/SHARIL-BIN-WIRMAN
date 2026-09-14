@@ -51,57 +51,61 @@ export default function UserInfo() {
 
   return (
     <div className="space-y-12 p-8 lg:max-w-none w-full pb-20">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-3 mb-10"
-      >
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-risda-orange/10 border border-risda-orange/20 rounded-full w-fit mb-2">
-          <Shield size={14} className="text-risda-orange" />
-          <span className="text-[10px] font-black text-risda-orange uppercase tracking-[2px]">Struktur Peranan</span>
-        </div>
+      <div className="bg-risda-card border border-risda-border rounded-2xl md:rounded-[24px] p-6 md:p-8 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="space-y-4">
-          <h2 className="text-4xl lg:text-6xl font-black text-white uppercase tracking-tight leading-none">Info Pengguna</h2>
-          <p className="text-base lg:text-lg text-white/70 font-medium max-w-3xl leading-relaxed">
-            <span className="font-poppins font-bold">SMART LOG PEROLEHAN</span> menggunakan model kawalan akses berasaskan peranan (RBAC) untuk memastikan integriti dan keselamatan data pendaftaran tapak sebut harga RISDA.
-          </p>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-risda-orange rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
+              <Shield size={28} />
+            </div>
+            <div>
+              <p className="text-[10px] text-risda-orange font-black uppercase tracking-[6px] mb-1">Struktur Peranan</p>
+              <h2 className="text-2xl md:text-3xl font-black text-risda-text uppercase tracking-tight leading-none">Info Pengguna</h2>
+              <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[3px] mt-1.5">
+                Model Kawalan Akses Berasaskan Peranan (RBAC) SMART LOG PEROLEHAN
+              </p>
+            </div>
+          </div>
         </div>
-      </motion.div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {roles.map((role, idx) => (
           <motion.div 
             key={role.title}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
-            className="glass-card p-10 rounded-[40px] border border-white/10 bg-gradient-to-br from-risda-card to-black hover:border-risda-orange/30 transition-all group relative overflow-hidden shadow-2xl"
+            className="p-6 md:p-8 rounded-3xl border border-risda-border bg-risda-card hover:border-risda-orange/40 transition-all group relative overflow-hidden shadow-sm flex flex-col justify-between"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-risda-orange/10 blur-[50px] pointer-events-none group-hover:bg-risda-orange/20 transition-all" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-risda-orange/5 blur-[40px] pointer-events-none group-hover:bg-risda-orange/15 transition-all" />
             
-            <div className={`${role.bg} ${role.color} w-20 h-20 rounded-[28px] flex items-center justify-center mb-8 border border-white/10 group-hover:scale-110 transition-transform shadow-2xl`}>
-              <role.icon size={40} />
-            </div>
+            <div>
+              <div className={`${role.bg} ${role.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-6 border border-risda-border shadow-sm group-hover:scale-105 transition-transform`}>
+                <role.icon size={32} />
+              </div>
 
-            <div className="space-y-2 mb-6">
-              <span className={`text-xs font-black uppercase tracking-[4px] ${role.color}`}>{role.roleKey}</span>
-              <h3 className="text-3xl font-black text-white uppercase tracking-tight leading-none">{role.title}</h3>
-            </div>
+              <div className="space-y-2 mb-6">
+                <span className={`text-xs font-black uppercase tracking-widest ${role.color}`}>{role.roleKey}</span>
+                <h3 className="text-2xl font-bold text-risda-text uppercase tracking-tight leading-tight">{role.title}</h3>
+              </div>
 
-            <div className="bg-white/5 rounded-2xl p-6 mb-10 border border-white/5">
-              <p className="text-sm lg:text-base text-white/90 leading-relaxed font-semibold italic">
-                "{role.description}"
-              </p>
-            </div>
+              <div className="bg-risda-card-muted rounded-xl p-5 mb-6 border border-risda-border">
+                <p className="text-xs md:text-sm text-risda-text leading-relaxed font-medium italic">
+                  "{role.description}"
+                </p>
+              </div>
 
-            <div className="space-y-5">
-               <h4 className="text-[10px] font-black text-white/40 border-b border-white/10 pb-2 uppercase tracking-[5px] mb-6">Tugasan & Tanggungjawab:</h4>
-               {role.tasks.map((task, i) => (
-                 <div key={i} className="flex gap-4 items-start group/task">
-                   <div className="w-2.5 h-2.5 bg-risda-gold rounded-full mt-1.5 shrink-0 shadow-[0_0_15px_rgba(255,215,0,0.6)] group-hover/task:scale-125 transition-transform" />
-                   <span className="text-sm font-bold text-white/80 leading-snug group-hover/task:text-white transition-colors">{task}</span>
+              <div className="space-y-4">
+                 <h4 className="text-xs font-bold text-risda-orange border-b border-risda-border pb-2 uppercase tracking-wider">Tugasan & Tanggungjawab:</h4>
+                 <div className="space-y-3">
+                   {role.tasks.map((task, i) => (
+                     <div key={i} className="flex gap-3 items-start group/task">
+                       <div className="w-2 h-2 bg-risda-orange rounded-full mt-1.5 shrink-0" />
+                       <span className="text-xs md:text-sm font-medium text-risda-text leading-snug">{task}</span>
+                     </div>
+                   ))}
                  </div>
-               ))}
+              </div>
             </div>
           </motion.div>
         ))}
@@ -111,9 +115,9 @@ export default function UserInfo() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="mt-10 pt-10 border-t border-white/5 text-center"
+        className="mt-10 pt-10 border-t border-risda-border text-center"
       >
-        <p className="text-[10px] text-risda-muted font-black uppercase tracking-[5px] opacity-30">
+        <p className="text-xs text-risda-muted font-bold uppercase tracking-wider">
           Digital Transformation Taskforce © 2024 RISDA Digital Ecosystem
         </p>
       </motion.div>

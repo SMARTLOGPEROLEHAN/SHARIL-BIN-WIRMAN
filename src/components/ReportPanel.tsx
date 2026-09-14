@@ -995,40 +995,6 @@ export default function ReportPanel() {
     );
   }
 
-  const handleLoadFromDatabase = async () => {
-    setLoading(true);
-    const loadingToast = toast.loading('Mengambil iklan segar dari pangkalan data...');
-    try {
-      await fetchDatabaseData(true);
-      syncQuarterlyReportRows();
-      toast.success('Berjaya memadankan data daripada pangkalan data!', { id: loadingToast });
-    } catch (e) {
-      console.error(e);
-      toast.error('Gagal membina rumusan sepadan.', { id: loadingToast });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  // Reset reporting tables back to standard mockup data patterns matching the pdf images
-  const handleResetMockup = () => {
-    setRowsA1([
-      { category: 'BEKALAN', perancanganBil: 0, perancanganNilai: 0, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 0, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '' },
-      { category: 'PERKHIDMATAN', perancanganBil: 0, perancanganNilai: 0, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 0, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '' },
-      { category: 'KERJA', perancanganBil: 0, perancanganNilai: 0, belumPelawaBil: 0, prosesIklanBil: 0, prosesPenilaianBil: 0, prosesJkBil: 0, belumSstBil: 0, sstBumiBil: 0, sstBumiNilai: 0, sstNonBumiBil: 0, sstNonBumiNilai: 0, syorJangkaan: '' }
-    ]);
-    setRowsA2([]);
-    // Reset active edits to empty
-    setActiveA2Edits({});
-
-    setSelectedYear(new Date().getFullYear().toString());
-    setSelectedQuarter('Q1');
-    setOffice('PEJABAT RISDA DAERAH BEAUFORT');
-    setAsOfDate(`31 Mac ${new Date().getFullYear()}`);
-    toast.success('Laporan diset semula dengan rekod kosong');
-  };
-
   // Inline Handlers for A1 Edit Cells
   const handleA1CellChange = (index: number, field: keyof RowA1, val: any) => {
     const updated = [...rowsA1];
@@ -1147,74 +1113,59 @@ export default function ReportPanel() {
 
   return (
     <div className="space-y-8 p-8 w-full min-h-screen">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-4 text-risda-orange mb-2">
-            <FileBarChart size={32} />
-            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-[4px] text-white">
-              {view === 'summary' && 'Ringkasan Statistik Sebutharga'}
-              {view === 'sukuan' && 'Laporan Pengurusan Perolehan Sukuan'}
-              {view === 'tahunan' && 'Laporan Tahunan Perolehan'}
-            </h1>
+      <div className="bg-risda-card border border-risda-border rounded-2xl md:rounded-[24px] p-6 md:p-8 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-risda-orange rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
+              <FileBarChart size={28} />
+            </div>
+            <div>
+              <p className="text-[10px] text-risda-orange font-black uppercase tracking-[6px] mb-1">Laporan & Statistik</p>
+              <h2 className="text-2xl md:text-3xl font-black text-risda-text uppercase tracking-tight leading-none">
+                {view === 'summary' && 'Ringkasan Statistik Sebutharga'}
+                {view === 'sukuan' && 'Laporan Pengurusan Perolehan Sukuan'}
+                {view === 'tahunan' && 'Laporan Tahunan Perolehan'}
+              </h2>
+              <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[3px] mt-1.5">
+                {view === 'summary' && 'Paparan Keseluruhan Prestasi Perolehan RISDA Sabah'}
+                {view === 'sukuan' && 'Penjana & Editor Laporan Format Lampiran A1 & A2 (Boleh Diedit)'}
+                {view === 'tahunan' && 'Rekod Arkib Analisis Komprehensif Perolehan Berjalan'}
+              </p>
+            </div>
           </div>
-          <p className="text-[10px] md:text-xs text-risda-muted font-bold uppercase tracking-[4px]">
-            {view === 'summary' && 'Paparan Keseluruhan Prestasi Perolehan RISDA Sabah'}
-            {view === 'sukuan' && 'Penjana & Editor Laporan Format Lampiran A1 & A2 (Boleh Diedit)'}
-            {view === 'tahunan' && 'Rekod Arkib Analisis Komprehensif Perolehan Berjalan'}
-          </p>
         </div>
-
-        {/* Action controls for quarterly page */}
-        {view === 'sukuan' && (
-          <div className="flex items-center flex-wrap gap-2">
-            <button 
-              onClick={handleLoadFromDatabase}
-              disabled={loading}
-              className="px-4 py-2 bg-white/5 border border-white/10 text-white rounded-xl hover:border-risda-orange/50 transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2"
-            >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              Padan Data DB
-            </button>
-            <button 
-              onClick={handleResetMockup}
-              className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-500/20 transition-all text-xs font-black uppercase tracking-wider"
-            >
-              Set Semula
-            </button>
-          </div>
-        )}
-      </header>
+      </div>
 
       {/* Main Tabs Selection */}
-      <div className="flex gap-2 p-1 bg-white/5 rounded-2xl w-fit">
+      <div className="flex gap-2 p-1.5 bg-risda-card border border-risda-border rounded-2xl w-fit shadow-sm">
         <button 
           onClick={() => { setView('summary'); window.location.hash = ''; }}
-          className={`px-5 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all ${view === 'summary' ? 'bg-risda-orange text-black' : 'text-white hover:bg-white/5'}`}
+          className={`px-5 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all ${view === 'summary' ? 'bg-risda-orange text-white shadow-md' : 'text-risda-muted hover:text-risda-text hover:bg-risda-card-muted'}`}
         >
           RINGKASAN DASHBOARD
         </button>
         <button 
           onClick={() => { setView('sukuan'); window.location.hash = '#sukuan'; }}
-          className={`px-5 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all ${view === 'sukuan' ? 'bg-risda-orange text-black' : 'text-white hover:bg-white/5'}`}
+          className={`px-5 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all ${view === 'sukuan' ? 'bg-risda-orange text-white shadow-md' : 'text-risda-muted hover:text-risda-text hover:bg-risda-card-muted'}`}
         >
           LAPORAN SUKUAN (A1 & A2)
         </button>
         <button 
           onClick={() => { setView('tahunan'); window.location.hash = '#tahunan'; }}
-          className={`px-5 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all ${view === 'tahunan' ? 'bg-risda-orange text-black' : 'text-white hover:bg-white/5'}`}
+          className={`px-5 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all ${view === 'tahunan' ? 'bg-risda-orange text-white shadow-md' : 'text-risda-muted hover:text-risda-text hover:bg-risda-card-muted'}`}
         >
           LAPORAN TAHUNAN
         </button>
       </div>
 
       {/* Unified Office / PTJ Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white/[0.02] border border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-risda-card border border-risda-border shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-risda-orange/15 text-risda-orange flex items-center justify-center font-bold">
+          <div className="w-10 h-10 rounded-xl bg-risda-orange/15 text-risda-orange flex items-center justify-center font-bold border border-risda-orange/20">
             PTJ
           </div>
           <div>
-            <h4 className="text-xs font-black text-white uppercase tracking-wider">Pejabat RISDA Negeri Sabah</h4>
+            <h4 className="text-xs font-black text-risda-text uppercase tracking-wider">Pejabat RISDA Negeri Sabah</h4>
             <p className="text-[10px] text-risda-muted uppercase font-bold tracking-widest">
               {selectedOffice === 'SEMUA' ? 'Semua Pejabat & Daerah Berdaftar' : `Pusat Tanggungjawab: Daerah ${selectedOffice.toUpperCase()}`}
             </p>
@@ -1228,7 +1179,7 @@ export default function ReportPanel() {
               <select
                 value={selectedOffice}
                 onChange={(e) => setSelectedOffice(e.target.value)}
-                className="bg-[#121212] border border-white/15 text-white text-xs rounded-xl py-2 px-4 outline-none font-bold select-none h-11 uppercase"
+                className="bg-risda-card border border-risda-border text-risda-text text-xs rounded-xl py-2 px-4 outline-none font-bold select-none h-11 uppercase shadow-sm"
               >
                 <option value="SEMUA">SEMUA PEJABAT / DAERAH</option>
                 {locations.filter(loc => loc.office).map((loc: any) => (
@@ -1239,9 +1190,9 @@ export default function ReportPanel() {
               </select>
             </div>
           ) : (
-            <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2.5 rounded-xl">
-              <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">● DIKUNCI KEPADA</span>
-              <span className="text-white text-xs font-black uppercase tracking-tight">{selectedOffice.toUpperCase()}</span>
+            <div className="flex items-center gap-2 bg-risda-card border border-risda-border px-4 py-2.5 rounded-xl shadow-sm">
+              <span className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-widest">● DIKUNCI KEPADA</span>
+              <span className="text-risda-text text-xs font-black uppercase tracking-tight">{selectedOffice.toUpperCase()}</span>
             </div>
           )}
         </div>
@@ -1365,7 +1316,7 @@ export default function ReportPanel() {
             className="space-y-8"
           >
             {/* Custom Report Modifiers Toolbar */}
-            <div className="glass-card p-6 rounded-3xl border border-white/10 bg-white/[0.02] space-y-4">
+            <div className="glass-card p-6 rounded-3xl border border-risda-border bg-risda-card space-y-4 shadow-sm">
               <h3 className="text-xs font-black uppercase tracking-widest text-risda-orange flex items-center gap-2">
                 <Calendar size={14} />
                 Parameter Penjanaan Laporan Seketika (Boleh Diedit)
@@ -1373,11 +1324,11 @@ export default function ReportPanel() {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-white/50 uppercase tracking-wider">Tahun Laporan</label>
+                  <label className="text-[10px] font-black text-risda-muted uppercase tracking-wider">Tahun Laporan</label>
                   <select 
                     value={selectedYear} 
                     onChange={(e) => setSelectedYear(e.target.value)}
-                    className="w-full bg-white/5 rounded-xl border border-white/10 p-3 text-white text-xs font-bold uppercase"
+                    className="w-full bg-risda-card rounded-xl border border-risda-border p-3 text-risda-text text-xs font-bold uppercase shadow-sm"
                   >
                     {[
                       new Date().getFullYear() - 2,
@@ -1385,44 +1336,44 @@ export default function ReportPanel() {
                       new Date().getFullYear(),
                       new Date().getFullYear() + 1
                     ].map(yr => (
-                      <option key={yr} value={String(yr)} className="bg-[#121212]">{yr}</option>
+                      <option key={yr} value={String(yr)}>{yr}</option>
                     ))}
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-white/50 uppercase tracking-wider">Suku Tahun</label>
+                  <label className="text-[10px] font-black text-risda-muted uppercase tracking-wider">Suku Tahun</label>
                   <select 
                     value={selectedQuarter} 
                     onChange={(e) => setSelectedQuarter(e.target.value)}
-                    className="w-full bg-white/5 rounded-xl border border-white/10 p-3 text-white text-xs font-bold uppercase"
+                    className="w-full bg-risda-card rounded-xl border border-risda-border p-3 text-risda-text text-xs font-bold uppercase shadow-sm"
                   >
-                    <option value="Q1" className="bg-[#121212]">Suku Pertama (Jan-Mac)</option>
-                    <option value="Q2" className="bg-[#121212]">Suku Kedua (Apr-Jun)</option>
-                    <option value="Q3" className="bg-[#121212]">Suku Ketiga (Jul-Sep)</option>
-                    <option value="Q4" className="bg-[#121212]">Suku Keempat (Okt-Dis)</option>
+                    <option value="Q1">Suku Pertama (Jan-Mac)</option>
+                    <option value="Q2">Suku Kedua (Apr-Jun)</option>
+                    <option value="Q3">Suku Ketiga (Jul-Sep)</option>
+                    <option value="Q4">Suku Keempat (Okt-Dis)</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-white/50 uppercase tracking-wider">Pusat Tanggungjawab (PTJ)</label>
+                  <label className="text-[10px] font-black text-risda-muted uppercase tracking-wider">Pusat Tanggungjawab (PTJ)</label>
                   <input 
                     type="text"
                     value={office}
                     onChange={(e) => setOffice(e.target.value)}
                     placeholder="Sila nyatakan PTJ..."
-                    className="w-full bg-white/5 rounded-xl border border-white/10 p-3 text-white text-xs font-bold uppercase tracking-tight"
+                    className="w-full bg-risda-card rounded-xl border border-risda-border p-3 text-risda-text text-xs font-bold uppercase tracking-tight shadow-sm"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-white/50 uppercase tracking-wider">Tarikh Lapur Setakat</label>
+                  <label className="text-[10px] font-black text-risda-muted uppercase tracking-wider">Tarikh Lapur Setakat</label>
                   <input 
                     type="text"
                     value={asOfDate}
                     onChange={(e) => setAsOfDate(e.target.value)}
                     placeholder="E.g., 30 September 2025"
-                    className="w-full bg-white/5 rounded-xl border border-white/10 p-3 text-white text-xs font-bold uppercase"
+                    className="w-full bg-risda-card rounded-xl border border-risda-border p-3 text-risda-text text-xs font-bold uppercase shadow-sm"
                   />
                 </div>
               </div>
@@ -1430,16 +1381,16 @@ export default function ReportPanel() {
 
             {/* Sub-tabs & Exporters Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex p-1 bg-white/5 rounded-2xl w-fit">
+              <div className="flex p-1.5 bg-risda-card border border-risda-border rounded-2xl w-fit shadow-sm">
                 <button 
                   onClick={() => setActiveTab('a1')}
-                  className={`px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] transition-all ${activeTab === 'a1' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
+                  className={`px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] transition-all ${activeTab === 'a1' ? 'bg-risda-orange text-white shadow-md' : 'text-risda-muted hover:text-risda-text hover:bg-risda-card-muted'}`}
                 >
                   JADUAL 1: STATUS PERANCANGAN (LAMPIRAN A1)
                 </button>
                 <button 
                   onClick={() => setActiveTab('a2')}
-                  className={`px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] transition-all ${activeTab === 'a2' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
+                  className={`px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] transition-all ${activeTab === 'a2' ? 'bg-risda-orange text-white shadow-md' : 'text-risda-muted hover:text-risda-text hover:bg-risda-card-muted'}`}
                 >
                   JADUAL 2: SENARAI PROJEK (LAMPIRAN A2)
                 </button>
@@ -1474,163 +1425,163 @@ export default function ReportPanel() {
             {/* TAB CONTENT: LAMPIRAN A1 */}
             {activeTab === 'a1' && (
               <div className="space-y-4">
-                <div className="p-4 bg-white/[0.01] border border-white/5 rounded-xl text-[10px] text-white/50 uppercase tracking-widest leading-relaxed">
-                  Tip: Anda boleh menukar nombor-nombor di bawah dengan **mengklik dan menaip** terus ke dalam kotak sel. Data rumusan Jumlah di bahagian bawah akan munasabah secara automatik!
+                <div className="p-4 bg-risda-card-muted border border-risda-border rounded-xl text-[10px] text-risda-muted uppercase tracking-widest leading-relaxed">
+                  Tip: Anda boleh menukar nombor-nombor di bawah dengan <strong className="text-risda-text">mengklik dan menaip</strong> terus ke dalam kotak sel. Data rumusan Jumlah di bahagian bawah akan dikira secara automatik!
                 </div>
                 
-                <div className="overflow-x-auto w-full border border-white/10 rounded-2xl">
+                <div className="overflow-x-auto w-full border border-risda-border rounded-2xl bg-risda-card">
                   <table className="w-full text-xs text-left border-collapse min-w-[1200px]">
                     <thead>
-                      <tr className="bg-white/10 text-white/80 font-black uppercase text-center border-b border-white/10">
-                        <th rowSpan={3} className="p-3 border-r border-white/10">Kategori Perolehan</th>
-                        <th colSpan={2} className="p-3 border-r border-white/10">Perancangan Tahunan Keseluruhan</th>
-                        <th rowSpan={3} className="p-3 border-r border-white/10">Belum Pelawa</th>
-                        <th colSpan={10} className="p-3 border-r border-white/10">Telah Dipelawa</th>
+                      <tr className="bg-risda-card-muted text-risda-text font-black uppercase text-center border-b border-risda-border">
+                        <th rowSpan={3} className="p-3 border-r border-risda-border">Kategori Perolehan</th>
+                        <th colSpan={2} className="p-3 border-r border-risda-border">Perancangan Tahunan Keseluruhan</th>
+                        <th rowSpan={3} className="p-3 border-r border-risda-border">Belum Pelawa</th>
+                        <th colSpan={10} className="p-3 border-r border-risda-border">Telah Dipelawa</th>
                         <th rowSpan={3} className="p-3">Syor dan jangkaan selesai</th>
                       </tr>
-                      <tr className="bg-white/5 text-white/70 font-bold uppercase text-center border-b border-white/10">
-                        <td rowSpan={2} className="p-2 border-r border-white/10">Bil</td>
-                        <td rowSpan={2} className="p-2 border-r border-white/10">RM</td>
-                        <td rowSpan={2} className="p-2 border-r border-white/10">Dalam proses iklan</td>
-                        <td rowSpan={2} className="p-2 border-r border-white/10">Dalam proses penilaian</td>
-                        <td rowSpan={2} className="p-2 border-r border-white/10">Dalam proses ke JK Sebut Harga</td>
-                        <td rowSpan={2} className="p-2 border-r border-white/10">Belum Dikeluarkan SST</td>
+                      <tr className="bg-risda-card text-risda-muted font-bold uppercase text-center border-b border-risda-border">
+                        <td rowSpan={2} className="p-2 border-r border-risda-border">Bil</td>
+                        <td rowSpan={2} className="p-2 border-r border-risda-border">RM</td>
+                        <td rowSpan={2} className="p-2 border-r border-risda-border">Dalam proses iklan</td>
+                        <td rowSpan={2} className="p-2 border-r border-risda-border">Dalam proses penilaian</td>
+                        <td rowSpan={2} className="p-2 border-r border-risda-border">Dalam proses ke JK Sebut Harga</td>
+                        <td rowSpan={2} className="p-2 border-r border-risda-border">Belum Dikeluarkan SST</td>
                         <td colSpan={6} className="p-2">Telah Dikeluarkan Surat Setuju Terima / Pesanan Tempatan</td>
                       </tr>
-                      <tr className="bg-white/[0.02] text-white/60 text-[10px] font-bold uppercase text-center border-b border-white/10">
-                        <td colSpan={2} className="p-2 border-r border-white/10">Bumiputera</td>
-                        <td colSpan={2} className="p-2 border-r border-white/10">Non-Bumiputera</td>
+                      <tr className="bg-risda-card-muted text-risda-muted text-[10px] font-bold uppercase text-center border-b border-risda-border">
+                        <td colSpan={2} className="p-2 border-r border-risda-border">Bumiputera</td>
+                        <td colSpan={2} className="p-2 border-r border-risda-border">Non-Bumiputera</td>
                         <td colSpan={2} className="p-2">Jumlah Besar</td>
                       </tr>
-                      <tr className="bg-white/[0.05] text-risda-orange text-[9px] font-black text-center uppercase border-b border-white/15">
-                        <td className="p-1 border-r border-white/10">Kategori</td>
-                        <td className="p-1 border-r border-white/10">Bil</td>
-                        <td className="p-1 border-r border-white/10">RM</td>
-                        <td className="p-1 border-r border-white/10">Bil</td>
-                        <td className="p-1 border-r border-white/10">Bil</td>
-                        <td className="p-1 border-r border-white/10">Bil</td>
-                        <td className="p-1 border-r border-white/10">Bil</td>
-                        <td className="p-1 border-r border-white/10">Bil</td>
-                        <td className="p-1 border-r border-white/10">Bil</td>
-                        <td className="p-1 border-r border-white/10">RM</td>
-                        <td className="p-1 border-r border-white/10">Bil</td>
-                        <td className="p-1 border-r border-white/10">RM</td>
-                        <td className="p-1 border-r border-white/10">Bil</td>
-                        <td className="p-1 border-r border-white/10">RM</td>
+                      <tr className="bg-risda-card text-risda-orange text-[9px] font-black text-center uppercase border-b border-risda-border">
+                        <td className="p-1 border-r border-risda-border">Kategori</td>
+                        <td className="p-1 border-r border-risda-border">Bil</td>
+                        <td className="p-1 border-r border-risda-border">RM</td>
+                        <td className="p-1 border-r border-risda-border">Bil</td>
+                        <td className="p-1 border-r border-risda-border">Bil</td>
+                        <td className="p-1 border-r border-risda-border">Bil</td>
+                        <td className="p-1 border-r border-risda-border">Bil</td>
+                        <td className="p-1 border-r border-risda-border">Bil</td>
+                        <td className="p-1 border-r border-risda-border">Bil</td>
+                        <td className="p-1 border-r border-risda-border">RM</td>
+                        <td className="p-1 border-r border-risda-border">Bil</td>
+                        <td className="p-1 border-r border-risda-border">RM</td>
+                        <td className="p-1 border-r border-risda-border">Bil</td>
+                        <td className="p-1 border-r border-risda-border">RM</td>
                         <td className="p-1 font-mono">Status Tempoh</td>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5 font-medium">
+                    <tbody className="divide-y divide-risda-border font-medium">
                       {rowsA1.map((r, index) => {
                         const totalBil = r.sstBumiBil + r.sstNonBumiBil;
                         const totalNilai = r.sstBumiNilai + r.sstNonBumiNilai;
                         return (
-                          <tr key={r.category} className="hover:bg-white/5 transition-all text-center">
-                            <td className="p-3 border-r border-white/10 text-left font-bold text-white uppercase">{r.category === 'BEKALAN' ? 'Bekalan' : r.category === 'PERKHIDMATAN' ? 'Perkhidmatan' : 'Kerja'}</td>
+                          <tr key={r.category} className="hover:bg-risda-card-muted/60 transition-all text-center">
+                            <td className="p-3 border-r border-risda-border text-left font-bold text-risda-text uppercase">{r.category === 'BEKALAN' ? 'Bekalan' : r.category === 'PERKHIDMATAN' ? 'Perkhidmatan' : 'Kerja'}</td>
                             
                             {/* Perancangan */}
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.perancanganBil} 
                                 onChange={(e) => handleA1CellChange(index, 'perancanganBil', Number(e.target.value) || 0)}
-                                className="w-12 bg-white/5 rounded p-1 text-center text-white"
+                                className="w-12 bg-risda-card-muted border border-risda-border rounded p-1 text-center text-risda-text font-bold"
                               />
                             </td>
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.perancanganNilai} 
                                 onChange={(e) => handleA1CellChange(index, 'perancanganNilai', Number(e.target.value) || 0)}
-                                className="w-24 bg-white/5 rounded p-1 text-right text-white"
+                                className="w-24 bg-risda-card-muted border border-risda-border rounded p-1 text-right text-risda-text font-mono font-bold"
                               />
                             </td>
 
                             {/* Belum Pelawa */}
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.belumPelawaBil} 
                                 onChange={(e) => handleA1CellChange(index, 'belumPelawaBil', Number(e.target.value) || 0)}
-                                className="w-12 bg-white/5 rounded p-1 text-center text-white"
+                                className="w-12 bg-risda-card-muted border border-risda-border rounded p-1 text-center text-risda-text font-bold"
                               />
                             </td>
 
                             {/* Telah Dipelawa */}
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.prosesIklanBil} 
                                 onChange={(e) => handleA1CellChange(index, 'prosesIklanBil', Number(e.target.value) || 0)}
-                                className="w-12 bg-white/5 rounded p-1 text-center text-white"
+                                className="w-12 bg-risda-card-muted border border-risda-border rounded p-1 text-center text-risda-text font-bold"
                               />
                             </td>
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.prosesPenilaianBil} 
                                 onChange={(e) => handleA1CellChange(index, 'prosesPenilaianBil', Number(e.target.value) || 0)}
-                                className="w-12 bg-white/5 rounded p-1 text-center text-white"
+                                className="w-12 bg-risda-card-muted border border-risda-border rounded p-1 text-center text-risda-text font-bold"
                               />
                             </td>
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.prosesJkBil} 
                                 onChange={(e) => handleA1CellChange(index, 'prosesJkBil', Number(e.target.value) || 0)}
-                                className="w-12 bg-white/5 rounded p-1 text-center text-white"
+                                className="w-12 bg-risda-card-muted border border-risda-border rounded p-1 text-center text-risda-text font-bold"
                               />
                             </td>
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.belumSstBil} 
                                 onChange={(e) => handleA1CellChange(index, 'belumSstBil', Number(e.target.value) || 0)}
-                                className="w-12 bg-white/5 rounded p-1 text-center text-white"
+                                className="w-12 bg-risda-card-muted border border-risda-border rounded p-1 text-center text-risda-text font-bold"
                               />
                             </td>
 
                             {/* Bumiputera */}
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.sstBumiBil} 
                                 onChange={(e) => handleA1CellChange(index, 'sstBumiBil', Number(e.target.value) || 0)}
-                                className="w-12 bg-white/5 rounded p-1 text-center text-white"
+                                className="w-12 bg-risda-card-muted border border-risda-border rounded p-1 text-center text-risda-text font-bold"
                               />
                             </td>
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.sstBumiNilai} 
                                 onChange={(e) => handleA1CellChange(index, 'sstBumiNilai', Number(e.target.value) || 0)}
-                                className="w-24 bg-white/5 rounded p-1 text-right text-white"
+                                className="w-24 bg-risda-card-muted border border-risda-border rounded p-1 text-right text-risda-text font-mono font-bold"
                               />
                             </td>
 
                             {/* Non-Bumiputera */}
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.sstNonBumiBil} 
                                 onChange={(e) => handleA1CellChange(index, 'sstNonBumiBil', Number(e.target.value) || 0)}
-                                className="w-12 bg-white/5 rounded p-1 text-center text-white"
+                                className="w-12 bg-risda-card-muted border border-risda-border rounded p-1 text-center text-risda-text font-bold"
                               />
                             </td>
-                            <td className="p-2 border-r border-white/10">
+                            <td className="p-2 border-r border-risda-border">
                               <input 
                                 type="number" 
                                 value={r.sstNonBumiNilai} 
                                 onChange={(e) => handleA1CellChange(index, 'sstNonBumiNilai', Number(e.target.value) || 0)}
-                                className="w-24 bg-white/5 rounded p-1 text-right text-white"
+                                className="w-24 bg-risda-card-muted border border-risda-border rounded p-1 text-right text-risda-text font-mono font-bold"
                               />
                             </td>
 
                             {/* Jumlah Besar */}
-                            <td className="p-2 border-r border-white/10 font-bold text-white bg-white/[0.02]">
+                            <td className="p-2 border-r border-risda-border font-bold text-risda-text bg-risda-card-muted/40">
                               {totalBil}
                             </td>
-                            <td className="p-2 border-r border-white/10 font-bold text-white bg-white/[0.02] text-right">
+                            <td className="p-2 border-r border-risda-border font-bold text-risda-text bg-risda-card-muted/40 text-right font-mono">
                               {totalNilai.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
 
@@ -1640,7 +1591,7 @@ export default function ReportPanel() {
                                 type="text" 
                                 value={r.syorJangkaan} 
                                 onChange={(e) => handleA1CellChange(index, 'syorJangkaan', e.target.value)}
-                                className="w-28 bg-white/5 rounded p-1 text-center text-white font-black"
+                                className="w-28 bg-risda-card-muted border border-risda-border rounded p-1 text-center text-risda-text font-black"
                                 placeholder="E.g., 12 MINGGU"
                               />
                             </td>
@@ -1649,22 +1600,22 @@ export default function ReportPanel() {
                       })}
 
                       {/* Dynamic Calculated TOTALS Row (JUMLAH / Yellow Highlights) */}
-                      <tr className="bg-yellow-400 font-bold text-black text-center text-xs">
+                      <tr className="bg-amber-400 dark:bg-amber-500 font-bold text-black text-center text-xs">
                         <td className="p-3 text-left font-black tracking-wider border-r border-black/15">JUMLAH</td>
                         <td className="p-2 border-r border-black/15">{totalsA1.perancanganBil}</td>
-                        <td className="p-2 border-r border-black/15 text-right">{totalsA1.perancanganNilai.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="p-2 border-r border-black/15 text-right font-mono">{totalsA1.perancanganNilai.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="p-2 border-r border-black/15">{totalsA1.belumPelawaBil}</td>
                         <td className="p-2 border-r border-black/15">{totalsA1.prosesIklanBil}</td>
                         <td className="p-2 border-r border-black/15">{totalsA1.prosesPenilaianBil}</td>
                         <td className="p-2 border-r border-black/15">{totalsA1.prosesJkBil}</td>
                         <td className="p-2 border-r border-black/15">{totalsA1.belumSstBil}</td>
                         <td className="p-2 border-r border-black/15">{totalsA1.sstBumiBil}</td>
-                        <td className="p-2 border-r border-black/15 text-right">{totalsA1.sstBumiNilai.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="p-2 border-r border-black/15 text-right font-mono">{totalsA1.sstBumiNilai.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="p-2 border-r border-black/15">{totalsA1.sstNonBumiBil}</td>
-                        <td className="p-2 border-r border-black/15 text-right">{totalsA1.sstNonBumiNilai.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="p-2 border-r border-black/15 text-right font-mono">{totalsA1.sstNonBumiNilai.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="p-2 border-r border-black/15">{totalsA1.sstBumiBil + totalsA1.sstNonBumiBil}</td>
-                        <td className="p-2 border-r border-black/15 text-right">{(totalsA1.sstBumiNilai + totalsA1.sstNonBumiNilai).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="p-2 bg-yellow-400"></td>
+                        <td className="p-2 border-r border-black/15 text-right font-mono">{(totalsA1.sstBumiNilai + totalsA1.sstNonBumiNilai).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="p-2 bg-amber-400 dark:bg-amber-500"></td>
                       </tr>
                     </tbody>
                   </table>
@@ -1677,7 +1628,7 @@ export default function ReportPanel() {
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex flex-wrap items-center gap-3">
-                    <div className="p-2.5 bg-white/[0.01] border border-white/5 rounded-xl text-[10px] text-white/50 uppercase tracking-widest">
+                    <div className="p-2.5 bg-risda-card-muted border border-risda-border rounded-xl text-[10px] text-risda-muted uppercase tracking-widest">
                       Senarai Perincian Laporan Suku Tahun (Format Lampiran A2) • {rowsA2.length} Rekod Paparan
                     </div>
                   </div>
@@ -1691,21 +1642,21 @@ export default function ReportPanel() {
                   </button>
                 </div>
 
-                <div className="overflow-x-auto w-full border border-white/10 rounded-2xl">
+                <div className="overflow-x-auto w-full border border-risda-border rounded-2xl bg-risda-card">
                   <table className="w-full text-xs text-left border-collapse min-w-[1100px]">
                     <thead>
-                      <tr className="bg-white/10 text-white/85 font-black uppercase border-b border-white/10">
-                        <th className="p-4 w-12 text-center border-r border-white/10">BIL.</th>
-                        <th className="p-4 w-36 border-r border-white/10">NO. SEBUTHARGA</th>
-                        <th className="p-4 w-32 border-r border-white/10">KATEGORI</th>
-                        <th className="p-4 w-36 border-r border-white/10">PERUNTUKAN (BLK/KWR)</th>
-                        <th className="p-4 w-96 border-r border-white/10">NAMA PROJEK</th>
-                        <th className="p-4 w-48 border-r border-white/10">SYARIKAT BERJAYA</th>
-                        <th className="p-4 w-36 border-r border-white/10 text-right">HARGA TAWARAN (RM)</th>
+                      <tr className="bg-risda-card-muted text-risda-text font-black uppercase border-b border-risda-border">
+                        <th className="p-4 w-12 text-center border-r border-risda-border">BIL.</th>
+                        <th className="p-4 w-36 border-r border-risda-border">NO. SEBUTHARGA</th>
+                        <th className="p-4 w-32 border-r border-risda-border">KATEGORI</th>
+                        <th className="p-4 w-36 border-r border-risda-border">PERUNTUKAN (BLK/KWR)</th>
+                        <th className="p-4 w-96 border-r border-risda-border">NAMA PROJEK</th>
+                        <th className="p-4 w-48 border-r border-risda-border">SYARIKAT BERJAYA</th>
+                        <th className="p-4 w-36 border-r border-risda-border text-right">HARGA TAWARAN (RM)</th>
                         <th className="p-4 w-16 text-center">TINDAKAN</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5 font-medium">
+                    <tbody className="divide-y divide-risda-border font-medium">
                       {rowsA2.length === 0 ? (
                         <tr>
                           <td colSpan={8} className="p-10 text-center text-risda-muted uppercase font-black tracking-widest">
@@ -1715,114 +1666,114 @@ export default function ReportPanel() {
                       ) : rowsA2.map((r, idx) => {
                         const isEditing = activeA2Edits[r.id] !== false; // Defaults to true if new/undefined
                         return (
-                          <tr key={r.id} className="hover:bg-white/5 transition-all text-xs border-b border-white/5">
+                          <tr key={r.id} className="hover:bg-risda-card-muted/60 transition-all text-xs border-b border-risda-border">
                             {/* BIL */}
-                            <td className="p-3 text-center border-r border-white/5 text-white/50">{idx + 1}</td>
+                            <td className="p-3 text-center border-r border-risda-border text-risda-muted font-bold">{idx + 1}</td>
                             
                             {/* NO. SEBUTHARGA */}
-                            <td className="p-3 border-r border-white/5">
+                            <td className="p-3 border-r border-risda-border">
                               {isEditing ? (
                                 <input 
                                   type="text"
                                   value={r.tenderNo}
                                   onChange={(e) => handleA2CellChange(idx, 'tenderNo', e.target.value)}
-                                  className="w-full bg-[#111622] border border-white/10 rounded-lg p-2 text-white font-bold uppercase focus:border-risda-orange outline-none text-[11px] placeholder:text-white/20"
+                                  className="w-full bg-risda-card-muted border border-risda-border rounded-lg p-2 text-risda-text font-bold uppercase focus:border-risda-orange outline-none text-[11px] placeholder:text-risda-muted"
                                   placeholder="No. Sebutharga"
                                 />
                               ) : (
-                                <div className="p-2 font-bold uppercase text-white tracking-wide min-h-[34px] flex items-center">
-                                  {r.tenderNo || <span className="text-white/10 italic text-[10px]">Tiada</span>}
+                                <div className="p-2 font-bold uppercase text-risda-text tracking-wide min-h-[34px] flex items-center font-mono">
+                                  {r.tenderNo || <span className="text-risda-muted italic text-[10px]">Tiada</span>}
                                 </div>
                               )}
                             </td>
 
                             {/* KATEGORI */}
-                            <td className="p-3 border-r border-white/5">
+                            <td className="p-3 border-r border-risda-border">
                               {isEditing ? (
                                 <select
                                   value={r.category}
                                   onChange={(e) => handleA2CellChange(idx, 'category', e.target.value)}
-                                  className="w-full bg-[#111622] border border-white/10 rounded-lg p-2 text-white font-bold uppercase focus:border-risda-orange outline-none text-[11px] cursor-pointer"
+                                  className="w-full bg-risda-card-muted border border-risda-border rounded-lg p-2 text-risda-text font-bold uppercase focus:border-risda-orange outline-none text-[11px] cursor-pointer"
                                 >
-                                  <option value="" className="bg-[#121212]">- PILEH KATEGORI -</option>
-                                  <option value="KERJA" className="bg-[#121212]">Kerja</option>
-                                  <option value="BEKALAN" className="bg-[#121212]">Bekalan</option>
-                                  <option value="PERKHIDMATAN" className="bg-[#121212]">Perkhidmatan</option>
+                                  <option value="" className="bg-risda-card text-risda-text">- PILIH KATEGORI -</option>
+                                  <option value="KERJA" className="bg-risda-card text-risda-text">Kerja</option>
+                                  <option value="BEKALAN" className="bg-risda-card text-risda-text">Bekalan</option>
+                                  <option value="PERKHIDMATAN" className="bg-risda-card text-risda-text">Perkhidmatan</option>
                                 </select>
                               ) : (
-                                <div className="p-2 font-bold uppercase text-white/90 min-h-[34px] flex items-center">
-                                  {r.category || <span className="text-white/20 italic">-</span>}
+                                <div className="p-2 font-bold uppercase text-risda-text min-h-[34px] flex items-center">
+                                  {r.category || <span className="text-risda-muted italic">-</span>}
                                 </div>
                               )}
                             </td>
 
                             {/* PERUNTUKAN */}
-                            <td className="p-3 border-r border-white/5">
+                            <td className="p-3 border-r border-risda-border">
                               {isEditing ? (
                                 <input 
                                   type="text"
                                   value={r.jenisPeruntukan}
                                   onChange={(e) => handleA2CellChange(idx, 'jenisPeruntukan', e.target.value)}
                                   placeholder="E.G., BLK ATAU KWR"
-                                  className="w-full bg-[#111622] border border-white/10 rounded-lg p-2 text-center text-white placeholder:text-white/20 uppercase font-bold focus:border-risda-orange outline-none text-[11px]"
+                                  className="w-full bg-risda-card-muted border border-risda-border rounded-lg p-2 text-center text-risda-text placeholder:text-risda-muted uppercase font-bold focus:border-risda-orange outline-none text-[11px]"
                                 />
                               ) : (
-                                <div className="p-2 text-center font-bold uppercase text-risda-gold min-h-[34px] flex items-center justify-center">
-                                  {r.jenisPeruntukan ? r.jenisPeruntukan.toUpperCase() : <span className="text-white/10 italic text-[10px]">-</span>}
+                                <div className="p-2 text-center font-bold uppercase text-risda-orange min-h-[34px] flex items-center justify-center">
+                                  {r.jenisPeruntukan ? r.jenisPeruntukan.toUpperCase() : <span className="text-risda-muted italic text-[10px]">-</span>}
                                 </div>
                               )}
                             </td>
 
                             {/* NAMA PROJEK */}
-                            <td className="p-3 border-r border-white/5">
+                            <td className="p-3 border-r border-risda-border">
                               {isEditing ? (
                                 <textarea 
                                   value={r.title}
                                   onChange={(e) => handleA2CellChange(idx, 'title', e.target.value)}
                                   rows={2}
-                                  className="w-full bg-[#111622] border border-white/10 rounded-lg p-2 text-white uppercase text-[11px] leading-tight resize-y focus:border-risda-orange outline-none"
+                                  className="w-full bg-risda-card-muted border border-risda-border rounded-lg p-2 text-risda-text uppercase text-[11px] leading-tight resize-y focus:border-risda-orange outline-none"
                                   placeholder="Masukkan Nama Projek..."
                                 />
                               ) : (
-                                <div className="p-2 text-white/90 uppercase font-bold text-[11.5px] leading-relaxed break-words max-w-[400px] min-h-[34px] flex items-center">
-                                  {r.title ? r.title.toUpperCase() : <span className="text-white/10 italic text-[10px]">Tiada Nama Projek</span>}
+                                <div className="p-2 text-risda-text uppercase font-bold text-[11.5px] leading-relaxed break-words max-w-[400px] min-h-[34px] flex items-center">
+                                  {r.title ? r.title.toUpperCase() : <span className="text-risda-muted italic text-[10px]">Tiada Nama Projek</span>}
                                 </div>
                               )}
                             </td>
 
                             {/* SYARIKAT BERJAYA */}
-                            <td className="p-3 border-r border-white/5">
+                            <td className="p-3 border-r border-risda-border">
                               {isEditing ? (
                                 <input 
                                   type="text"
                                   value={r.winnerName}
                                   onChange={(e) => handleA2CellChange(idx, 'winnerName', e.target.value)}
-                                  className="w-full bg-[#111622] border border-white/10 rounded-lg p-2 text-white uppercase font-bold focus:border-risda-orange outline-none text-[11px]"
+                                  className="w-full bg-risda-card-muted border border-risda-border rounded-lg p-2 text-risda-text uppercase font-bold focus:border-risda-orange outline-none text-[11px]"
                                   placeholder="Nama Syarikat..."
                                 />
                               ) : (
-                                <div className="p-2 font-black uppercase text-white/90 min-h-[34px] flex items-center">
-                                  {r.winnerName ? r.winnerName.toUpperCase() : <span className="text-white/10 italic text-[10px]">Tiada</span>}
+                                <div className="p-2 font-black uppercase text-risda-text min-h-[34px] flex items-center">
+                                  {r.winnerName ? r.winnerName.toUpperCase() : <span className="text-risda-muted italic text-[10px]">Tiada</span>}
                                 </div>
                               )}
                             </td>
 
                             {/* HARGA TAWARAN */}
-                            <td className="p-3 border-r border-white/5">
+                            <td className="p-3 border-r border-risda-border">
                               {isEditing ? (
                                 <input 
                                   type="number"
                                   value={r.winningPrice || ''}
                                   onChange={(e) => handleA2CellChange(idx, 'winningPrice', Number(e.target.value) || 0)}
-                                  className="w-full bg-[#111622] border border-white/10 rounded-lg p-2 text-right text-white font-mono font-bold focus:border-risda-orange outline-none text-[11px]"
+                                  className="w-full bg-risda-card-muted border border-risda-border rounded-lg p-2 text-right text-risda-text font-mono font-bold focus:border-risda-orange outline-none text-[11px]"
                                   placeholder="0"
                                 />
                               ) : (
-                                <div className="p-2 text-right font-mono font-black text-emerald-400 min-h-[34px] flex items-center justify-end">
+                                <div className="p-2 text-right font-mono font-black text-emerald-600 dark:text-emerald-400 min-h-[34px] flex items-center justify-end">
                                   {r.winningPrice > 0 ? (
                                     `RM ${r.winningPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                   ) : (
-                                    <span className="text-white/30">0.00</span>
+                                    <span className="text-risda-muted">0.00</span>
                                   )}
                                 </div>
                               )}
@@ -1837,7 +1788,7 @@ export default function ReportPanel() {
                                       setActiveA2Edits(prev => ({ ...prev, [r.id]: false }));
                                       toast.success('Harga / Maklumat projek berjaya disimpan!');
                                     }}
-                                    className="px-2.5 py-1.5 bg-green-500 hover:bg-green-600 border border-green-600 text-black text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 shadow-md shadow-green-500/10"
+                                    className="px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-black text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 shadow-md"
                                     title="Simpan Perubahan"
                                   >
                                     <Save size={11} strokeWidth={2.5} />
@@ -1857,7 +1808,7 @@ export default function ReportPanel() {
                                 )}
                                 <button 
                                   onClick={() => handleDeleteA2Row(r.id)}
-                                  className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                  className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                                   title="Padam rekod"
                                 >
                                   <Trash2 size={13} />
@@ -1888,16 +1839,16 @@ export default function ReportPanel() {
               // 13-COLUMN LIVE SHEET EDITOR FOR THE CHOSEN YEAR
               <div className="space-y-6">
                 {/* Header Back & Action Row */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-risda-border pb-4">
                   <div className="space-y-2">
                     <button 
                       onClick={() => setSelectedAnnualYear(null)}
-                      className="px-4 py-2 bg-gradient-to-r from-risda-orange to-risda-gold text-black hover:from-white hover:to-white hover:text-black rounded-xl transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 mb-2 shadow-[0_4px_12px_rgba(250,178,30,0.15)] active:scale-95"
+                      className="px-4 py-2 bg-gradient-to-r from-risda-orange to-risda-gold text-black hover:opacity-90 rounded-xl transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 mb-2 shadow-md active:scale-95 cursor-pointer"
                     >
                       <ArrowLeft size={16} strokeWidth={3} />
                       KEMBALI KE LAPORAN TAHUNAN (PILIH TAHUN LAIN)
                     </button>
-                    <h2 className="text-lg font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <h2 className="text-lg font-black text-risda-text uppercase tracking-wider flex items-center gap-2">
                       <span className="text-risda-orange">LAPORAN TAHUNAN PEROLEHAN TAHUN:</span> {selectedAnnualYear}
                     </h2>
                     <p className="text-[10px] text-risda-muted uppercase font-bold tracking-widest">
@@ -1909,7 +1860,7 @@ export default function ReportPanel() {
                     <button 
                       onClick={handleSaveAllAnnualRows}
                       disabled={loading || rowsAnnual.length === 0}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-green-600/20 active:scale-95 disabled:opacity-50"
+                      className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-green-600/20 active:scale-95 disabled:opacity-50 cursor-pointer"
                       title="Simpan semua rekod laporan tahunan ke Pangkalan Data"
                     >
                       <Save size={14} />
@@ -1918,7 +1869,7 @@ export default function ReportPanel() {
                     <button 
                       onClick={handleSyncAnnualFromDB}
                       disabled={loading}
-                      className="px-4 py-2 bg-white/5 border border-white/10 text-white rounded-xl hover:border-risda-orange/50 transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2"
+                      className="px-4 py-2 bg-risda-card border border-risda-border text-risda-text rounded-xl hover:border-risda-orange transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer"
                     >
                       <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                       Padan Data DB
@@ -1929,12 +1880,12 @@ export default function ReportPanel() {
                 {/* Exporters & Row controller */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-risda-muted font-bold uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                    <span className="text-[10px] text-risda-muted font-bold uppercase tracking-widest bg-risda-card-muted px-3 py-1.5 rounded-full border border-risda-border">
                       Jumlah Rekod: {rowsAnnual.length}
                     </span>
                     <button 
                       onClick={handleAddAnnualRow}
-                      className="px-4 py-2 bg-risda-orange text-black rounded-xl hover:bg-risda-gold transition-all text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-risda-orange/15"
+                      className="px-4 py-2 bg-risda-orange text-black rounded-xl hover:bg-risda-gold transition-all text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-risda-orange/15 cursor-pointer"
                     >
                       <Plus size={14} />
                       Tambah Baris Projek
@@ -1945,7 +1896,7 @@ export default function ReportPanel() {
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => setSelectedAnnualYear(null)}
-                      className="px-4 py-2.5 bg-white/5 border border-white/10 text-risda-muted hover:text-white rounded-xl transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                      className="px-4 py-2.5 bg-risda-card border border-risda-border text-risda-muted hover:text-risda-text rounded-xl transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
                       title="Kembali ke Senarai Tahun"
                     >
                       <ArrowLeft size={13} />
@@ -1953,21 +1904,21 @@ export default function ReportPanel() {
                     </button>
                     <button 
                       onClick={() => handleExportAnnual('pdf')}
-                      className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                      className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
                     >
                       <Download size={13} />
                       Jana PDF
                     </button>
                     <button 
                       onClick={() => handleExportAnnual('excel')}
-                      className="px-4 py-2.5 bg-[#1F7246] hover:bg-[#165031] text-white rounded-xl transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                      className="px-4 py-2.5 bg-[#1F7246] hover:bg-[#165031] text-white rounded-xl transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
                     >
                       <FileSpreadsheet size={13} />
                       Excel
                     </button>
                     <button 
                       onClick={() => handleExportAnnual('word')}
-                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
                     >
                       <FileText size={13} />
                       Word
@@ -1978,29 +1929,29 @@ export default function ReportPanel() {
                 {/* Spreadsheet style table with 13 columns with custom-scrollbar */}
                 <div 
                   ref={tableRef}
-                  className="overflow-x-auto w-full border border-white/10 rounded-2xl custom-scrollbar"
+                  className="overflow-x-auto w-full border border-risda-border rounded-2xl custom-scrollbar bg-risda-card"
                 >
                   <table className="w-full text-xs text-left border-collapse min-w-[2000px]">
                     <thead>
-                      <tr className="bg-gradient-to-r from-[#FAB21E] to-[#F5A623] text-black font-black uppercase border-b border-white/10 text-center">
-                        <th className="sticky left-0 bg-[#FAB21E] z-20 p-3 min-w-[3rem] w-12 border-r border-[#D49010] text-center shadow-md">BIL</th>
-                        <th className="sticky left-12 bg-[#F5A11F] z-20 p-3 min-w-[24rem] w-96 border-r border-[#D49010] text-left shadow-[5px_0_10px_-3px_rgba(0,0,0,0.3)]">TAJUK SEBUTHARGA</th>
-                        <th className="p-3 w-40 border-r border-[#D49010]">KERJA / PERKHIDMATAN / BEKALAN</th>
-                        <th className="p-3 w-48 border-r border-[#D49010]">NO SEBUTHARGA</th>
-                        <th className="p-3 w-36 border-r border-[#D49010]">TARIKH SETUJU TERIMA</th>
-                        <th className="p-3 w-36 border-r border-[#D49010]">TARIKH SIAP KERJA</th>
-                        <th className="p-3 w-36 border-r border-[#D49010]">TEMPOH SIAP KERJA</th>
-                        <th className="p-3 w-52 border-r border-[#D49010]">NAMA SYARIKAT BERJAYA</th>
-                        <th className="p-3 w-36 border-r border-[#D49010] text-right">NILAI TAWARAN (RM)</th>
-                        <th className="p-3 w-40 border-r border-[#D49010]">NO PESANAN TEMPATAN</th>
-                        <th className="p-3 w-36 border-r border-[#D49010]">NO BAUCAR BAYARAN</th>
-                        <th className="p-3 w-36 border-r border-[#D49010]">TARIKH DIBAYAR</th>
-                        <th className="p-3 h-auto w-48 border-r border-[#D49010]">TARIKH SIAP KERJA BARU (EOT)</th>
-                        <th className="p-3 w-36 border-r border-[#D49010]">STATUS</th>
+                      <tr className="bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black uppercase border-b border-risda-border text-center">
+                        <th className="sticky left-0 bg-amber-500 z-20 p-3 min-w-[3rem] w-12 border-r border-amber-600/40 text-center shadow-md">BIL</th>
+                        <th className="sticky left-12 bg-amber-500 z-20 p-3 min-w-[24rem] w-96 border-r border-amber-600/40 text-left shadow-[5px_0_10px_-3px_rgba(0,0,0,0.3)]">TAJUK SEBUTHARGA</th>
+                        <th className="p-3 w-40 border-r border-amber-600/40">KERJA / PERKHIDMATAN / BEKALAN</th>
+                        <th className="p-3 w-48 border-r border-amber-600/40">NO SEBUTHARGA</th>
+                        <th className="p-3 w-36 border-r border-amber-600/40">TARIKH SETUJU TERIMA</th>
+                        <th className="p-3 w-36 border-r border-amber-600/40">TARIKH SIAP KERJA</th>
+                        <th className="p-3 w-36 border-r border-amber-600/40">TEMPOH SIAP KERJA</th>
+                        <th className="p-3 w-52 border-r border-amber-600/40">NAMA SYARIKAT BERJAYA</th>
+                        <th className="p-3 w-36 border-r border-amber-600/40 text-right">NILAI TAWARAN (RM)</th>
+                        <th className="p-3 w-40 border-r border-amber-600/40">NO PESANAN TEMPATAN</th>
+                        <th className="p-3 w-36 border-r border-amber-600/40">NO BAUCAR BAYARAN</th>
+                        <th className="p-3 w-36 border-r border-amber-600/40">TARIKH DIBAYAR</th>
+                        <th className="p-3 h-auto w-48 border-r border-amber-600/40">TARIKH SIAP KERJA BARU (EOT)</th>
+                        <th className="p-3 w-36 border-r border-amber-600/40">STATUS</th>
                         <th className="p-3 w-64 text-center">TINDAKAN</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5 font-medium bg-[#0b0e14]">
+                    <tbody className="divide-y divide-risda-border font-medium bg-risda-card">
                       {rowsAnnual.length === 0 ? (
                         <tr>
                           <td colSpan={15} className="p-12 text-center text-risda-muted text-sm uppercase font-black tracking-widest">
@@ -2011,44 +1962,44 @@ export default function ReportPanel() {
                         rowsAnnual.map((r, idx) => {
                           const isEditing = editingRowId === r.id;
                           return (
-                            <tr key={r.id} className="group hover:bg-white/5 transition-all text-center">
+                            <tr key={r.id} className="group hover:bg-risda-card-muted/60 transition-all text-center">
                               {/* BIL */}
-                              <td className="sticky left-0 bg-[#0e121a] group-hover:bg-[#151b27] z-10 p-2 border-r border-white/10 text-white/50 text-center min-w-[3rem] w-12 border-b border-white/5 transition-colors">{idx + 1}</td>
+                              <td className="sticky left-0 bg-risda-card group-hover:bg-risda-card-muted z-10 p-2 border-r border-risda-border text-risda-muted font-bold text-center min-w-[3rem] w-12 border-b border-risda-border transition-colors">{idx + 1}</td>
                               
                               {/* TAJUK SEBUTHARGA */}
-                              <td className="sticky left-12 bg-[#0e121a] group-hover:bg-[#151b27] z-10 p-2 border-r border-white/10 text-left min-w-[24rem] w-96 border-b border-white/5 transition-colors shadow-[5px_0_10px_-3px_rgba(0,0,0,0.3)]">
+                              <td className="sticky left-12 bg-risda-card group-hover:bg-risda-card-muted z-10 p-2 border-r border-risda-border text-left min-w-[24rem] w-96 border-b border-risda-border transition-colors shadow-[5px_0_10px_-3px_rgba(0,0,0,0.3)]">
                                 {isEditing ? (
                                   <textarea
                                     value={r.title}
                                     onChange={(e) => handleAnnualCellChange(idx, 'title', e.target.value)}
                                     rows={4}
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-white uppercase text-xs leading-relaxed resize-y min-h-[110px] outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40 font-semibold overflow-y-auto"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-risda-text uppercase text-xs leading-relaxed resize-y min-h-[110px] outline-none border border-risda-border focus:border-risda-orange font-semibold overflow-y-auto"
                                   />
                                 ) : (
-                                  <div className="text-white font-semibold uppercase text-xs px-2 whitespace-normal leading-relaxed break-words max-w-[380px]">
-                                    {r.title || <span className="text-white/30 italic">TIADA TAJUK</span>}
+                                  <div className="text-risda-text font-semibold uppercase text-xs px-2 whitespace-normal leading-relaxed break-words max-w-[380px]">
+                                    {r.title || <span className="text-risda-muted italic">TIADA TAJUK</span>}
                                   </div>
                                 )}
                               </td>
 
                               {/* KERJA / PERKHIDMATAN / BEKALAN */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <select
                                     value={r.category}
                                     onChange={(e) => handleAnnualCellChange(idx, 'category', e.target.value)}
-                                    className="bg-[#121212] leading-tight font-black text-xs text-white border border-white/20 rounded-lg p-2 uppercase outline-none focus:border-risda-orange w-full"
+                                    className="bg-risda-card-muted leading-tight font-black text-xs text-risda-text border border-risda-border rounded-lg p-2 uppercase outline-none focus:border-risda-orange w-full"
                                   >
-                                    <option value="KERJA">KERJA</option>
-                                    <option value="BEKALAN">BEKALAN</option>
-                                    <option value="PERKHIDMATAN">PERKHIDMATAN</option>
+                                    <option value="KERJA" className="bg-risda-card text-risda-text">KERJA</option>
+                                    <option value="BEKALAN" className="bg-risda-card text-risda-text">BEKALAN</option>
+                                    <option value="PERKHIDMATAN" className="bg-risda-card text-risda-text">PERKHIDMATAN</option>
                                   </select>
                                 ) : (
                                   <div className="flex justify-center">
                                     <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider ${
-                                      r.category === 'KERJA' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                                      r.category === 'BEKALAN' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                                      'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                      r.category === 'KERJA' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20' :
+                                      r.category === 'BEKALAN' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
+                                      'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                                     }`}>
                                       {r.category}
                                     </span>
@@ -2057,92 +2008,92 @@ export default function ReportPanel() {
                               </td>
 
                               {/* NO SEBUTHARGA */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <input
                                     type="text"
                                     value={r.tenderNo}
                                     onChange={(e) => handleAnnualCellChange(idx, 'tenderNo', e.target.value)}
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-white font-bold uppercase text-xs text-center outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-risda-text font-bold uppercase text-xs text-center outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
-                                  <span className="font-mono font-bold text-white uppercase text-xs">
+                                  <span className="font-mono font-bold text-risda-text uppercase text-xs">
                                     {r.tenderNo || '-'}
                                   </span>
                                 )}
                               </td>
 
                               {/* TARIKH SETUJU TERIMA */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <input
                                     type="text"
                                     value={r.tarikhSetujuTerima}
                                     onChange={(e) => handleAnnualCellChange(idx, 'tarikhSetujuTerima', e.target.value)}
                                     placeholder="E.g., 06/03/2025"
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-white text-center text-xs uppercase font-bold outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-risda-text text-center text-xs uppercase font-bold outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-semibold">{formatDateToDDMMYYYY(r.tarikhSetujuTerima) || '-'}</span>
+                                  <span className="text-risda-text text-xs font-semibold">{formatDateToDDMMYYYY(r.tarikhSetujuTerima) || '-'}</span>
                                 )}
                               </td>
 
                               {/* TARIKH SIAP KERJA */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <input
                                     type="text"
                                     value={r.tarikhSiapKerja}
                                     onChange={(e) => handleAnnualCellChange(idx, 'tarikhSiapKerja', e.target.value)}
                                     placeholder="E.g., 29/05/2025"
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-white text-center text-xs uppercase font-bold outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-risda-text text-center text-xs uppercase font-bold outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-semibold">{formatDateToDDMMYYYY(r.tarikhSiapKerja) || '-'}</span>
+                                  <span className="text-risda-text text-xs font-semibold">{formatDateToDDMMYYYY(r.tarikhSiapKerja) || '-'}</span>
                                 )}
                               </td>
 
                               {/* TEMPOH SIAP KERJA */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <input
                                     type="text"
                                     value={r.tempohSiapKerja}
                                     onChange={(e) => handleAnnualCellChange(idx, 'tempohSiapKerja', e.target.value)}
                                     placeholder="E.g., 12 MINGGU"
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-center text-xs text-white uppercase font-black outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-center text-xs text-risda-text uppercase font-black outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-black uppercase text-center">
+                                  <span className="text-risda-text text-xs font-black uppercase text-center">
                                     {r.winnerName?.toUpperCase().includes('SEBUTHARGA SEMULA') ? '-' : (r.tempohSiapKerja || '-')}
                                   </span>
                                 )}
                               </td>
 
                               {/* NAMA SYARIKAT BERJAYA */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <input
                                     type="text"
                                     value={r.winnerName}
                                     onChange={(e) => handleAnnualCellChange(idx, 'winnerName', e.target.value)}
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-white font-black uppercase text-xs outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-risda-text font-black uppercase text-xs outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
-                                  <span className="text-white font-black uppercase text-xs leading-relaxed max-w-[200px] inline-block truncate" title={r.winnerName}>
+                                  <span className="text-risda-text font-black uppercase text-xs leading-relaxed max-w-[200px] inline-block truncate" title={r.winnerName}>
                                     {r.winnerName || 'TIADA'}
                                   </span>
                                 )}
                               </td>
 
                               {/* NILAI TAWARAN (RM) */}
-                              <td className="p-2 border-r border-white/5 text-right font-mono font-bold text-white text-xs">
+                              <td className="p-2 border-r border-risda-border text-right font-mono font-bold text-risda-text text-xs">
                                 {isEditing ? (
                                   <input
                                     type="number"
                                     value={r.winningPrice}
                                     onChange={(e) => handleAnnualCellChange(idx, 'winningPrice', Number(e.target.value) || 0)}
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-right font-mono font-bold text-white text-xs outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-right font-mono font-bold text-risda-text text-xs outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
                                   (r.winnerName?.toUpperCase().includes('SEBUTHARGA SEMULA') || !r.winningPrice) ? '-' : `RM ${Number(r.winningPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -2150,90 +2101,90 @@ export default function ReportPanel() {
                               </td>
 
                               {/* NO PESANAN TEMPATAN */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <input
                                     type="text"
                                     value={r.noPesananTempatan || ''}
                                     onChange={(e) => handleAnnualCellChange(idx, 'noPesananTempatan', e.target.value)}
                                     placeholder="No. Pesanan Tempatan"
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-white text-center text-xs uppercase font-bold outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-risda-text text-center text-xs uppercase font-bold outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-bold font-mono">
-                                    {r.noPesananTempatan || <span className="text-white/30 italic">TIADA LO</span>}
+                                  <span className="text-risda-text text-xs font-bold font-mono">
+                                    {r.noPesananTempatan || <span className="text-risda-muted italic">TIADA LO</span>}
                                   </span>
                                 )}
                               </td>
 
                               {/* NO BAUCAR BAYARAN */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <input
                                     type="text"
                                     value={r.noBaucar}
                                     onChange={(e) => handleAnnualCellChange(idx, 'noBaucar', e.target.value)}
                                     placeholder="12545070447"
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-white text-center text-xs uppercase font-bold outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-risda-text text-center text-xs uppercase font-bold outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-bold font-mono">{r.noBaucar || <span className="text-white/30 italic">BELUM SELESAI</span>}</span>
+                                  <span className="text-risda-text text-xs font-bold font-mono">{r.noBaucar || <span className="text-risda-muted italic">BELUM SELESAI</span>}</span>
                                 )}
                               </td>
 
                               {/* TARIKH DIBAYAR */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <input
                                     type="text"
                                     value={r.tarikhDibayar}
                                     onChange={(e) => handleAnnualCellChange(idx, 'tarikhDibayar', e.target.value)}
                                     placeholder="DD/MM/YYYY"
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-white text-center text-xs uppercase font-bold outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-risda-text text-center text-xs uppercase font-bold outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-semibold">{r.tarikhDibayar || <span className="text-white/30 italic">BELUM SELESAI</span>}</span>
+                                  <span className="text-risda-text text-xs font-semibold">{r.tarikhDibayar || <span className="text-risda-muted italic">BELUM SELESAI</span>}</span>
                                 )}
                               </td>
 
                               {/* TARIKH SIAP KERJA BARU (EOT) */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <input
                                     type="text"
                                     value={r.tarikhSiapBaru}
                                     onChange={(e) => handleAnnualCellChange(idx, 'tarikhSiapBaru', e.target.value)}
                                     placeholder="Jika tiada, kosongkan"
-                                    className="w-full bg-[#161616] rounded-lg p-2 text-white text-center text-xs uppercase font-bold outline-none border border-white/20 focus:border-risda-orange focus:bg-black/40"
+                                    className="w-full bg-risda-card-muted rounded-lg p-2 text-risda-text text-center text-xs uppercase font-bold outline-none border border-risda-border focus:border-risda-orange"
                                   />
                                 ) : (
-                                  <span className="text-white text-xs font-semibold">{r.tarikhSiapBaru || <span className="text-white/30 italic">TIADA EOT</span>}</span>
+                                  <span className="text-risda-text text-xs font-semibold">{r.tarikhSiapBaru || <span className="text-risda-muted italic">TIADA EOT</span>}</span>
                                 )}
                               </td>
 
                               {/* STATUS */}
-                              <td className="p-2 border-r border-white/5">
+                              <td className="p-2 border-r border-risda-border">
                                 {isEditing ? (
                                   <select
                                     value={r.statusPelaksanaan}
                                     onChange={(e) => handleAnnualCellChange(idx, 'statusPelaksanaan', e.target.value)}
-                                    className="bg-[#121212] text-white border border-white/20 rounded-lg p-2 text-xs font-black uppercase outline-none focus:border-risda-orange w-full"
+                                    className="bg-risda-card-muted text-risda-text border border-risda-border rounded-lg p-2 text-xs font-black uppercase outline-none focus:border-risda-orange w-full"
                                   >
-                                    <option value="ON TIME">ON TIME</option>
-                                    <option value="LEWAT BERSYARAT">LEWAT BERSYARAT</option>
-                                    <option value="DALAM PROSES">DALAM PROSES</option>
-                                    <option value="LEWAT">LEWAT</option>
-                                    <option value="TAMAT">TAMAT</option>
+                                    <option value="ON TIME" className="bg-risda-card text-risda-text">ON TIME</option>
+                                    <option value="LEWAT BERSYARAT" className="bg-risda-card text-risda-text">LEWAT BERSYARAT</option>
+                                    <option value="DALAM PROSES" className="bg-risda-card text-risda-text">DALAM PROSES</option>
+                                    <option value="LEWAT" className="bg-risda-card text-risda-text">LEWAT</option>
+                                    <option value="TAMAT" className="bg-risda-card text-risda-text">TAMAT</option>
                                   </select>
                                 ) : (
                                   <div className="flex justify-center">
                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                                      (r.statusPelaksanaan === 'TAMAT' || r.winnerName?.toUpperCase().includes('SEBUTHARGA SEMULA')) ? 'bg-white/5 text-white/50 border-white/10' :
-                                      r.statusPelaksanaan === 'ON TIME' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                      r.statusPelaksanaan === 'LEWAT BERSYARAT' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                      r.statusPelaksanaan === 'DALAM PROSES' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                      r.statusPelaksanaan === 'LEWAT' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                      'bg-white/5 text-white/50 border-white/10'
+                                      (r.statusPelaksanaan === 'TAMAT' || r.winnerName?.toUpperCase().includes('SEBUTHARGA SEMULA')) ? 'bg-risda-card-muted text-risda-muted border-risda-border' :
+                                      r.statusPelaksanaan === 'ON TIME' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' :
+                                      r.statusPelaksanaan === 'LEWAT BERSYARAT' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' :
+                                      r.statusPelaksanaan === 'DALAM PROSES' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' :
+                                      r.statusPelaksanaan === 'LEWAT' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' :
+                                      'bg-risda-card-muted text-risda-muted border-risda-border'
                                     }`}>
                                       {r.winnerName?.toUpperCase().includes('SEBUTHARGA SEMULA') ? 'TAMAT' : r.statusPelaksanaan}
                                     </span>
@@ -2247,7 +2198,7 @@ export default function ReportPanel() {
                                   <div className="flex items-center justify-center gap-1.5 flex-nowrap">
                                     <button
                                       onClick={() => handleSaveAnnualRow(r)}
-                                      className="px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-black rounded-lg transition-all text-[11px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md shadow-green-500/20 active:scale-95"
+                                      className="px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-black rounded-lg transition-all text-[11px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md active:scale-95 cursor-pointer"
                                       title="Simpan perubahan rekod ke Pangkalan Data"
                                     >
                                       <Save size={12} strokeWidth={2.5} />
@@ -2255,7 +2206,7 @@ export default function ReportPanel() {
                                     </button>
                                     <button
                                       onClick={() => setEditingRowId(null)}
-                                      className="p-1 px-2 border border-white/10 hover:bg-white/5 text-xs text-risda-muted hover:text-white rounded-lg transition-all"
+                                      className="p-1 px-2 border border-risda-border hover:bg-risda-card-muted text-xs text-risda-muted hover:text-risda-text rounded-lg transition-all cursor-pointer"
                                       title="Batal"
                                     >
                                       <X size={12} />
@@ -2268,7 +2219,7 @@ export default function ReportPanel() {
                                         setEditingRowId(r.id);
                                         toast.success('Mod Edit Aktif - Sila buat kemaskini dan tekan Simpan');
                                       }}
-                                      className="px-2.5 py-1.5 bg-gradient-to-r from-risda-orange to-risda-gold text-black hover:from-white hover:to-white hover:text-black rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm active:scale-95"
+                                      className="px-2.5 py-1.5 bg-risda-orange hover:bg-risda-gold text-black rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
                                       title="Edit & Kemaskini Rekod"
                                     >
                                       <Edit2 size={11} strokeWidth={2.5} />
@@ -2276,7 +2227,7 @@ export default function ReportPanel() {
                                     </button>
                                     <button
                                       onClick={() => handleDeleteAnnualRow(r.id)}
-                                      className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                      className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
                                       title="Padam baris"
                                     >
                                       <Trash2 size={12} />
@@ -2294,13 +2245,13 @@ export default function ReportPanel() {
               </div>
             ) : (
               // ORIGINAL ANNUAL REPORT ARCHIVE LISTING STAYS PRECISELY AS IT WAS
-              <div className="glass-card p-8 rounded-3xl space-y-8 bg-gradient-to-br from-risda-gold/5 to-transparent border-risda-gold/10">
+              <div className="bg-risda-card border border-risda-border p-8 rounded-3xl space-y-8 shadow-xl">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h3 className="text-sm font-black uppercase tracking-[2px] text-white">Laporan Tahunan Perolehan</h3>
+                    <h3 className="text-sm font-black uppercase tracking-[2px] text-risda-text">Laporan Tahunan Perolehan</h3>
                     <p className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">Analisis Komprehensif Tahunan Perolehan RISDA Sabah</p>
                   </div>
-                  <div className="p-2.5 bg-risda-gold/10 rounded-xl text-risda-gold">
+                  <div className="p-2.5 bg-risda-orange/10 border border-risda-orange/20 rounded-xl text-risda-orange">
                     <FileText size={20} />
                   </div>
                 </div>
@@ -2343,11 +2294,11 @@ export default function ReportPanel() {
 function QuarterItem({ title, period, status }: any) {
   const isAvailable = status === 'Tersedia';
   return (
-    <div className={`p-4 rounded-2xl border transition-all ${isAvailable ? 'bg-white/5 border-white/10 hover:border-blue-500/50 cursor-pointer' : 'bg-black/20 border-white/5 opacity-50 cursor-not-allowed'}`}>
-      <h4 className="text-[10px] font-black text-white uppercase tracking-tight mb-1">{title}</h4>
+    <div className={`p-4 rounded-2xl border transition-all ${isAvailable ? 'bg-risda-card border-risda-border hover:border-risda-orange cursor-pointer' : 'bg-risda-card-muted border-risda-border opacity-50 cursor-not-allowed'}`}>
+      <h4 className="text-[10px] font-black text-risda-text uppercase tracking-tight mb-1">{title}</h4>
       <p className="text-[9px] text-risda-muted uppercase font-bold tracking-widest mb-3">{period}</p>
       <div className="flex items-center justify-between">
-        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${isAvailable ? 'bg-green-500/10 text-green-500' : 'bg-risda-muted/10 text-risda-muted'}`}>
+        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${isAvailable ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-risda-muted/10 text-risda-muted'}`}>
           {status}
         </span>
         {isAvailable && <Download size={12} className="text-risda-muted" />}
@@ -2361,20 +2312,20 @@ function AnnualReportItem({ year, totalAds, status, onClick }: any) {
   return (
     <div 
       onClick={onClick}
-      className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all cursor-pointer group"
+      className="flex items-center justify-between p-4 bg-risda-card-muted rounded-2xl border border-risda-border hover:border-risda-orange/40 hover:bg-risda-card transition-all cursor-pointer group"
     >
       <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center font-black ${isComplete ? 'bg-risda-gold/10 text-risda-gold' : 'bg-blue-500/10 text-blue-400'}`}>
+        <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center font-black ${isComplete ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-blue-500/15 text-blue-600 dark:text-blue-400'}`}>
           <span className="text-[8px] uppercase tracking-tighter opacity-50">Tahun</span>
           <span className="text-xs">{year}</span>
         </div>
         <div className="flex flex-col">
-          <h4 className="text-xs font-bold text-white uppercase tracking-tight">LAPORAN TAHUNAN PEROLEHAN {year}</h4>
+          <h4 className="text-xs font-bold text-risda-text uppercase tracking-tight">LAPORAN TAHUNAN PEROLEHAN {year}</h4>
           <p className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{totalAds} Iklan • {status}</p>
         </div>
       </div>
       <div className="flex gap-2">
-        <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-risda-muted hover:text-white" title="Muat turun Laporan">
+        <button className="p-2 hover:bg-risda-card rounded-lg transition-colors text-risda-muted hover:text-risda-text" title="Muat turun Laporan">
           <Download size={14} />
         </button>
       </div>
@@ -2384,15 +2335,17 @@ function AnnualReportItem({ year, totalAds, status, onClick }: any) {
 
 function ReportStat({ cardTitle, value, trend, icon: Icon }: any) {
   return (
-    <div className="p-6 border border-white/5 rounded-3xl bg-white/5 transition-all group cursor-default">
-      <div className="flex justify-between items-start mb-6">
-        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-risda-orange group-hover:bg-risda-orange group-hover:text-black transition-all duration-500 shadow-inner">
-          <Icon size={22} />
+    <div className="h-full flex flex-col justify-between p-6 border border-risda-border rounded-3xl bg-risda-card transition-all group cursor-default shadow-sm hover:border-risda-orange/40">
+      <div>
+        <div className="flex justify-between items-start mb-6">
+          <div className="w-12 h-12 bg-risda-card-muted rounded-2xl flex items-center justify-center text-risda-orange border border-risda-border group-hover:bg-risda-orange group-hover:text-black transition-all duration-500 shadow-sm">
+            <Icon size={22} />
+          </div>
+          <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 uppercase tracking-wider">{trend}</span>
         </div>
-        <span className="text-[10px] font-black text-green-500 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20 uppercase tracking-wider">{trend}</span>
+        <p className="text-[10px] font-black text-risda-muted uppercase tracking-[3px] mb-2">{cardTitle}</p>
       </div>
-      <p className="text-[10px] font-black text-risda-muted uppercase tracking-[3px] mb-2 opacity-60">{cardTitle}</p>
-      <p className="text-3xl font-black text-white tracking-tighter group-hover:text-risda-orange transition-colors">{value}</p>
+      <p className="text-3xl font-black text-risda-text tracking-tighter group-hover:text-risda-orange transition-colors mt-2">{value}</p>
     </div>
   );
 }

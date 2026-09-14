@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import AttendanceForm from './AttendanceForm';
 import { isWithinUserScope, isAdWinnerFinalized } from '../lib/scopeUtils';
+import Pagination from './Pagination';
 
 const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr || dateStr === '-' || dateStr === 'TIADA') return dateStr || '-';
@@ -102,6 +103,14 @@ export default function AttendanceAndSubmission() {
   const [yearFilter, setYearFilter] = useState(currentYearStr);
   const [offices, setOffices] = useState<string[]>([]);
   
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, officeFilter, yearFilter]);
+
   // Custom document previews
   const [previewType, setPreviewType] = useState<'attendance' | 'submission' | 'individual' | null>(null);
   const [previewRecord, setPreviewRecord] = useState<any | null>(null);
@@ -178,6 +187,11 @@ export default function AttendanceAndSubmission() {
     const matchesYear = yearFilter === 'ALL' || (adDate ? new Date(adDate).getFullYear().toString() : '') === yearFilter;
     return matchesScope && matchesSearch && matchesOffice && matchesYear;
   });
+
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredAds.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedAds = filteredAds.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
 
   const years = Array.from(new Set([
     new Date().getFullYear().toString(),
@@ -340,17 +354,17 @@ export default function AttendanceAndSubmission() {
       <div className="space-y-8 animate-in fade-in duration-500">
         <button 
           onClick={() => setSelectedAd(null)}
-          className="flex items-center gap-2 text-risda-muted hover:text-white transition-colors font-black uppercase tracking-[3px] text-[10px] mb-4"
+          className="flex items-center gap-2 text-risda-muted hover:text-risda-orange transition-colors font-black uppercase tracking-[3px] text-[10px] mb-4"
         >
           <ArrowLeft size={16} /> Kembali ke Senarai
         </button>
 
         <div className="space-y-10">
-          <div className="py-10 border-b border-white/10 space-y-10">
+          <div className="bg-risda-card border border-risda-border rounded-2xl md:rounded-[24px] p-6 md:p-8 shadow-sm relative overflow-hidden space-y-6">
             <div className="space-y-6">
               <div className="flex items-start gap-4">
                 <div className="w-2.5 h-10 bg-risda-orange rounded-full shadow-[0_0_15px_rgba(255,176,0,0.4)] mt-1" />
-                <h2 className="text-3xl md:text-4xl font-black text-white leading-tight uppercase tracking-tight max-w-4xl">{selectedAd.title}</h2>
+                <h2 className="text-3xl md:text-4xl font-black text-risda-text leading-tight uppercase tracking-tight max-w-4xl">{selectedAd.title}</h2>
               </div>
               <div className="flex flex-wrap items-center gap-8 pl-6">
                 <div className="flex items-center gap-3 text-risda-orange font-mono text-sm font-bold">
@@ -369,26 +383,28 @@ export default function AttendanceAndSubmission() {
                 </div>
               </div>
             </div>
+          </div>
 
+          <div className="space-y-8">
             {fetchingAttendance ? (
               <div className="py-24 flex flex-col items-center gap-4 text-risda-muted">
                 <div className="w-12 h-12 border-2 border-risda-orange border-t-transparent rounded-full animate-spin" />
                 <span className="font-black uppercase tracking-[5px] text-[10px] animate-pulse">Menyelaras Rekod...</span>
               </div>
             ) : attendanceRecords.length === 0 ? (
-              <div className="py-24 text-center space-y-6 bg-white/5 rounded-[40px] border border-dashed border-white/10">
-                <Users size={56} className="mx-auto text-risda-muted opacity-10" />
+              <div className="py-24 text-center space-y-6 bg-risda-card rounded-[40px] border border-dashed border-risda-border">
+                <Users size={56} className="mx-auto text-risda-muted opacity-20" />
                 <p className="text-risda-muted font-black uppercase tracking-[4px] text-[10px] italic">Tiada rekod kehadiran dijumpai</p>
               </div>
             ) : (
               <div className="space-y-8">
                 {/* Status Notice Banner if Ad is Finalized / Sebutharga Semula / Tamat */}
                 {isAdWinnerFinalized(selectedAd) && (
-                  <div className="p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-amber-300 shadow-xl">
+                  <div className="p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-amber-600 dark:text-amber-300 shadow-md">
                     <div className="flex items-start md:items-center gap-3">
-                      <AlertCircle size={22} className="shrink-0 text-amber-400 mt-0.5 md:mt-0" />
+                      <AlertCircle size={22} className="shrink-0 text-amber-500 mt-0.5 md:mt-0" />
                       <div>
-                        <h5 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <h5 className="text-xs font-black uppercase tracking-wider text-risda-text flex items-center gap-2">
                           IKLAN TELAH TAMAT — KEPUTUSAN RASMI: {
                             selectedAd?.winner?.isReTender || 
                             selectedAd?.winner?.companyName === 'SEBUTHARGA SEMULA' || 
@@ -398,7 +414,7 @@ export default function AttendanceAndSubmission() {
                               : 'SELESAI'
                           }
                         </h5>
-                        <p className="text-[10px] text-amber-200/90 uppercase font-medium mt-1 leading-relaxed">
+                        <p className="text-[10px] text-risda-muted uppercase font-medium mt-1 leading-relaxed">
                           {selectedAd?.winner?.isReTender || 
                            selectedAd?.winner?.companyName === 'SEBUTHARGA SEMULA' || 
                            selectedAd?.winnerName === 'SEBUTHARGA SEMULA' || 
@@ -408,20 +424,20 @@ export default function AttendanceAndSubmission() {
                         </p>
                       </div>
                     </div>
-                    <span className="px-3.5 py-1.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase rounded-full tracking-widest shrink-0 self-start md:self-auto">
+                    <span className="px-3.5 py-1.5 bg-amber-500/20 border border-amber-500/40 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase rounded-full tracking-widest shrink-0 self-start md:self-auto">
                       PROJEK TAMAT
                     </span>
                   </div>
                 )}
 
                 {/* Tab Switcher */}
-                <div className="flex p-1 bg-white/5 rounded-2xl w-fit">
+                <div className="flex p-1 bg-risda-card-muted border border-risda-border rounded-2xl w-fit">
                   <button 
                     onClick={() => setActiveTab('attendance')}
                     className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
                       activeTab === 'attendance' 
-                        ? 'bg-risda-orange text-black shadow-xl shadow-risda-orange/20' 
-                        : 'text-risda-muted hover:text-white'
+                        ? 'bg-risda-orange text-white shadow-md' 
+                        : 'text-risda-muted hover:text-risda-text'
                     }`}
                   >
                     <Users size={14} /> Kehadiran Taklimat
@@ -430,8 +446,8 @@ export default function AttendanceAndSubmission() {
                     onClick={() => setActiveTab('submission')}
                     className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
                       activeTab === 'submission' 
-                        ? 'bg-blue-500 text-white shadow-xl shadow-blue-500/20' 
-                        : 'text-risda-muted hover:text-white'
+                        ? 'bg-blue-600 text-white shadow-md' 
+                        : 'text-risda-muted hover:text-risda-text'
                     }`}
                   >
                     <FileText size={14} /> Borang Serahan
@@ -464,7 +480,7 @@ export default function AttendanceAndSubmission() {
                                      setEditingRecord(null);
                                      setShowManualModal(true);
                                    }}
-                                   className="w-full sm:w-auto px-5 py-3 bg-risda-orange hover:bg-risda-gold text-black rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-risda-orange/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                   className="w-full sm:w-auto px-5 py-3 bg-risda-orange hover:bg-risda-orange-hover text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                                    title="Daftar Pembekal/Kontraktor Secara Manual bagi Iklan Ini"
                                  >
                                    <UserPlus size={14} /> DAFTAR KEHADIRAN MANUAL
@@ -475,7 +491,7 @@ export default function AttendanceAndSubmission() {
                                    setPreviewType('attendance');
                                    setPreviewRecord(null);
                                  }}
-                                 className="w-full sm:w-auto px-5 py-3 border border-white/10 hover:border-risda-orange/50 hover:bg-white/5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                                 className="w-full sm:w-auto px-5 py-3 border border-risda-border hover:border-risda-orange/50 hover:bg-risda-card-muted text-risda-text rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                                >
                                  <Eye size={14} className="text-risda-orange" /> PAPAR PREVIEW
                                </button>
@@ -489,7 +505,7 @@ export default function AttendanceAndSubmission() {
                                      toast.error('Gagal menjana PDF', { id: t });
                                    }
                                  }}
-                                 className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                                 className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                                >
                                  <Download size={14} /> PDF SENARAI KEHADIRAN
                                </button>
@@ -497,11 +513,11 @@ export default function AttendanceAndSubmission() {
                            )}
                       </div>
 
-                      <div className="bg-black/40 border border-white/5 rounded-3xl overflow-hidden shadow-xl">
-                        <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                      <div className="bg-risda-card border border-risda-border rounded-3xl overflow-hidden shadow-sm">
+                        <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
                           <table className="w-full text-left border-collapse">
-                            <thead className="sticky top-0 z-20 bg-black/80 backdrop-blur-md">
-                              <tr className="text-[9px] font-black text-risda-muted uppercase tracking-[3px] border-b border-white/5">
+                            <thead className="sticky top-0 z-20 bg-risda-card-muted border-b border-risda-border">
+                              <tr className="text-[9px] font-black text-risda-muted uppercase tracking-[3px]">
                                 <th className="px-8 py-5">No Siri</th>
                                 <th className="px-8 py-5">Nama Syarikat / Alamat</th>
                                 <th className="px-8 py-5">Nama Pemilik / No. Tel</th>
@@ -510,20 +526,20 @@ export default function AttendanceAndSubmission() {
                                 <th className="px-8 py-5 text-right">Aksi</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-white/5">
+                            <tbody className="divide-y divide-risda-border">
                               {attendanceRecords.map((rec, idx) => (
-                                <tr key={idx} className="text-[11px] text-white/80 hover:bg-white/[0.02] transition-colors">
+                                <tr key={idx} className="text-[11px] text-risda-text hover:bg-risda-card-muted/50 transition-colors">
                                   <td className="px-8 py-5 font-mono text-risda-orange font-bold">{(idx + 1).toString().padStart(3, '0')}</td>
-                                  <td className="px-8 py-5 font-black uppercase text-white tracking-wide">
+                                  <td className="px-8 py-5 font-black uppercase text-risda-text tracking-wide">
                                     {rec.companyName}
                                     {rec.companyAddress && <div className="text-[9px] text-risda-muted lowercase font-normal mt-0.5 max-w-xs truncate">{rec.companyAddress}</div>}
                                   </td>
                                   <td className="px-8 py-5">
-                                    <div className="font-bold text-white uppercase">{rec.ownerName}</div>
+                                    <div className="font-bold text-risda-text uppercase">{rec.ownerName}</div>
                                     <div className="text-[9px] text-risda-muted mt-0.5">{rec.phoneNumber}</div>
                                   </td>
                                   <td className="px-8 py-5">
-                                    <div className="text-white font-medium">{rec.email || '-'}</div>
+                                    <div className="text-risda-text font-medium">{rec.email || '-'}</div>
                                   </td>
                                   <td className="px-8 py-5 font-mono text-risda-muted text-[11px]">
                                     {rec.timestamp ? formatDateTime(rec.timestamp) : '-'}
@@ -539,7 +555,7 @@ export default function AttendanceAndSubmission() {
                                                 setEditingRecord(rec);
                                                 setShowManualModal(true);
                                               }}
-                                              className="inline-flex items-center gap-1.5 px-3 py-2 border border-risda-orange/30 hover:bg-risda-orange/10 text-risda-orange rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-90 transition-all whitespace-nowrap"
+                                              className="inline-flex items-center gap-1.5 px-3 py-2 border border-risda-orange/30 hover:bg-risda-orange/10 text-risda-orange rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-90 transition-all whitespace-nowrap cursor-pointer"
                                               title="Kemaskini Rekod Pendaftaran Pembekal"
                                             >
                                               <Edit size={12} /> KEMASKINI
@@ -558,7 +574,7 @@ export default function AttendanceAndSubmission() {
                                                 toast.error('Gagal memadam rekod: ' + (err.message || err));
                                               }
                                             }}
-                                            className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-500/30 hover:bg-red-500/10 text-red-400 rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-90 transition-all whitespace-nowrap"
+                                            className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-500/30 hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-90 transition-all whitespace-nowrap cursor-pointer"
                                             title="Padam Rekod Kehadiran Ini"
                                           >
                                             <Trash2 size={12} /> PADAM
@@ -572,7 +588,7 @@ export default function AttendanceAndSubmission() {
                                           setPreviewRecord(rec);
                                           setPreviewSerialNo(serialNo);
                                         }}
-                                        className="inline-flex items-center gap-2 px-3 py-2 border border-white/10 hover:border-risda-orange/50 hover:bg-white/5 text-white rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-90 transition-all whitespace-nowrap animate-in fade-in duration-300"
+                                        className="inline-flex items-center gap-2 px-3 py-2 border border-risda-border hover:border-risda-orange/50 hover:bg-risda-card-muted text-risda-text rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-90 transition-all whitespace-nowrap animate-in fade-in duration-300 cursor-pointer"
                                         title="Papar Preview Borang"
                                       >
                                         <Eye size={12} className="text-risda-orange" /> PAPAR
@@ -588,7 +604,7 @@ export default function AttendanceAndSubmission() {
                                             toast.error('Gagal menjana PDF', { id: t });
                                           }
                                         }}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md active:scale-90 transition-all whitespace-nowrap"
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md active:scale-90 transition-all whitespace-nowrap cursor-pointer"
                                         title="Muat Turun PDF"
                                       >
                                         <Download size={12} /> BORANG (PDF)
@@ -613,8 +629,8 @@ export default function AttendanceAndSubmission() {
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <FileText size={18} className="text-blue-400" />
-                            <h4 className="text-[11px] font-black text-blue-400 uppercase tracking-[4px]">Borang Serahan Dokumen Sebut Harga</h4>
+                            <FileText size={18} className="text-blue-600 dark:text-blue-400" />
+                            <h4 className="text-[11px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[4px]">Borang Serahan Dokumen Sebut Harga</h4>
                           </div>
                           <p className="text-[10px] text-risda-muted uppercase font-bold tracking-widest">Rekod penyerahan fizikal dokumen sebut harga</p>
                         </div>
@@ -625,7 +641,7 @@ export default function AttendanceAndSubmission() {
                                    setPreviewType('submission');
                                    setPreviewRecord(null);
                                  }}
-                                 className="w-full sm:w-auto px-5 py-3 border border-white/10 hover:border-risda-orange/50 hover:bg-white/5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                                 className="w-full sm:w-auto px-5 py-3 border border-risda-border hover:border-risda-orange/50 hover:bg-risda-card-muted text-risda-text rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                                >
                                  <Eye size={14} className="text-risda-orange" /> PAPAR PREVIEW
                                </button>
@@ -639,7 +655,7 @@ export default function AttendanceAndSubmission() {
                                      toast.error('Gagal menjana PDF', { id: t });
                                    }
                                  }}
-                                 className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                                 className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                                >
                                  <Download size={14} /> PDF BORANG SERAHAN
                                </button>
@@ -647,25 +663,25 @@ export default function AttendanceAndSubmission() {
                            )}
                       </div>
 
-                      <div className="bg-black/40 border border-white/5 rounded-3xl overflow-hidden shadow-xl">
-                        <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                      <div className="bg-risda-card border border-risda-border rounded-3xl overflow-hidden shadow-sm">
+                        <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
                           <table className="w-full text-left border-collapse">
-                            <thead className="sticky top-0 z-20 bg-black/80 backdrop-blur-md">
-                              <tr className="text-[9px] font-black text-risda-muted uppercase tracking-[3px] border-b border-white/5">
+                            <thead className="sticky top-0 z-20 bg-risda-card-muted border-b border-risda-border">
+                              <tr className="text-[9px] font-black text-risda-muted uppercase tracking-[3px]">
                                 <th className="px-8 py-5">No Siri</th>
                                 <th className="px-8 py-5">Nama Syarikat</th>
                                 <th className="px-8 py-5">No. Siri Sebut Harga</th>
                                 <th className="px-8 py-5 text-center">Tanda Tangan & Cop</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-white/5">
+                            <tbody className="divide-y divide-risda-border">
                               {attendanceRecords.map((rec, idx) => (
-                                <tr key={idx} className="text-[11px] text-white/80 hover:bg-white/[0.02] transition-colors">
+                                <tr key={idx} className="text-[11px] text-risda-text hover:bg-risda-card-muted/50 transition-colors">
                                   <td className="px-8 py-5 font-mono text-risda-orange font-bold">{(idx + 1).toString().padStart(3, '0')}</td>
-                                  <td className="px-8 py-5 font-black uppercase text-white tracking-wide">{rec.companyName}</td>
+                                  <td className="px-8 py-5 font-black uppercase text-risda-text tracking-wide">{rec.companyName}</td>
                                   <td className="px-8 py-5 font-mono text-risda-gold font-bold">{rec.docSeriesNo || '-'}</td>
                                   <td className="px-8 py-5 text-center">
-                                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-widest opacity-30 italic">Ruang Fizikal</span>
+                                    <span className="text-[9px] font-black text-risda-muted uppercase tracking-widest opacity-40 italic">Ruang Fizikal</span>
                                   </td>
                                 </tr>
                               ))}
@@ -684,11 +700,11 @@ export default function AttendanceAndSubmission() {
         {previewType && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4 md:p-8 overflow-hidden animate-in fade-in duration-300">
             {/* Modal Controls Bar */}
-            <div className="w-full max-w-5xl bg-risda-dark border border-white/10 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4 shadow-2xl relative z-20">
+            <div className="w-full max-w-5xl bg-risda-card border border-risda-border rounded-2xl p-4 mb-4 flex items-center justify-between gap-4 shadow-2xl relative z-20">
               <div className="flex items-center gap-3">
                 <Eye size={18} className="text-risda-orange" />
                 <div className="text-left">
-                  <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                  <h3 className="text-xs font-black text-risda-text uppercase tracking-wider">
                     {previewType === 'attendance' && 'PREVIEW SENARAI KEHADIRAN'}
                     {previewType === 'submission' && 'PREVIEW BORANG SERAHAN DOKUMEN'}
                     {previewType === 'individual' && 'PREVIEW BORANG LAWATAN TAPAK'}
@@ -699,18 +715,18 @@ export default function AttendanceAndSubmission() {
 
               {/* Zoom & Action Controls */}
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-white/5 rounded-xl border border-white/5 px-3 py-1.5">
+                <div className="flex items-center gap-2 bg-risda-card-muted rounded-xl border border-risda-border px-3 py-1.5">
                   <button 
                     onClick={() => setPreviewZoom(z => Math.max(50, z - 10))}
-                    className="p-1 text-risda-muted hover:text-white transition-colors active:scale-95"
+                    className="p-1 text-risda-muted hover:text-risda-text transition-colors active:scale-95 cursor-pointer"
                     title="Zoom Out"
                   >
                     <ZoomOut size={14} />
                   </button>
-                  <span className="font-mono text-[10px] font-bold text-white min-w-[36px] text-center">{previewZoom}%</span>
+                  <span className="font-mono text-[10px] font-bold text-risda-text min-w-[36px] text-center">{previewZoom}%</span>
                   <button 
                     onClick={() => setPreviewZoom(z => Math.min(150, z + 10))}
-                    className="p-1 text-risda-muted hover:text-white transition-colors active:scale-95"
+                    className="p-1 text-risda-muted hover:text-risda-text transition-colors active:scale-95 cursor-pointer"
                     title="Zoom In"
                   >
                     <ZoomIn size={14} />
@@ -734,7 +750,7 @@ export default function AttendanceAndSubmission() {
                       toast.error('Gagal menjana PDF', { id: t });
                     }
                   }}
-                  className="px-5 py-2.5 bg-gradient-to-r from-risda-orange to-risda-gold text-black rounded-xl text-[10px] font-black uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-risda-orange hover:bg-risda-orange-hover text-white rounded-xl text-[10px] font-black uppercase tracking-wider active:scale-95 transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
                 >
                   CETAK / PDF
                 </button>
@@ -745,7 +761,7 @@ export default function AttendanceAndSubmission() {
                     setPreviewType(null);
                     setPreviewRecord(null);
                   }}
-                  className="w-10 h-10 bg-white/5 hover:bg-white/10 text-white rounded-xl flex items-center justify-center transition-colors active:scale-95 border border-white/5"
+                  className="w-10 h-10 bg-risda-card-muted hover:bg-risda-border text-risda-text rounded-xl flex items-center justify-center transition-colors active:scale-95 border border-risda-border cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -753,7 +769,7 @@ export default function AttendanceAndSubmission() {
             </div>
 
             {/* Canvas Area */}
-            <div className="w-full max-w-5xl flex-1 overflow-auto flex justify-center p-4 md:p-8 bg-black/40 border border-white/5 rounded-3xl relative">
+            <div className="w-full max-w-5xl flex-1 overflow-auto flex justify-center p-4 md:p-8 bg-risda-card-muted/60 border border-risda-border rounded-3xl relative">
               {/* Paper representation */}
               <div 
                 style={{ 
@@ -926,117 +942,117 @@ export default function AttendanceAndSubmission() {
   }
 
   return (
-    <div className="space-y-16 pt-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-10 border-b border-white/10 pb-12">
-        <div className="space-y-6">
-          <div className="flex items-center gap-5">
-             <div className="w-16 h-16 bg-gradient-to-br from-risda-orange to-risda-gold rounded-3xl flex items-center justify-center text-black shadow-2xl shadow-risda-orange/20">
-               <Users size={32} />
-             </div>
-             <div>
-               <p className="text-[10px] text-risda-orange font-black uppercase tracking-[6px] mb-1">Pengurusan Data</p>
-               <h2 className="text-3xl font-black text-white uppercase tracking-tight leading-none">Kehadiran & Serahan</h2>
-             </div>
+    <div className="space-y-12 pt-6">
+      <div className="bg-risda-card border border-risda-border rounded-2xl md:rounded-[24px] p-6 md:p-8 shadow-sm relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+               <div className="w-14 h-14 bg-risda-orange rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
+                 <Users size={28} />
+               </div>
+               <div>
+                 <p className="text-[10px] text-risda-orange font-black uppercase tracking-[6px] mb-1">Pengurusan Data</p>
+                 <h2 className="text-2xl md:text-3xl font-black text-risda-text uppercase tracking-tight leading-none">Kehadiran & Serahan</h2>
+               </div>
+            </div>
           </div>
-        </div>
 
-        <div className="flex flex-wrap gap-8 items-end flex-1 max-w-4xl">
-          <div className="flex flex-col gap-3 min-w-[280px] flex-1">
-            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] px-1 opacity-80">Carian</label>
+        <div className="flex flex-wrap gap-4 items-end flex-1 max-w-4xl">
+          <div className="flex flex-col gap-2 min-w-[240px] flex-1">
+            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Carian</label>
             <div className="relative group">
-              <Search className="absolute left-1 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-risda-orange transition-colors" size={14} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-risda-muted group-focus-within:text-risda-orange transition-colors" size={16} />
               <input 
                 type="text"
                 placeholder="TAJUK ATAU NO SEBUT HARGA..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-transparent border-b-2 border-white/10 py-4 pl-10 pr-4 text-xs font-black text-white uppercase focus:outline-none focus:border-risda-orange transition-all w-full tracking-wider"
+                className="bg-risda-card border border-risda-border rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-risda-text uppercase focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full tracking-wider"
               />
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 w-48">
-            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] px-1 opacity-80">Pejabat</label>
+          <div className="flex flex-col gap-2 w-48">
+            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Pejabat</label>
             <div className="relative">
               <select 
                 value={officeFilter}
                 onChange={(e) => setOfficeFilter(e.target.value)}
-                className="bg-transparent border-b-2 border-white/10 py-5 px-1 text-xs font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer uppercase tracking-wider"
+                className="bg-risda-card border border-risda-border rounded-xl py-3 px-3 pr-8 text-xs font-bold text-risda-text focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full appearance-none cursor-pointer uppercase tracking-wider"
               >
-                <option value="" className="bg-risda-dark">SEMUA PEJABAT</option>
-                {offices.map(off => <option key={off} value={off} className="bg-risda-dark uppercase">{off}</option>)}
+                <option value="" className="bg-risda-card text-risda-text">SEMUA PEJABAT</option>
+                {offices.map(off => <option key={off} value={off} className="bg-risda-card text-risda-text uppercase">{off}</option>)}
               </select>
-              <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-risda-text">
                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 w-40">
-            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[4px] px-1 opacity-80">Tahun</label>
+          <div className="flex flex-col gap-2 w-36">
+            <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] px-1">Tahun</label>
             <div className="relative">
               <select 
                 value={yearFilter}
                 onChange={(e) => setYearFilter(e.target.value)}
-                className="bg-transparent border-b-2 border-white/10 py-5 px-1 text-xs font-black text-white focus:outline-none focus:border-risda-orange transition-all w-full appearance-none cursor-pointer uppercase tracking-wider"
+                className="bg-risda-card border border-risda-border rounded-xl py-3 px-3 pr-8 text-xs font-bold text-risda-text focus:outline-none focus:border-risda-orange focus:ring-1 focus:ring-risda-orange transition-all w-full appearance-none cursor-pointer uppercase tracking-wider"
               >
-                <option value="ALL" className="bg-risda-dark">SEMUA TAHUN</option>
-                {years.map(year => <option key={year} value={year} className="bg-risda-dark">{year}</option>)}
+                <option value="ALL" className="bg-risda-card text-risda-text">SEMUA TAHUN</option>
+                {years.map(year => <option key={year} value={year} className="bg-risda-card text-risda-text">{year}</option>)}
               </select>
-              <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-risda-text">
                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
       {loading ? (
-        <div className="py-40 flex flex-col items-center gap-6">
-          <div className="w-16 h-16 border-t-2 border-risda-orange rounded-full animate-spin" />
-          <span className="font-black uppercase tracking-[8px] text-[10px] text-risda-muted animate-pulse">Menghubungkan Database...</span>
+        <div className="py-32 flex flex-col items-center gap-6">
+          <div className="w-14 h-14 border-2 border-risda-orange border-t-transparent rounded-full animate-spin" />
+          <span className="font-black uppercase tracking-[6px] text-[10px] text-risda-muted animate-pulse">Menghubungkan Database...</span>
         </div>
       ) : filteredAds.length === 0 ? (
-        <div className="py-40 text-center space-y-8 bg-white/5 rounded-[50px] border border-white/10 border-dashed">
-          <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto ring-1 ring-white/10">
-            <Search size={40} className="text-risda-muted opacity-20" />
+        <div className="py-32 text-center space-y-6 bg-risda-card rounded-3xl border border-risda-border border-dashed">
+          <div className="w-20 h-20 bg-risda-card-muted rounded-full flex items-center justify-center mx-auto ring-1 ring-risda-border">
+            <Search size={36} className="text-risda-muted opacity-40" />
           </div>
-          <div className="space-y-3">
-            <h3 className="text-xl font-black text-white/50 uppercase tracking-widest">Tiada Rekod Dijumpai</h3>
-            <p className="text-[10px] text-risda-muted uppercase font-black tracking-[4px] max-w-sm mx-auto leading-relaxed">Sila tukar kriteria carian atau gunakan filter di atas untuk melihat data lain.</p>
+          <div className="space-y-2">
+            <h3 className="text-lg font-black text-risda-text/60 uppercase tracking-widest">Tiada Rekod Dijumpai</h3>
+            <p className="text-[10px] text-risda-muted uppercase font-bold tracking-[3px] max-w-sm mx-auto leading-relaxed">Sila tukar kriteria carian atau gunakan filter di atas untuk melihat data lain.</p>
           </div>
         </div>
       ) : (
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-8 px-2">
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-6 px-2">
              <h4 className="text-[11px] font-black text-risda-orange uppercase tracking-[4px]">Diarkibkan ({filteredAds.length})</h4>
              <p className="text-[9px] text-risda-muted font-bold uppercase tracking-[2px]">Klik Rekod untuk melihat Detail</p>
           </div>
           <div className="grid grid-cols-1 gap-4">
-            {filteredAds.map((ad, idx) => (
+            {paginatedAds.map((ad, idx) => (
               <motion.div
                 key={ad.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.03 }}
                 onClick={() => setSelectedAd(ad)}
-                className="group p-6 md:p-8 rounded-[32px] border border-white/5 hover:border-risda-orange/40 hover:bg-white/5 transition-all duration-500 flex flex-col md:flex-row md:items-center gap-8 relative overflow-hidden cursor-pointer"
+                className="group bg-risda-card p-6 md:p-7 rounded-2xl border border-risda-border hover:border-risda-orange/50 hover:bg-risda-card-muted/40 transition-all duration-300 flex flex-col md:flex-row md:items-center gap-6 relative overflow-hidden cursor-pointer shadow-sm"
               >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-risda-orange/5 -mr-16 -mt-16 rounded-full blur-3xl group-hover:bg-risda-orange/10 transition-all duration-700 pointer-events-none" />
-              
               <div 
                 className="flex-1 min-w-0 cursor-pointer group/title"
                 onClick={() => { setSelectedAd(ad); setActiveTab('attendance'); }}
               >
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="font-mono text-[9px] text-risda-orange font-bold tracking-widest bg-risda-orange/10 px-2 py-0.5 rounded">
+                <div className="flex items-center gap-3 mb-2.5">
+                  <span className="font-mono text-[9px] text-risda-orange font-bold tracking-widest bg-risda-orange/10 px-2 py-0.5 rounded border border-risda-orange/20">
                     {ad.tenderNo}
                   </span>
                   <span className="text-[10px] text-risda-muted uppercase font-black tracking-widest flex items-center gap-1.5">
                     <MapPin size={10} className="text-risda-gold" /> {ad.office}
                   </span>
                 </div>
-                <h3 className="text-sm md:text-base font-black text-white uppercase group-hover:text-risda-gold transition-colors duration-300 leading-tight line-clamp-1 mb-1">
+                <h3 className="text-sm md:text-base font-black text-risda-text uppercase group-hover:text-risda-orange transition-colors duration-200 leading-tight line-clamp-1 mb-1">
                   {ad.title}
                 </h3>
                 <p className="text-[8px] text-risda-muted font-bold uppercase tracking-[2px] opacity-0 group-hover/title:opacity-100 transition-all transform translate-y-1 group-hover/title:translate-y-0">
@@ -1054,19 +1070,40 @@ export default function AttendanceAndSubmission() {
                       setEditingRecord(null);
                       setShowManualModal(true);
                     }}
-                    className="px-4 py-2.5 bg-risda-orange/15 border border-risda-orange/40 hover:bg-risda-orange hover:text-black text-risda-orange rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                    className="px-4 py-2.5 bg-risda-orange/15 border border-risda-orange/40 hover:bg-risda-orange hover:text-white text-risda-orange rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
                     title="Daftar Pembekal Secara Manual untuk Iklan Ini"
                   >
                     <UserPlus size={14} /> Daftar Manual
                   </button>
                 )}
-                <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-risda-muted group-hover:bg-risda-orange group-hover:text-black transition-all duration-500">
+                <div className="w-10 h-10 bg-risda-card-muted rounded-full flex items-center justify-center text-risda-muted group-hover:bg-risda-orange group-hover:text-white border border-risda-border transition-all duration-300">
                   <ChevronRight size={18} />
                 </div>
               </div>
             </motion.div>
           ))}
           </div>
+
+          {/* Pagination Controls */}
+          {filteredAds.length > 0 && (
+            <div className="mt-6">
+              <Pagination
+                currentPage={safeCurrentPage}
+                totalItems={filteredAds.length}
+                pageSize={pageSize}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                pageSizeOptions={[10, 20, 50]}
+                itemName="iklan"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -1078,15 +1115,15 @@ export default function AttendanceAndSubmission() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-risda-card border border-white/10 rounded-3xl max-w-4xl w-full p-6 sm:p-8 space-y-6 relative my-8 max-h-[90vh] overflow-y-auto shadow-2xl"
+              className="bg-risda-card border border-risda-border rounded-3xl max-w-4xl w-full p-6 sm:p-8 space-y-6 relative my-8 max-h-[90vh] overflow-y-auto shadow-2xl"
             >
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center justify-between border-b border-risda-border pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-risda-orange/20 rounded-xl flex items-center justify-center text-risda-orange">
                     <UserPlus size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                    <h3 className="text-lg font-black text-risda-text uppercase tracking-tight">
                       {editingRecord ? 'Kemaskini Pendaftaran Pembekal' : 'Pendaftaran Kehadiran Manual Pembekal'}
                     </h3>
                     <p className="text-[10px] text-risda-muted uppercase font-bold tracking-widest mt-0.5">
@@ -1096,7 +1133,7 @@ export default function AttendanceAndSubmission() {
                 </div>
                 <button 
                   onClick={() => { setShowManualModal(false); setEditingRecord(null); setManualAdTarget(null); }}
-                  className="p-2 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all"
+                  className="p-2 text-risda-muted hover:text-risda-text bg-risda-card-muted hover:bg-risda-border rounded-full transition-all cursor-pointer"
                 >
                   <X size={20} />
                 </button>

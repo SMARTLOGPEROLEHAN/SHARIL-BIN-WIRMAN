@@ -748,16 +748,17 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
   return (
     <div className="space-y-16 p-4 md:p-8 w-full lg:max-w-none">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-10">
+      <div className="bg-risda-card border border-risda-border rounded-2xl md:rounded-[24px] p-6 md:p-8 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-             <div className="p-4 bg-risda-orange/10 rounded-2xl text-risda-orange border border-risda-orange/20">
-               <Shield size={28} />
-             </div>
-             <div>
-               <h2 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tight leading-none mb-1">Kakitangan</h2>
-               <p className="text-[10px] md:text-xs text-risda-muted font-bold uppercase tracking-[4px] opacity-60">Kawal Akses & Konfigurasi Sistem</p>
-             </div>
+            <div className="w-14 h-14 bg-risda-orange rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
+              <Shield size={28} />
+            </div>
+            <div>
+              <p className="text-[10px] text-risda-orange font-black uppercase tracking-[6px] mb-1">Pentadbiran Sistem</p>
+              <h2 className="text-2xl md:text-3xl font-black text-risda-text uppercase tracking-tight leading-none">Kakitangan</h2>
+              <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[3px] mt-1.5">Kawal Akses & Konfigurasi Sistem</p>
+            </div>
           </div>
         </div>
 
@@ -767,26 +768,26 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
               resetForm();
               setShowModal(true);
             }}
-            className="flex items-center justify-center gap-4 px-10 py-5 bg-risda-orange text-black rounded-2xl text-xs font-black uppercase tracking-[2px] hover:scale-[1.02] active:scale-95 transition-all shadow-2xl shadow-risda-orange/30 group"
+            className="flex items-center justify-center gap-2.5 px-6 py-3.5 bg-risda-orange text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-risda-orange-hover active:scale-95 transition-all shadow-md group cursor-pointer self-start md:self-auto"
           >
-            <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
-            Tambah Kakitangan Baru
+            <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+            <span>Tambah Kakitangan Baru</span>
           </button>
         )}
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="space-y-12">
-        <div className="flex flex-col xl:flex-row items-end justify-between gap-10">
-          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/5">
+      <div className="space-y-8">
+        <div className="flex flex-col xl:flex-row items-end justify-between gap-6">
+          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-risda-card rounded-2xl border border-risda-border">
              {(['all', 'admin', 'pentadbir', 'pelulus', 'penginput'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => setRoleFilter(r)}
-                className={`px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                   roleFilter === r
-                    ? 'bg-risda-orange text-black shadow-xl shadow-risda-orange/20'
-                    : 'text-white/40 hover:text-white hover:bg-white/5'
+                    ? 'bg-risda-orange text-white shadow-sm'
+                    : 'text-risda-muted hover:text-risda-text hover:bg-risda-card-muted'
                 }`}
               >
                 {r === 'all' ? 'SEMUA' : 
@@ -797,14 +798,14 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
             ))}
           </div>
 
-          <div className="relative flex-1 max-w-xl group">
-            <Search className="absolute left-1 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-risda-orange transition-colors" size={18} />
+          <div className="relative flex-1 max-w-xl group w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-risda-muted group-focus-within:text-risda-orange transition-colors" size={18} />
             <input 
               type="text"
               placeholder="CARI NAMA, EMAIL ATAU ID KAKITANGAN..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border-b-2 border-white/10 rounded-none py-4 pl-10 pr-4 text-xs font-black text-white uppercase focus:border-risda-orange outline-none transition-all placeholder:text-white/10 tracking-widest"
+              className="w-full bg-risda-card border border-risda-border rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-risda-text uppercase focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all placeholder:text-risda-muted tracking-wider"
             />
           </div>
         </div>
@@ -812,16 +813,16 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
         {/* Staff List */}
         <div className="w-full">
           {fetching ? (
-            <div className="py-32 flex flex-col items-center justify-center gap-4 text-risda-muted">
-              <div className="w-12 h-12 border-4 border-risda-orange/20 border-t-risda-orange rounded-full animate-spin" />
-              <p className="font-black uppercase text-[10px] tracking-[5px] animate-pulse">Memuatkan Data Sistem...</p>
+            <div className="py-24 flex flex-col items-center justify-center gap-4 text-risda-muted">
+              <div className="w-10 h-10 border-2 border-risda-orange border-t-transparent rounded-full animate-spin" />
+              <p className="font-black uppercase text-[10px] tracking-[4px] animate-pulse">Memuatkan Data Sistem...</p>
             </div>
           ) : filteredStaff.length === 0 ? (
-            <div className="py-32 flex flex-col items-center justify-center gap-6 bg-white/5 rounded-[50px] border border-white/10 border-dashed">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center ring-1 ring-white/10">
-                <User size={40} className="text-white/10" />
+            <div className="py-24 flex flex-col items-center justify-center gap-4 bg-risda-card rounded-3xl border border-risda-border border-dashed">
+              <div className="w-16 h-16 bg-risda-card-muted rounded-full flex items-center justify-center ring-1 ring-risda-border">
+                <User size={32} className="text-risda-muted opacity-40" />
               </div>
-              <p className="font-black uppercase text-[10px] tracking-[6px] text-white/30">Tiada Rekod Dijumpai</p>
+              <p className="font-black uppercase text-[10px] tracking-[4px] text-risda-muted">Tiada Rekod Dijumpai</p>
             </div>
           ) : (
             <div className="space-y-6 w-full">
@@ -863,32 +864,32 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                       <motion.div 
                         key={stateName} 
                         layout="position"
-                        className="border border-white/5 bg-white/[0.01] rounded-[32px] overflow-hidden transition-all duration-300 hover:border-white/10 shadow-lg shadow-black/20"
+                        className="border border-risda-border bg-risda-card rounded-3xl overflow-hidden transition-all duration-300 shadow-sm"
                       >
                         {/* State Folder Header */}
                         <button
                           type="button"
                           onClick={() => toggleStateExpand(stateName)}
-                          className="w-full flex items-center justify-between p-6 md:p-8 bg-white/[0.02] hover:bg-white/[0.04] transition-all duration-300 select-none text-left cursor-pointer group"
+                          className="w-full flex items-center justify-between p-6 md:p-8 bg-risda-card hover:bg-risda-card-muted transition-all duration-300 select-none text-left cursor-pointer group"
                         >
                           <div className="flex items-center gap-5">
                             <div className={`p-4 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0 ${
                               isStateExpanded 
-                                ? 'bg-risda-orange/15 text-risda-orange border border-risda-orange/20 shadow-lg shadow-risda-orange/5 scale-105' 
-                                : 'bg-white/5 text-white/40 border border-white/5 group-hover:bg-white/10 group-hover:text-white/75'
+                                ? 'bg-risda-orange/15 text-risda-orange border border-risda-orange/20 shadow-sm scale-105' 
+                                : 'bg-risda-card-muted text-risda-muted border border-risda-border group-hover:text-risda-text'
                             }`}>
                               {isStateExpanded ? <FolderOpen size={24} /> : <Folder size={24} />}
                             </div>
                             <div>
-                              <h3 className="text-base md:text-lg font-black text-white tracking-wider uppercase group-hover:text-risda-orange transition-colors">
+                              <h3 className="text-base md:text-lg font-black text-risda-text tracking-wider uppercase group-hover:text-risda-orange transition-colors">
                                 NEGERI {stateName}
                               </h3>
                               <div className="flex items-center gap-3 mt-1.5">
-                                <span className="text-[10px] font-black uppercase text-risda-muted tracking-widest bg-white/5 px-2.5 py-1 rounded-lg">
+                                <span className="text-[10px] font-black uppercase text-risda-muted tracking-widest bg-risda-card-muted px-2.5 py-1 rounded-lg border border-risda-border">
                                   {totalCount} Kakitangan
                                 </span>
                                 {activeCount > 0 && (
-                                  <span className="text-[10px] font-black uppercase text-green-500 tracking-widest bg-green-500/10 px-2.5 py-1 rounded-lg">
+                                  <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-widest bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
                                     {activeCount} Aktif
                                   </span>
                                 )}
@@ -897,10 +898,10 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                           </div>
 
                           <div className="flex items-center gap-3">
-                            <span className="hidden md:inline text-[9px] font-black tracking-[2px] uppercase text-risda-muted opacity-45 group-hover:opacity-100 transition-opacity">
+                            <span className="hidden md:inline text-[9px] font-black tracking-[2px] uppercase text-risda-muted group-hover:text-risda-text transition-colors">
                               {isStateExpanded ? 'TUTUP FOLDER' : 'BUKA FOLDER'}
                             </span>
-                            <div className={`p-2.5 rounded-xl bg-white/5 text-white/50 group-hover:bg-white/10 group-hover:text-white transition-transform duration-300 ${
+                            <div className={`p-2.5 rounded-xl bg-risda-card-muted text-risda-muted group-hover:text-risda-text transition-transform duration-300 ${
                               isStateExpanded ? 'rotate-180' : ''
                             }`}>
                               <ChevronDown size={18} />
@@ -916,7 +917,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                               animate={{ opacity: 1, height: 'auto' }}
                               exit={{ opacity: 0, height: 0 }}
                               transition={{ duration: 0.25, ease: 'easeInOut' }}
-                              className="border-t border-white/5 bg-black/15 p-6 md:p-8 space-y-6"
+                              className="border-t border-risda-border bg-risda-card-muted/40 p-6 md:p-8 space-y-6"
                             >
                               {(() => {
                                 // Group state staff by District
@@ -939,23 +940,23 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                   const distActive = staffInDistrict.filter(m => m.status === 'Aktif').length;
 
                                   return (
-                                    <div key={key} className="border border-white/5 bg-white/[0.005] rounded-2xl overflow-hidden hover:border-white/10 transition-all duration-300">
+                                    <div key={key} className="border border-risda-border bg-risda-card rounded-2xl overflow-hidden hover:border-risda-orange/40 transition-all duration-300">
                                       {/* District Folder Header */}
                                       <button
                                         type="button"
                                         onClick={() => toggleDistrictExpand(key)}
-                                        className="w-full flex items-center justify-between p-4 md:p-5 bg-white/[0.01] hover:bg-white/[0.03] transition-all duration-300 select-none text-left cursor-pointer group/dist"
+                                        className="w-full flex items-center justify-between p-4 md:p-5 bg-risda-card hover:bg-risda-card-muted transition-all duration-300 select-none text-left cursor-pointer group/dist"
                                       >
                                         <div className="flex items-center gap-4">
                                           <div className={`p-2.5 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0 ${
                                             isDistrictExpanded 
-                                              ? 'bg-risda-gold/15 text-risda-gold border border-risda-gold/20 scale-105' 
-                                              : 'bg-white/5 text-white/30 border border-white/5 group-hover/dist:bg-white/10 group-hover/dist:text-white/60'
+                                              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/20 scale-105' 
+                                              : 'bg-risda-card-muted text-risda-muted border border-risda-border group-hover/dist:text-risda-text'
                                           }`}>
                                             {isDistrictExpanded ? <FolderOpen size={18} /> : <Folder size={18} />}
                                           </div>
                                           <div>
-                                            <h4 className="text-xs md:text-sm font-black text-white/80 tracking-wide uppercase group-hover/dist:text-risda-gold transition-colors flex items-center gap-2">
+                                            <h4 className="text-xs md:text-sm font-black text-risda-text tracking-wide uppercase group-hover/dist:text-amber-700 dark:group-hover/dist:text-amber-400 transition-colors flex items-center gap-2">
                                               DAERAH {districtName}
                                             </h4>
                                             <div className="flex items-center gap-2 mt-1">
@@ -963,7 +964,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                 {distTotal} Kakitangan
                                               </span>
                                               {distActive > 0 && (
-                                                <span className="text-[9px] font-semibold text-green-500/80">
+                                                <span className="text-[9px] font-semibold text-emerald-700 dark:text-emerald-400">
                                                   ({distActive} Aktif)
                                                 </span>
                                               )}
@@ -972,7 +973,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                         </div>
 
                                         <div className="flex items-center gap-2.5">
-                                          <div className={`p-2 rounded-lg bg-white/5 text-white/40 group-hover/dist:bg-white/10 group-hover/dist:text-white transition-transform duration-300 ${
+                                          <div className={`p-2 rounded-lg bg-risda-card-muted text-risda-muted group-hover/dist:text-risda-text transition-transform duration-300 ${
                                             isDistrictExpanded ? 'rotate-180' : ''
                                           }`}>
                                             <ChevronDown size={14} />
@@ -988,7 +989,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                             animate={{ opacity: 1, height: 'auto' }}
                                             exit={{ opacity: 0, height: 0 }}
                                             transition={{ duration: 0.2 }}
-                                            className="border-t border-white/5 bg-black/10 p-4 md:p-6"
+                                            className="border-t border-risda-border bg-risda-card-muted/30 p-4 md:p-6"
                                           >
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4">
                                               {staffInDistrict.map((member) => (
@@ -998,15 +999,12 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                   initial={{ opacity: 0, scale: 0.95 }}
                                                   animate={{ opacity: 1, scale: 1 }}
                                                   exit={{ opacity: 0, scale: 0.95 }}
-                                                  className="group/card relative p-6 border border-white/5 bg-white/[0.01] rounded-[24px] hover:border-risda-orange/30 hover:bg-white/[0.03] transition-all duration-300 overflow-hidden"
+                                                  className="h-full flex flex-col justify-between group/card relative p-6 border border-risda-border bg-risda-card rounded-2xl hover:border-risda-orange/40 transition-all duration-300 overflow-hidden shadow-sm"
                                                 >
-                                                  {/* Background Accent */}
-                                                  <div className="absolute top-0 right-0 w-24 h-24 bg-risda-orange/5 blur-2xl rounded-full -mr-12 -mt-12 group-hover/card:bg-risda-orange/10 transition-all pointer-events-none" />
-                                                  
                                                   <div className="flex items-start gap-4 relative z-10">
                                                     <div className="relative shrink-0">
-                                                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl overflow-hidden border border-white/10 ${
-                                                        member.role === 'admin' ? 'bg-risda-orange/20 text-risda-orange' : 'bg-risda-card text-risda-orange'
+                                                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden border border-risda-border ${
+                                                        member.role === 'admin' ? 'bg-risda-orange/15 text-risda-orange' : 'bg-risda-card-muted text-risda-orange'
                                                       }`}>
                                                         {member.photoURL ? (
                                                           <img src={member.photoURL} alt="Avatar" className="w-full h-full object-cover" />
@@ -1015,45 +1013,45 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                         )}
                                                       </div>
                                                       <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-risda-card ${
-                                                        member.status === 'Aktif' ? 'bg-green-500' : 'bg-risda-muted'
+                                                        member.status === 'Aktif' ? 'bg-emerald-500' : 'bg-risda-muted'
                                                       }`} />
                                                      </div>
 
                                                      <div className="flex-1 min-w-0">
                                                       <div className="flex items-center gap-2 mb-1">
-                                                        <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-tight truncate leading-tight group-hover/card:text-risda-orange transition-colors">{member.displayName}</h4>
+                                                        <h4 className="text-xs md:text-sm font-black text-risda-text uppercase tracking-tight truncate leading-tight group-hover/card:text-risda-orange transition-colors">{member.displayName}</h4>
                                                       </div>
-                                                      <p className="text-[9px] font-black text-risda-gold uppercase tracking-[1.5px] mb-1 leading-none">
+                                                      <p className="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-[1.5px] mb-1 leading-none">
                                                          {member.role === 'admin' || member.role === 'pentadbir' ? 'Pentadbir Sistem' : member.role === 'penginput' ? 'Pihak Penginput' : 'Pegawai Pelulus'}
                                                       </p>
                                                       {(member.jawatan || member.gred) && (
-                                                        <p className="text-[9px] font-bold text-slate-300 uppercase tracking-[1px] mb-2 leading-none">
+                                                        <p className="text-[9px] font-bold text-risda-muted uppercase tracking-[1px] mb-2 leading-none">
                                                           {member.jawatan || 'TIADA JAWATAN'} {member.gred ? `[${member.gred}]` : ''}
                                                         </p>
                                                       )}
                                                       
                                                       <div className="space-y-1">
-                                                        <div className="flex items-center gap-1.5 text-[9px] text-white/40">
+                                                        <div className="flex items-center gap-1.5 text-[9px] text-risda-muted">
                                                            <span className="font-semibold uppercase tracking-wider">{member.staffId}</span>
-                                                           <span className="opacity-30">•</span>
+                                                           <span className="opacity-40">•</span>
                                                            <span className="truncate italic">{member.email}</span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 text-[9px] font-black text-risda-orange uppercase tracking-wider leading-none">
-                                                           <MapPin size={10} className="text-risda-orange/60" />
+                                                           <MapPin size={10} className="text-risda-orange" />
                                                            <span className="truncate">{member.office || 'PEJABAT TIDAK DITETAPKAN'}</span>
                                                         </div>
                                                       </div>
                                                     </div>
                                                   </div>
 
-                                                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between relative z-10">
+                                                  <div className="mt-4 pt-4 border-t border-risda-border flex items-center justify-between relative z-10">
                                                     <div className="flex items-center gap-1">
                                                       {isAdmin ? (
                                                         <>
                                                           <button 
                                                             type="button"
                                                             onClick={() => handleEdit(member)}
-                                                            className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer"
+                                                            className="p-2 text-risda-muted hover:text-risda-text hover:bg-risda-card-muted rounded-xl transition-all cursor-pointer"
                                                             title="Edit Profil"
                                                           >
                                                             <UserPlus size={16} />
@@ -1061,7 +1059,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                           <button 
                                                             type="button"
                                                             onClick={() => handleResetPassword(member)}
-                                                            className="p-2 text-white/30 hover:text-risda-orange hover:bg-risda-orange/10 rounded-xl transition-all cursor-pointer"
+                                                            className="p-2 text-risda-muted hover:text-risda-orange hover:bg-risda-orange/10 rounded-xl transition-all cursor-pointer"
                                                             title="Update Password"
                                                           >
                                                             <Shield size={16} />
@@ -1069,7 +1067,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                           <button 
                                                             type="button"
                                                             onClick={() => handleSendResetEmail(member.email)}
-                                                            className="p-2 text-white/30 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all cursor-pointer"
+                                                            className="p-2 text-risda-muted hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-all cursor-pointer"
                                                             title="Hantar Reset Email"
                                                           >
                                                             <RefreshCcw size={16} className="rotate-180" />
@@ -1077,7 +1075,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                           <button 
                                                             type="button"
                                                             onClick={() => handleSendWelcomeEmail(member)}
-                                                            className="p-2 text-white/30 hover:text-green-400 hover:bg-green-400/10 rounded-xl transition-all cursor-pointer"
+                                                            className="p-2 text-risda-muted hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-all cursor-pointer"
                                                             title="Hantar Semula E-mel Pendaftaran"
                                                           >
                                                             <Mail size={16} />
@@ -1085,14 +1083,14 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                           <button 
                                                             type="button"
                                                             onClick={() => handleDelete(member.id)}
-                                                            className="p-2 text-white/30 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer"
+                                                            className="p-2 text-risda-muted hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
                                                             title="Padam"
                                                           >
                                                             <Trash2 size={16} />
                                                           </button>
                                                         </>
                                                       ) : (
-                                                        <span className="text-[8px] font-black text-white/30 uppercase tracking-[2px]">Profil Sistem Anda</span>
+                                                        <span className="text-[8px] font-black text-risda-muted uppercase tracking-[2px]">Profil Sistem Anda</span>
                                                       )}
                                                     </div>
 
@@ -1110,8 +1108,8 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                           }}
                                                           className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider focus:outline-none transition-all cursor-pointer ${
                                                             member.status === 'Aktif' 
-                                                              ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
-                                                              : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20' 
+                                                              : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
                                                           }`}
                                                         >
                                                           <option value="Aktif">AKTIF</option>
@@ -1123,7 +1121,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                       <button 
                                                          type="button"
                                                          onClick={() => handleEdit(member)}
-                                                         className="px-3 py-1 bg-white/5 border border-white/5 text-white/50 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                                                         className="px-3 py-1 bg-risda-card-muted border border-risda-border text-risda-text rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-risda-border transition-all cursor-pointer"
                                                       >
                                                         {isAdmin ? 'DETAIL' : 'KEMASKINI PROFIL'}
                                                       </button>
@@ -1168,122 +1166,122 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-risda-card border border-white/5 rounded-[48px] shadow-2xl overflow-hidden shadow-black/80"
+              className="relative w-full max-w-2xl bg-risda-card border border-risda-border rounded-3xl shadow-2xl overflow-hidden"
             >
               {/* Modal Header */}
-              <div className="bg-black/40 p-8 border-b border-white/5 flex items-center justify-between">
+              <div className="bg-risda-card p-6 md:p-8 border-b border-risda-border flex items-center justify-between">
                 <div className="space-y-1">
-                  <h3 className="text-xl font-black text-white uppercase tracking-tight">
+                  <h3 className="text-xl font-black text-risda-text uppercase tracking-tight">
                     {isAdmin ? (editingId ? 'Kemaskini Kakitangan' : 'Tambah Kakitangan Baru') : 'Kemaskini Profil'}
                   </h3>
                   <p className="text-[10px] text-risda-muted font-bold uppercase tracking-[2px]">Input Maklumat Kakitangan Sistem</p>
                 </div>
                 <button 
                   onClick={resetForm}
-                  className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white/50 hover:text-white transition-all"
+                  className="p-2.5 bg-risda-card-muted hover:bg-risda-border rounded-xl text-risda-muted hover:text-risda-text transition-all cursor-pointer"
                 >
-                  <X size={24} />
+                  <X size={20} />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <form onSubmit={handeAddStaff} className="p-8 max-h-[70vh] overflow-y-auto no-scrollbar space-y-8">
+              <form onSubmit={handeAddStaff} className="p-6 md:p-8 max-h-[70vh] overflow-y-auto no-scrollbar space-y-6">
                 {/* Photo Upload Section */}
-                <div className="flex items-center gap-8 p-6 bg-white/5 rounded-3xl border border-white/5 group">
+                <div className="flex items-center gap-6 p-5 bg-risda-card-muted rounded-2xl border border-risda-border group">
                    <div className="relative">
-                     <div className="w-24 h-24 bg-black/40 rounded-3xl border-2 border-white/10 overflow-hidden flex items-center justify-center shadow-2xl transition-all group-hover:border-risda-orange">
+                     <div className="w-20 h-20 bg-risda-card rounded-2xl border border-risda-border overflow-hidden flex items-center justify-center shadow-sm transition-all group-hover:border-risda-orange">
                         {photoURL ? (
                           <img src={photoURL} alt="Preview" className="w-full h-full object-cover" />
                         ) : (
-                          <User size={40} className="text-white/10" />
+                          <User size={36} className="text-risda-muted opacity-40" />
                         )}
                      </div>
-                     <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-risda-orange text-black rounded-2xl flex items-center justify-center cursor-pointer shadow-xl hover:scale-110 active:scale-95 transition-all">
-                        <Plus size={20} />
+                     <label className="absolute -bottom-2 -right-2 w-8 h-8 bg-risda-orange text-white rounded-xl flex items-center justify-center cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all">
+                        <Plus size={16} />
                         <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                      </label>
                    </div>
                    <div className="space-y-1">
-                     <p className="text-sm font-black text-white uppercase tracking-wider">Foto Profil Kakitangan</p>
-                     <p className="text-[10px] text-risda-muted font-bold tracking-wider leading-relaxed">Muat naik fail gambar (JPG/PNG) tidak melebihi 500KB untuk paparan sistem.</p>
+                     <p className="text-xs font-black text-risda-text uppercase tracking-wider">Foto Profil Kakitangan</p>
+                     <p className="text-[10px] text-risda-muted font-medium leading-relaxed">Muat naik fail gambar (JPG/PNG) tidak melebihi 500KB untuk paparan sistem.</p>
                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Kakitangan</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">Kakitangan</label>
                     <input 
                       value={displayName || ''}
                       onChange={(e) => setDisplayName(e.target.value)}
                       readOnly={!isAdmin && editingId !== currentUser?.email?.replace(/[^a-zA-Z0-9]/g, '_')}
                       placeholder="NAMA PENUH"
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all placeholder:text-risda-muted"
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">No. ID Kakitangan</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">No. ID Kakitangan</label>
                     <input 
                       value={staffId || ''}
                       onChange={(e) => setStaffId(e.target.value)}
                       readOnly={!isAdmin}
                       placeholder="CO-XXXX"
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10 uppercase"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all placeholder:text-risda-muted uppercase"
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Google Email</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">Google Email</label>
                     <input 
                       value={email || ''}
                       onChange={(e) => setEmail(e.target.value)}
                       readOnly={!isAdmin}
                       type="email"
                       placeholder="EMAIL@GMAIL.COM"
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all placeholder:text-risda-muted"
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Kata Laluan</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">Kata Laluan</label>
                     <input 
                       value={isAdmin ? (password || '') : '********'}
                       onChange={(e) => setPassword(e.target.value)}
                       readOnly={!isAdmin}
                       type="text"
                       placeholder="MINIMA 6 AKSARA"
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all placeholder:text-risda-muted"
                       required={!editingId}
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Jawatan Kakitangan</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">Jawatan Kakitangan</label>
                     <input 
                       value={jawatan || ''}
                       onChange={(e) => setJawatan(e.target.value)}
                       readOnly={!isAdmin}
                       placeholder="CTH: PEGAWAI PEROLEHAN"
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10 uppercase"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all placeholder:text-risda-muted uppercase"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Gred Jawatan</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">Gred Jawatan</label>
                     <input 
                       value={gred || ''}
                       onChange={(e) => setGred(e.target.value)}
                       readOnly={!isAdmin}
                       placeholder="CTH: G29 / N19"
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all placeholder:text-white/10 uppercase"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all placeholder:text-risda-muted uppercase"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Negeri</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">Negeri</label>
                     <select 
                       value={state || ''}
                       disabled={!isAdmin}
@@ -1292,7 +1290,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                         setOffice('');
                         setDistrict('');
                       }}
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all appearance-none"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all appearance-none cursor-pointer"
                       required
                     >
                       <option value="">PILIH NEGERI</option>
@@ -1313,13 +1311,13 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Pejabat RISDA</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">Pejabat RISDA</label>
                     <select 
                       value={office || ''}
                       disabled={!isAdmin}
                       onChange={(e) => handleOfficeChange(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all appearance-none"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all appearance-none cursor-pointer"
                       required
                     >
                       <option value="">PILIH PEJABAT</option>
@@ -1332,13 +1330,13 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Peranan</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">Peranan</label>
                     <select 
                       value={role || 'penginput'}
                       disabled={!isAdmin}
                       onChange={(e: any) => setRole(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all appearance-none"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all appearance-none cursor-pointer"
                     >
                       <option value="penginput">PENGINPUT (CRUD IKLAN)</option>
                       <option value="pelulus">PELULUS (CRUD IKLAN)</option>
@@ -1347,13 +1345,13 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[3px] ml-1">Status</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-risda-orange uppercase tracking-[2px] ml-1">Status</label>
                     <select 
                       value={status || 'Aktif'}
                       disabled={!isAdmin}
                       onChange={(e: any) => setStatus(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-xs text-white focus:border-risda-orange/50 outline-none transition-all appearance-none"
+                      className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all appearance-none cursor-pointer"
                     >
                       <option value="Aktif">AKTIF</option>
                       <option value="Tidak Aktif">TIDAK AKTIF</option>
@@ -1365,21 +1363,21 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
               </form>
 
               {/* Modal Footer */}
-              <div className="p-8 bg-black/40 border-t border-white/5 flex gap-4">
+              <div className="p-6 md:p-8 bg-risda-card border-t border-risda-border flex gap-4">
                  <button 
                   type="button"
                   onClick={resetForm}
-                  className="flex-1 py-5 bg-white/5 hover:bg-white/10 text-white rounded-[24px] text-xs font-black uppercase tracking-widest transition-all"
+                  className="flex-1 py-4 bg-risda-card-muted hover:bg-risda-border text-risda-text rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
                 >
                   BATAL
                 </button>
                 <button 
                   onClick={handeAddStaff}
                   disabled={loading}
-                  className="flex-[2] py-5 bg-risda-orange text-black rounded-[24px] text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-risda-orange/20 flex items-center justify-center gap-3"
+                  className="flex-[2] py-4 bg-risda-orange text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-risda-orange-hover active:scale-95 transition-all shadow-md flex items-center justify-center gap-3 cursor-pointer"
                 >
                   {loading ? (
-                    <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <UserPlus size={18} />
                   )}

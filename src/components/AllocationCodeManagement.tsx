@@ -865,7 +865,7 @@ export default function AllocationCodeManagement() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-risda-gold/10 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-risda-gold/10 border border-risda-gold/30 text-risda-gold text-[10px] font-black uppercase tracking-widest mb-3">
+            <div className="badge-header-pill inline-flex items-center gap-2 px-3 py-1 rounded-full bg-risda-gold/10 border border-risda-gold/30 text-risda-gold text-[10px] font-black uppercase tracking-widest mb-3">
               <Coins size={12} /> Kawalan Bajet & Peruntukan RISDA
             </div>
             <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">
@@ -882,7 +882,7 @@ export default function AllocationCodeManagement() {
                 resetForm();
                 setShowModal(true);
               }}
-              className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-risda-orange to-risda-gold text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_10px_25px_rgba(0,176,255,0.3)] hover:scale-105 active:scale-95 transition-all self-start md:self-auto"
+              className="btn-action-primary flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-risda-orange to-risda-gold text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_10px_25px_rgba(0,176,255,0.3)] hover:scale-105 active:scale-95 transition-all self-start md:self-auto"
             >
               <Plus size={16} className="stroke-[3]" /> TAMBAH / KEMASKINI PERUNTUKAN
             </button>
@@ -898,9 +898,9 @@ export default function AllocationCodeManagement() {
             setActiveTab('PENGELASAN');
             window.location.hash = 'pengelasan';
           }}
-          className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+          className={`allocation-subtab-btn flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
             activeTab === 'PENGELASAN'
-              ? 'bg-gradient-to-r from-risda-orange to-risda-gold text-white shadow-[0_0_25px_rgba(0,176,255,0.4)] border border-white/30 scale-[1.02]'
+              ? 'active-allocation-subtab bg-gradient-to-r from-risda-orange to-risda-gold text-white shadow-[0_0_25px_rgba(0,176,255,0.4)] border border-white/30 scale-[1.02]'
               : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10 border border-white/10'
           }`}
         >
@@ -913,9 +913,9 @@ export default function AllocationCodeManagement() {
             setActiveTab('LAPORAN_TERPERINCI');
             window.location.hash = 'terperinci';
           }}
-          className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+          className={`allocation-subtab-btn flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
             activeTab === 'LAPORAN_TERPERINCI'
-              ? 'bg-gradient-to-r from-risda-orange to-risda-gold text-white shadow-[0_0_25px_rgba(0,176,255,0.4)] border border-white/30 scale-[1.02]'
+              ? 'active-allocation-subtab bg-gradient-to-r from-risda-orange to-risda-gold text-white shadow-[0_0_25px_rgba(0,176,255,0.4)] border border-white/30 scale-[1.02]'
               : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10 border border-white/10'
           }`}
         >
@@ -1204,7 +1204,7 @@ export default function AllocationCodeManagement() {
               <button
                 type="button"
                 onClick={() => setShowGenerateModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-risda-orange to-risda-gold hover:from-risda-orange/90 hover:to-risda-gold/90 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all print:hidden"
+                className="btn-action-primary flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-risda-orange to-risda-gold hover:from-risda-orange/90 hover:to-risda-gold/90 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all print:hidden"
               >
                 <FileText size={15} /> JANA LAPORAN TERPERINCI
               </button>
@@ -1243,7 +1243,7 @@ export default function AllocationCodeManagement() {
               <button
                 type="button"
                 onClick={() => setShowGenerateModal(true)}
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-gradient-to-r from-risda-orange to-risda-gold text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_10px_25px_rgba(0,176,255,0.3)] hover:scale-105 active:scale-95 transition-all"
+                className="btn-action-primary inline-flex items-center gap-2 px-7 py-3.5 bg-gradient-to-r from-risda-orange to-risda-gold text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_10px_25px_rgba(0,176,255,0.3)] hover:scale-105 active:scale-95 transition-all"
               >
                 <FileText size={16} /> JANA LAPORAN TERPERINCI
               </button>

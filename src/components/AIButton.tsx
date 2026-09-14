@@ -115,7 +115,7 @@ export default function AIButton() {
                   <Bot size={20} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black text-black uppercase tracking-tight">AI HELP RISDA</h3>
+                  <h3 className="text-sm font-bold text-black font-editorial-heading">AI Bantuan RISDA</h3>
                   <div className="flex items-center gap-1">
                     <div className="w-1 h-1 bg-black/60 rounded-full animate-pulse" />
                     <span className="text-[8px] font-bold text-black/60 uppercase">Sedia Membantu</span>
@@ -207,9 +207,9 @@ export default function AIButton() {
           onMouseLeave={() => setIsHovered(false)}
           animate={!isOpen ? {
             boxShadow: [
-              "0 0 0px rgba(0, 229, 255, 0)",
-              "0 0 30px rgba(0, 229, 255, 0.6)",
-              "0 0 0px rgba(0, 229, 255, 0)"
+              "0 0 0px rgba(124, 130, 98, 0)",
+              "0 0 24px rgba(194, 107, 77, 0.4)",
+              "0 0 0px rgba(124, 130, 98, 0)"
             ],
             scale: [1, 1.05, 1]
           } : {}}
@@ -218,10 +218,10 @@ export default function AIButton() {
             repeat: Infinity,
             ease: "easeInOut"
           }}
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
-          className={`w-[50px] h-[50px] rounded-[18px] flex items-center justify-center text-black shadow-2xl transition-all border-2
-            ${isOpen ? 'bg-red-500 border-red-400 shadow-red-500/40 rotate-90' : 'bg-risda-gold border-white/30 shadow-risda-gold/60'}
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.92 }}
+          className={`w-[52px] h-[52px] rounded-[18px] flex items-center justify-center text-white shadow-2xl transition-all border-2
+            ${isOpen ? 'bg-red-500 border-red-400 shadow-red-500/40 rotate-90' : 'bg-risda-orange border-white/20 shadow-risda-orange/30'}
           `}
         >
           {isOpen ? <X size={24} /> : <MessageSquare size={24} />}

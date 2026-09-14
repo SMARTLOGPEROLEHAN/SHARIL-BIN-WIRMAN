@@ -169,6 +169,10 @@
     "/annual_rows/{rowId}": {
       "schema": "AnnualRow",
       "description": "Annual report custom rows and saved overrides"
+    },
+    "/system_analytics/{docId}": {
+      "schema": "SystemAnalytics",
+      "description": "Visitor stats and portal analytics"
     }
   }
 }
