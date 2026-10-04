@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#061B3A" />
+      <stop offset="100%" stop-color="#0C2D5E" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F9D423" />
+      <stop offset="100%" stop-color="#E65C00" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
+  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#goldGrad)" stroke-width="14" opacity="0.85" />
+  <circle cx="256" cy="256" r="175" fill="#061B3A" stroke="#1E3F73" stroke-width="4" />
+  <!-- Smart Procurement Crest -->
+  <path d="M256 120 L360 175 L360 295 C360 365 256 415 256 415 C256 415 152 365 152 295 L152 175 Z" fill="url(#goldGrad)" opacity="0.15" />
+  <path d="M256 135 L345 185 L345 285 C345 345 256 390 256 390 C256 390 167 345 167 285 L167 185 Z" fill="none" stroke="url(#goldGrad)" stroke-width="12" stroke-linejoin="round" />
+  <!-- Central Document / Log / Checkmark -->
+  <path d="M210 255 L245 290 L305 220" fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Digital Nodes / Tech indicators -->
+  <circle cx="256" cy="180" r="10" fill="url(#goldGrad)" />
+  <circle cx="205" cy="330" r="7" fill="url(#goldGrad)" />
+  <circle cx="307" cy="330" r="7" fill="url(#goldGrad)" />
+</svg>

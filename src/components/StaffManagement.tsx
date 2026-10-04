@@ -14,7 +14,7 @@ interface StaffMember {
   id: string;
   email: string;
   displayName: string;
-  role: 'admin' | 'penginput' | 'pelulus' | 'pentadbir';
+  role: 'admin' | 'penginput' | 'penyemak' | 'pelulus' | 'pentadbir';
   status: 'Aktif' | 'Tidak Aktif' | 'Pencen' | 'Berhenti';
   staffId: string;
   password?: string;
@@ -31,7 +31,7 @@ interface StaffMember {
 export default function StaffManagement() {
   const { role: currentUserRole, user: currentUser, state: currentUserState, district: currentUserDistrict, office: currentUserOffice } = useAuth();
   const isAdmin = currentUserRole === 'admin' || currentUserRole === 'pentadbir';
-  const isStaff = currentUserRole === 'penginput' || currentUserRole === 'pelulus' || isAdmin;
+  const isStaff = currentUserRole === 'penginput' || currentUserRole === 'penyemak' || currentUserRole === 'pelulus' || isAdmin;
   
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [allLocations, setAllLocations] = useState<any[]>([]);
@@ -45,7 +45,7 @@ export default function StaffManagement() {
   const [district, setDistrict] = useState('');
   const [office, setOffice] = useState('');
   const [photoURL, setPhotoURL] = useState('');
-  const [role, setRole] = useState<'admin' | 'penginput' | 'pelulus' | 'pentadbir'>('penginput');
+  const [role, setRole] = useState<'admin' | 'penginput' | 'penyemak' | 'pelulus' | 'pentadbir'>('penginput');
   const [status, setStatus] = useState<'Aktif' | 'Tidak Aktif' | 'Pencen' | 'Berhenti'>('Aktif');
   const [jawatan, setJawatan] = useState('');
   const [gred, setGred] = useState('');
@@ -53,7 +53,7 @@ export default function StaffManagement() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'penginput' | 'pelulus' | 'pentadbir'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'penginput' | 'penyemak' | 'pelulus' | 'pentadbir'>('all');
   const [showModal, setShowModal] = useState(false);
   const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>({});
   const [expandedDistricts, setExpandedDistricts] = useState<Record<string, boolean>>({});
@@ -780,7 +780,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
       <div className="space-y-8">
         <div className="flex flex-col xl:flex-row items-end justify-between gap-6">
           <div className="flex flex-wrap items-center gap-2 p-1.5 bg-risda-card rounded-2xl border border-risda-border">
-             {(['all', 'admin', 'pentadbir', 'pelulus', 'penginput'] as const).map((r) => (
+             {(['all', 'admin', 'pentadbir', 'penyemak', 'pelulus', 'penginput'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => setRoleFilter(r)}
@@ -793,6 +793,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                 {r === 'all' ? 'SEMUA' : 
                  r === 'admin' ? 'ADMIN' : 
                  r === 'pentadbir' ? 'PENTADBIR' : 
+                 r === 'penyemak' ? 'PENYEMAK' :
                  r === 'pelulus' ? 'PELULUS' : 'PENGINPUT'}
               </button>
             ))}
@@ -1022,7 +1023,7 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                                                         <h4 className="text-xs md:text-sm font-black text-risda-text uppercase tracking-tight truncate leading-tight group-hover/card:text-risda-orange transition-colors">{member.displayName}</h4>
                                                       </div>
                                                       <p className="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-[1.5px] mb-1 leading-none">
-                                                         {member.role === 'admin' || member.role === 'pentadbir' ? 'Pentadbir Sistem' : member.role === 'penginput' ? 'Pihak Penginput' : 'Pegawai Pelulus'}
+                                                         {member.role === 'admin' || member.role === 'pentadbir' ? 'Pentadbir Sistem' : member.role === 'penginput' ? 'Pihak Penginput' : member.role === 'penyemak' ? 'Pegawai Penyemak' : 'Pegawai Pelulus'}
                                                       </p>
                                                       {(member.jawatan || member.gred) && (
                                                         <p className="text-[9px] font-bold text-risda-muted uppercase tracking-[1px] mb-2 leading-none">
@@ -1338,8 +1339,9 @@ Pentadbir Sistem (SMARTLOG PEROLEHAN)`;
                       onChange={(e: any) => setRole(e.target.value)}
                       className="w-full bg-risda-card border border-risda-border rounded-xl py-3 px-4 text-xs font-bold text-risda-text focus:border-risda-orange focus:ring-1 focus:ring-risda-orange outline-none transition-all appearance-none cursor-pointer"
                     >
-                      <option value="penginput">PENGINPUT (CRUD IKLAN)</option>
-                      <option value="pelulus">PELULUS (CRUD IKLAN)</option>
+                      <option value="penginput">PENGINPUT (CRUD IKLAN & PESANAN)</option>
+                      <option value="penyemak">PENYEMAK (SEMAKAN IKLAN, PELAWAAN, KEPUTUSAN & KAJIAN 3 PEMBEKAL)</option>
+                      <option value="pelulus">PELULUS (KELULUSAN IKLAN, PELAWAAN, KEPUTUSAN & PESANAN)</option>
                       <option value="pentadbir">PENTADBIR (SISTEM)</option>
                       <option value="admin">ADMIN (SYSTEM - SUPERUSER)</option>
                     </select>

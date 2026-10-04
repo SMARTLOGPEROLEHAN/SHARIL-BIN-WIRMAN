@@ -8,7 +8,8 @@
     "build": "vite build && mkdir -p dist/PUBLIC dist/public && cp -r PUBLIC/* dist/PUBLIC/ && cp -r PUBLIC/* dist/public/ && mkdir -p \"dist/QR KOD\" \"dist/qr kod\" && cp -r \"QR KOD\"/* \"dist/QR KOD/\" && cp -r \"QR KOD\"/* \"dist/qr kod/\" && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "postinstall": "node scripts/patch-firestore.cjs"
   },
   "dependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",

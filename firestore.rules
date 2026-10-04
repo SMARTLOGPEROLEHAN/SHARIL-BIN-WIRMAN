@@ -113,8 +113,9 @@ service cloud.firestore {
     // NOTIFICATIONS & SUPPORT REQUESTS
     // -------------------------------------------------------------------------
     match /notifications/{notifId} {
-      allow create: if true; // Anyone can request help/reset even if not signed in
-      allow get, list, update: if isStaff();
+      allow create: if true; // Anyone can request help/reset or trigger attendance notification
+      allow get, list: if true; // Allow app and devices to listen to live notifications
+      allow update: if isStaff();
       allow delete: if isAdmin();
     }
 
@@ -158,6 +159,11 @@ service cloud.firestore {
     // ORDER REQUESTS & ALLOCATION CODES
     // -------------------------------------------------------------------------
     match /orderRequests/{requestId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    match /order_requests/{requestId} {
       allow read: if true;
       allow create, update, delete: if true;
     }

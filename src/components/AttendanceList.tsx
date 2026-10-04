@@ -44,7 +44,7 @@ interface AttendanceRecord {
 
 export default function AttendanceList() {
   const { role, office: userOffice, state: userState, district: userDistrict } = useAuth();
-  const isStaff = role === 'penginput' || role === 'pelulus' || role === 'admin' || role === 'pentadbir';
+  const isStaff = role === 'penginput' || role === 'penyemak' || role === 'pelulus' || role === 'admin' || role === 'pentadbir';
   const isAdmin = role === 'admin' || role === 'pentadbir';
   
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -474,114 +474,85 @@ Sila bawa bersama dokumen lesen syarikat asal (CIDB, SPKK, PUKONSA atau MOF yang
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.02, duration: 0.3 }}
-            className="h-full bg-risda-card border border-risda-border hover:border-risda-orange/40 rounded-3xl p-6 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md relative overflow-hidden transition-all duration-300 group"
+            onClick={() => setPreviewRecord(record)}
+            className="h-full bg-risda-card border border-risda-border hover:border-risda-orange/60 rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-lg relative overflow-hidden transition-all duration-300 group cursor-pointer"
           >
-            <div className="space-y-4 flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between">
-                  <div className="p-3 bg-risda-card-muted rounded-2xl text-risda-gold border border-risda-border group-hover:bg-risda-orange/10 group-hover:text-risda-orange transition-all duration-300">
-                    <Building2 size={20} />
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <span className="px-2.5 py-1 bg-risda-orange/15 border border-risda-orange/30 text-[9px] font-bold text-risda-orange rounded-md uppercase tracking-wider font-mono">
-                      SIRI NO: {record.docSeriesNo || '-'}
-                    </span>
-                  </div>
+            <div className="space-y-4">
+              {/* Header: Ikon Bangunan & Siri No */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-risda-card-muted border border-risda-border flex items-center justify-center text-risda-gold group-hover:bg-risda-orange/10 group-hover:text-risda-orange group-hover:border-risda-orange/30 transition-all duration-300 shadow-xs shrink-0">
+                  <Building2 size={20} />
                 </div>
-
-                <div className="space-y-2 mt-4">
-                  <h3 className="text-sm font-bold text-risda-text uppercase tracking-tight leading-snug group-hover:text-risda-orange transition-colors duration-300 line-clamp-2 min-h-[2.5rem] flex items-center">
-                    {record.companyName}
-                  </h3>
-                  
-                  <div className="space-y-1.5 pt-1">
-                    <p className="text-[10px] text-risda-text font-bold uppercase flex items-center gap-2">
-                      <User size={12} className="text-risda-orange shrink-0" />
-                      <span>{record.ownerName}</span>
-                    </p>
-                    
-                    {record.icNumber && (
-                      <p className="text-[10px] text-risda-muted font-medium flex items-center gap-2">
-                        <span className="text-[9px] font-bold text-risda-muted font-mono shrink-0">KP:</span>
-                        <span className="font-mono">{record.icNumber}</span>
-                      </p>
-                    )}
-
-                    <p className="text-[10px] text-risda-text-secondary font-medium flex items-center gap-2">
-                      <Phone size={12} className="text-risda-orange shrink-0" />
-                      <span className="font-mono">{record.phoneNumber}</span>
-                    </p>
-                    
-                    {record.email && record.email !== '-' && (
-                      <p className="text-[10px] text-risda-text-secondary font-medium flex items-center gap-2 truncate">
-                        <Mail size={12} className="text-risda-orange shrink-0" />
-                        <span className="truncate select-all">{record.email}</span>
-                      </p>
-                    )}
-                    
-                    <p className="text-[9px] text-risda-muted font-medium flex items-center gap-2 pt-1">
-                      <Calendar size={11} className="text-risda-muted shrink-0" />
-                      <span>DAFTAR: {formatDate(record.timestamp)}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-risda-border min-h-[44px] flex items-center">
-                {record.companyAddress && record.companyAddress !== '-' ? (
-                  <p className="text-[10px] text-risda-muted italic leading-relaxed line-clamp-2">
-                    {record.companyAddress}
-                  </p>
-                ) : (
-                  <p className="text-[10px] text-risda-muted/50 italic">Alamat tidak dinyatakan</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 pt-3 border-t border-risda-border mt-auto">
-              <div className="bg-risda-card-muted px-3 py-2 rounded-xl border border-risda-border flex flex-col justify-center min-h-[46px]">
-                <span className="text-[7px] font-bold text-risda-orange uppercase tracking-widest">Sebut Harga</span>
-                <span className="text-[9px] font-bold text-risda-text uppercase tracking-tight line-clamp-1">
-                  {record.adTitle || 'Iklan Tidak Dinyatakan'}
+                <span className="px-3 py-1 bg-risda-orange/15 border border-risda-orange/30 text-[10px] font-black text-risda-orange rounded-full uppercase tracking-wider font-mono shadow-xs shrink-0">
+                  SIRI NO: {record.docSeriesNo || '-'}
                 </span>
               </div>
 
-              <div className="flex items-center justify-end gap-2">
-                <button 
-                  onClick={() => setPreviewRecord(record)}
-                  className="px-3 py-2 bg-risda-card-muted hover:bg-risda-orange/15 text-risda-text hover:text-risda-orange rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-risda-border"
-                  title="Lihat Butiran Syarikat"
-                >
-                  <Eye size={13} /> Detail
-                </button>
-                <button 
-                  onClick={() => handleResendEmail(record)}
-                  disabled={resendingId === record.id}
-                  className={`px-3 py-2 bg-risda-card-muted rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-risda-border ${
-                    resendingId === record.id 
-                      ? 'opacity-50 cursor-not-allowed text-risda-muted' 
-                      : 'hover:bg-blue-500/15 text-risda-text hover:text-blue-600 dark:hover:text-blue-400'
-                  }`}
-                  title="Hantar Semula E-mel Pendaftaran"
-                >
-                  {resendingId === record.id ? (
-                    <>
-                      <span className="inline-block animate-spin border-2 border-current border-t-transparent rounded-full h-3 w-3" /> Sending
-                    </>
-                  ) : (
-                    <>
-                      <Mail size={13} /> Email
-                    </>
-                  )}
-                </button>
-                <button 
-                  onClick={() => handleDelete(record.id)}
-                  className="px-3 py-2 bg-risda-card-muted hover:bg-red-500/15 text-risda-text hover:text-red-600 dark:hover:text-red-400 rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-risda-border"
-                  title="Padam Rekod Kehadiran"
-                >
-                  <Trash2 size={13} /> Padam
-                </button>
+              {/* Nama Syarikat / Kontraktor */}
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-risda-muted uppercase tracking-widest block">
+                  Syarikat / Pembekal
+                </span>
+                <h3 className="text-sm sm:text-base font-extrabold text-risda-text uppercase tracking-tight leading-snug group-hover:text-risda-orange transition-colors duration-300 line-clamp-2 min-h-[2.5rem] flex items-center">
+                  {record.companyName}
+                </h3>
               </div>
+
+              {/* Nama Pemilik / Wakil */}
+              <div className="p-3.5 bg-risda-card-muted/80 rounded-2xl border border-risda-border flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-risda-card border border-risda-border flex items-center justify-center text-risda-orange shrink-0 shadow-xs">
+                  <User size={14} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[8px] font-bold text-risda-muted uppercase tracking-widest block leading-none mb-1">
+                    Nama Pemilik / Wakil
+                  </span>
+                  <p className="text-xs font-black text-risda-text uppercase truncate">
+                    {record.ownerName || '-'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Butang Tindakan */}
+            <div 
+              className="flex items-center justify-end gap-2 pt-4 mt-4 border-t border-risda-border/70"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setPreviewRecord(record)}
+                className="px-3.5 py-2 bg-risda-orange/15 hover:bg-risda-orange text-risda-orange hover:text-white border border-risda-orange/30 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs hover:shadow-md cursor-pointer active:scale-95"
+                title="Lihat Butiran Lengkap Pembekal"
+              >
+                <Eye size={13} /> Detail
+              </button>
+              <button 
+                onClick={() => handleResendEmail(record)}
+                disabled={resendingId === record.id}
+                className={`px-3 py-2 bg-risda-card-muted rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-risda-border cursor-pointer active:scale-95 ${
+                  resendingId === record.id 
+                    ? 'opacity-50 cursor-not-allowed text-risda-muted' 
+                    : 'hover:bg-blue-500/15 text-risda-text hover:text-blue-600 dark:hover:text-blue-400'
+                }`}
+                title="Hantar Semula E-mel Pendaftaran"
+              >
+                {resendingId === record.id ? (
+                  <>
+                    <span className="inline-block animate-spin border-2 border-current border-t-transparent rounded-full h-3 w-3" /> Sending
+                  </>
+                ) : (
+                  <>
+                    <Mail size={13} /> Email
+                  </>
+                )}
+              </button>
+              <button 
+                onClick={() => handleDelete(record.id)}
+                className="px-3 py-2 bg-risda-card-muted hover:bg-red-500/15 text-risda-text hover:text-red-600 dark:hover:text-red-400 rounded-xl transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-risda-border cursor-pointer active:scale-95"
+                title="Padam Rekod Kehadiran"
+              >
+                <Trash2 size={13} /> Padam
+              </button>
             </div>
           </motion.div>
         ))}

@@ -10,22 +10,28 @@ export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
-    // Detect standalone mode (already installed / WebAPK / home screen)
+    // Detect standalone mode (already installed or running as PWA app)
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+      document.referrer.includes('android-app://');
     setIsInstalled(isStandalone);
 
-    // Detect devices
+    // Detect user platform
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
     const isAndroidDevice = /android/.test(userAgent);
+    const isDesktopDevice = !isIOSDevice && !isAndroidDevice;
+
     setIsIOS(isIOSDevice);
     setIsAndroid(isAndroidDevice);
+    setIsDesktop(isDesktopDevice);
 
     const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent browser default mini-infobar or dialog
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
@@ -46,12 +52,16 @@ export function usePWAInstall() {
 
   const install = async () => {
     if (!deferredPrompt) return false;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-      return true;
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setIsInstalled(true);
+        setDeferredPrompt(null);
+        return true;
+      }
+    } catch (err) {
+      console.warn('Install prompt error:', err);
     }
     return false;
   };
@@ -61,6 +71,7 @@ export function usePWAInstall() {
     isInstalled,
     isIOS,
     isAndroid,
+    isDesktop,
     install,
   };
 }

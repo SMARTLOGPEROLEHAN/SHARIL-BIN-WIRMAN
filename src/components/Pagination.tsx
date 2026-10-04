@@ -62,7 +62,7 @@ export default function Pagination({
       {/* Records info & Page size selector */}
       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-risda-text font-medium">
         <span>
-          Memaparkan <span className="font-bold text-risda-orange">{startIndex} - {endIndex}</span> daripada <span className="font-bold text-risda-text">{totalItems}</span> {itemName}
+          Memaparkan <span className="font-bold text-risda-orange">{startIndex} - {endIndex}</span> daripada <span className="font-bold text-risda-text">{totalItems}</span>{itemName ? ` ${itemName}` : ''}
         </span>
 
         {onPageSizeChange && totalItems > Math.min(...pageSizeOptions) && (

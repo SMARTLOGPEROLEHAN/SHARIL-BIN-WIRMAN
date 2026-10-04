@@ -52,9 +52,9 @@
   --risda-orange-glow: rgba(21, 87, 176, 0.2);
   --risda-border: #94A3B8;          /* Border: Solid High-Definition Slate #94A3B8 */
   --risda-border-light: #CBD5E1;
-  --risda-text: #0F172A;            /* Tulisan utama: Dark Slate-900 (High-Contrast) */
-  --risda-text-secondary: #334155;  /* Tulisan kedua: Dark Slate-700 (Clear & Legible) */
-  --risda-muted: #475569;           /* Muted text: Slate-600 (Easily Readable) */
+  --risda-text: #0A1526;            /* Tulisan utama: Deep High-Contrast Ink Slate #0A1526 */
+  --risda-text-secondary: #1E293B;  /* Tulisan kedua: Crisp Slate-800 */
+  --risda-muted: #334155;           /* Muted text: High-Contrast Slate-700 */
   --risda-glow-color: rgba(21, 87, 176, 0.04);
   --risda-gradient-color: rgba(244, 180, 26, 0.03);
   color-scheme: light;
@@ -78,9 +78,9 @@
   --risda-orange-glow: rgba(77, 86, 57, 0.16);
   --risda-border: #9E9484;          /* Solid high-clarity earthy border #9E9484 */
   --risda-border-light: #C4BCAD;    /* Understated separator */
-  --risda-text: #161811;            /* Ultra-crisp deep charcoal graphite (High Contrast) */
-  --risda-text-secondary: #2E3024;  /* High-clarity secondary graphite */
-  --risda-muted: #4C503D;           /* High-clarity muted metadata */
+  --risda-text: #14170E;            /* Ultra-crisp deep charcoal graphite (High Contrast) */
+  --risda-text-secondary: #242918;  /* High-clarity secondary olive-graphite */
+  --risda-muted: #3D442E;           /* High-clarity deep olive muted metadata */
   --risda-glow-color: rgba(77, 86, 57, 0.05);
   --risda-gradient-color: rgba(163, 72, 42, 0.03);
   color-scheme: light;
@@ -104,9 +104,9 @@
   --risda-orange-glow: rgba(244, 180, 26, 0.2);
   --risda-border: #3A4E75;          /* Solid high-definition metallic border #3A4E75 */
   --risda-border-light: #253554;
-  --risda-text: #FFFFFF;            /* Crisp Pure White */
-  --risda-text-secondary: #E2E8F0;  /* Bright White-Silver */
-  --risda-muted: #CBD5E1;           /* Crisp Light Slate */
+  --risda-text: #FFFFFF;            /* Crisp Brilliant Pure White */
+  --risda-text-secondary: #F1F5F9;  /* Bright White-Silver */
+  --risda-muted: #CBD5E1;           /* Crisp Clear Silver Slate */
   --risda-glow-color: rgba(244, 180, 26, 0.08);
   --risda-gradient-color: rgba(244, 180, 26, 0.04);
   color-scheme: dark;
@@ -300,8 +300,8 @@ header [class*="shadow-2xl"]:not(button) {
 .executive-theme .bg-black\/80:not(header *):not(aside *):not([class*="fixed"] *),
 .executive-theme .bg-white\/5:not(header *):not(aside *),
 .executive-theme .bg-white\/10:not(header *):not(aside *),
-.executive-theme [class*="rounded-2xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span),
-.executive-theme [class*="rounded-3xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span),
+.executive-theme [class*="rounded-2xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(.pwa-install-banner):not(.pwa-install-banner *):not(.pwa-guide-modal):not(.pwa-guide-modal *),
+.executive-theme [class*="rounded-3xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(.pwa-install-banner):not(.pwa-install-banner *):not(.pwa-guide-modal):not(.pwa-guide-modal *),
 .executive-theme [class*="rounded-\[24px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
 .executive-theme [class*="rounded-\[32px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
 .executive-theme [class*="rounded-\[36px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
@@ -343,34 +343,54 @@ header [class*="shadow-2xl"]:not(button) {
 .executive-theme h2:not(header *):not(aside *),
 .executive-theme h3:not(header *):not(aside *),
 .executive-theme h4:not(header *):not(aside *) {
-  color: #0F172A !important;
+  color: #0A1526 !important;
 }
 
 .executive-theme .text-risda-text:not(header *):not(aside *) {
-  color: #0F172A !important;
+  color: #0A1526 !important;
 }
 
 .executive-theme .text-risda-text-secondary:not(header *):not(aside *) {
-  color: #334155 !important;
+  color: #1E293B !important;
 }
 
 .executive-theme .text-risda-muted:not(header *):not(aside *) {
-  color: #475569 !important;
+  color: #334155 !important;
 }
 
-.executive-theme .text-slate-100:not(header *):not(aside *),
-.executive-theme .text-slate-200:not(header *):not(aside *),
-.executive-theme .text-slate-300:not(header *):not(aside *) {
-  color: #0F172A !important;
+.executive-theme .text-slate-100:not(header *):not(aside *):not(.pwa-install-banner *):not(.pwa-guide-modal *),
+.executive-theme .text-slate-200:not(header *):not(aside *):not(.pwa-install-banner *):not(.pwa-guide-modal *),
+.executive-theme .text-slate-300:not(header *):not(aside *):not(.pwa-install-banner *):not(.pwa-guide-modal *) {
+  color: #0A1526 !important;
 }
 
-.executive-theme .text-slate-400:not(header *):not(aside *),
-.executive-theme .text-slate-500:not(header *):not(aside *) {
-  color: #475569 !important;
+.executive-theme .text-slate-400:not(header *):not(aside *):not(.pwa-install-banner *):not(.pwa-guide-modal *),
+.executive-theme .text-slate-500:not(header *):not(aside *):not(.pwa-install-banner *):not(.pwa-guide-modal *) {
+  color: #334155 !important;
 }
 
-.executive-theme .text-white:not(button):not(button *):not([class*="btn"]):not([class*="btn"] *):not([class*="tag"]):not([class*="tag"] *):not([class*="badge"]):not([class*="badge"] *):not([class*="bg-[#"]):not([class*="bg-risda-orange"]):not([class*="bg-risda-orange"] *):not([class*="bg-risda-gold"]):not([class*="bg-risda-gold"] *):not([class*="bg-gradient"]):not([class*="bg-gradient"] *):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-purple"]):not(header *):not(aside *) {
-  color: #0F172A !important;
+.executive-theme .text-white:not(button):not(button *):not([class*="btn"]):not([class*="btn"] *):not([class*="tag"]):not([class*="tag"] *):not([class*="badge"]):not([class*="badge"] *):not([class*="bg-[#"]):not([class*="bg-risda-orange"]):not([class*="bg-risda-orange"] *):not([class*="bg-risda-gold"]):not([class*="bg-risda-gold"] *):not([class*="bg-gradient"]):not([class*="bg-gradient"] *):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-purple"]):not(header *):not(aside *):not(.pwa-install-banner *):not(.pwa-guide-modal *) {
+  color: #0A1526 !important;
+}
+
+.executive-theme [class*="text-white/"]:not(header *):not(aside *):not(button):not(button *):not([class*="badge"]):not([class*="badge"] *):not(.pwa-install-banner *):not(.pwa-guide-modal *) {
+  color: #334155 !important;
+}
+
+.executive-theme table th:not(aside *) {
+  background-color: #E2E8F0 !important;
+  color: #0A1526 !important;
+  border-color: #CBD5E1 !important;
+  font-weight: 800 !important;
+}
+
+.executive-theme table td:not(aside *) {
+  border-color: #CBD5E1 !important;
+  color: #0A1526 !important;
+}
+
+.executive-theme table tr:hover:not(aside *) {
+  background-color: rgba(21, 87, 176, 0.04) !important;
 }
 
 /* Executive Inputs */
@@ -397,8 +417,8 @@ header [class*="shadow-2xl"]:not(button) {
   box-shadow: 0 0 0 3px rgba(21, 87, 176, 0.18) !important;
 }
 
-.executive-theme main input::placeholder,
-.executive-theme main textarea::placeholder {
+.executive-theme input:not(header *):not(aside *)::placeholder,
+.executive-theme textarea:not(header *):not(aside *)::placeholder {
   color: #94A3B8 !important;
 }
 
@@ -513,6 +533,52 @@ header [class*="shadow-2xl"]:not(button) {
   color: #FFFFFF !important;
 }
 
+/* Executive Format Selection Buttons */
+.executive-theme .format-card-btn-inactive {
+  background-color: #F8FAFC !important;
+  border-color: #94A3B8 !important;
+  color: #0F172A !important;
+}
+.executive-theme .format-card-btn-inactive:hover {
+  background-color: #F1F5F9 !important;
+  border-color: #1557B0 !important;
+}
+.executive-theme .format-card-btn-inactive .format-title {
+  color: #0F172A !important;
+  font-weight: 800 !important;
+}
+.executive-theme .format-card-btn-inactive .format-subtitle {
+  color: #475569 !important;
+  font-weight: 700 !important;
+}
+.executive-theme .format-card-btn-inactive .format-desc {
+  color: #64748B !important;
+}
+
+.executive-theme .format-card-btn-active {
+  background-color: #EFF6FF !important;
+  border-color: #1557B0 !important;
+  border-width: 2.5px !important;
+  color: #0F172A !important;
+  box-shadow: 0 4px 16px rgba(21, 87, 176, 0.2) !important;
+}
+.executive-theme .format-card-btn-active .format-title {
+  color: #1557B0 !important;
+  font-weight: 900 !important;
+}
+.executive-theme .format-card-btn-active .format-subtitle {
+  color: #0F172A !important;
+  font-weight: 800 !important;
+}
+.executive-theme .format-card-btn-active .format-desc {
+  color: #1E3A8A !important;
+  font-weight: 600 !important;
+}
+.executive-theme .format-card-btn-active .format-badge {
+  background-color: #1557B0 !important;
+  color: #FFFFFF !important;
+}
+
 .executive-theme .project-filter-stat-card {
   background-color: #FFFFFF !important;
   border: 1.5px solid #94A3B8 !important;
@@ -547,8 +613,8 @@ header [class*="shadow-2xl"]:not(button) {
 .natural-theme .bg-black\/80:not(aside *):not([class*="fixed"] *),
 .natural-theme .bg-white\/5:not(aside *),
 .natural-theme .bg-white\/10:not(aside *),
-.natural-theme [class*="rounded-2xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span),
-.natural-theme [class*="rounded-3xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span),
+.natural-theme [class*="rounded-2xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(.pwa-install-banner):not(.pwa-install-banner *):not(.pwa-guide-modal):not(.pwa-guide-modal *),
+.natural-theme [class*="rounded-3xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(.pwa-install-banner):not(.pwa-install-banner *):not(.pwa-guide-modal):not(.pwa-guide-modal *),
 .natural-theme [class*="rounded-\[24px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
 .natural-theme [class*="rounded-\[32px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
 .natural-theme [class*="rounded-\[40px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]) {
@@ -588,34 +654,38 @@ header [class*="shadow-2xl"]:not(button) {
 .natural-theme h2,
 .natural-theme h3,
 .natural-theme h4 {
-  color: #161811 !important;
+  color: #14170E !important;
 }
 
 .natural-theme .text-risda-text {
-  color: #161811 !important;
+  color: #14170E !important;
 }
 
 .natural-theme .text-risda-text-secondary {
-  color: #2E3024 !important;
+  color: #242918 !important;
 }
 
 .natural-theme .text-risda-muted {
-  color: #4C503D !important;
+  color: #3D442E !important;
 }
 
 .natural-theme .text-white:not(button):not(button *):not([class*="btn"]):not([class*="btn"] *):not([class*="tag"]):not([class*="tag"] *):not([class*="badge"]):not([class*="badge"] *):not([class*="bg-[#"]):not([class*="bg-risda-orange"]):not([class*="bg-risda-orange"] *):not([class*="bg-risda-gold"]):not([class*="bg-risda-gold"] *):not([class*="bg-gradient"]):not([class*="bg-gradient"] *):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-purple"]):not([class*="bg-slate-8"]):not([class*="bg-slate-9"]) {
-  color: #161811 !important;
+  color: #14170E !important;
 }
 
-.natural-theme .text-slate-100,
-.natural-theme .text-slate-200,
-.natural-theme .text-slate-300 {
-  color: #161811 !important;
+.natural-theme [class*="text-white/"]:not(header *):not(aside *):not(button):not(button *):not([class*="badge"]):not([class*="badge"] *):not(.pwa-install-banner *):not(.pwa-guide-modal *) {
+  color: #3D442E !important;
 }
 
-.natural-theme .text-slate-400,
-.natural-theme .text-slate-500 {
-  color: #4C503D !important;
+.natural-theme .text-slate-100:not(.pwa-install-banner *):not(.pwa-guide-modal *),
+.natural-theme .text-slate-200:not(.pwa-install-banner *):not(.pwa-guide-modal *),
+.natural-theme .text-slate-300:not(.pwa-install-banner *):not(.pwa-guide-modal *) {
+  color: #14170E !important;
+}
+
+.natural-theme .text-slate-400:not(.pwa-install-banner *):not(.pwa-guide-modal *),
+.natural-theme .text-slate-500:not(.pwa-install-banner *):not(.pwa-guide-modal *) {
+  color: #3D442E !important;
 }
 
 .natural-theme table th:not(aside *) {
@@ -769,6 +839,52 @@ aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
   color: #FAF9F6 !important;
 }
 
+/* Natural Theme Format Selection Buttons */
+.natural-theme .format-card-btn-inactive {
+  background-color: #F5F2EA !important;
+  border-color: #B5AB99 !important;
+  color: #2D3321 !important;
+}
+.natural-theme .format-card-btn-inactive:hover {
+  background-color: #EBE5D6 !important;
+  border-color: #4D5639 !important;
+}
+.natural-theme .format-card-btn-inactive .format-title {
+  color: #2D3321 !important;
+  font-weight: 800 !important;
+}
+.natural-theme .format-card-btn-inactive .format-subtitle {
+  color: #555E40 !important;
+  font-weight: 700 !important;
+}
+.natural-theme .format-card-btn-inactive .format-desc {
+  color: #6C705B !important;
+}
+
+.natural-theme .format-card-btn-active {
+  background-color: #EAE5D7 !important;
+  border-color: #4D5639 !important;
+  border-width: 2.5px !important;
+  color: #161811 !important;
+  box-shadow: 0 4px 16px rgba(77, 86, 57, 0.22) !important;
+}
+.natural-theme .format-card-btn-active .format-title {
+  color: #3E462E !important;
+  font-weight: 900 !important;
+}
+.natural-theme .format-card-btn-active .format-subtitle {
+  color: #161811 !important;
+  font-weight: 800 !important;
+}
+.natural-theme .format-card-btn-active .format-desc {
+  color: #4D5639 !important;
+  font-weight: 600 !important;
+}
+.natural-theme .format-card-btn-active .format-badge {
+  background-color: #4D5639 !important;
+  color: #FFFFFF !important;
+}
+
 .natural-theme .project-filter-stat-card {
   background-color: #FAF8F5 !important;
   border: 1.5px solid #9E9484 !important;
@@ -833,13 +949,13 @@ aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
 .custom-theme [class*="bg-black/"]:not(header *):not(aside *):not(button):not(input):not(select):not([class*="fixed"]),
 .custom-theme .bg-white\/5:not(header *):not(aside *):not(button):not(button *):not(span):not(a),
 .custom-theme .bg-white\/10:not(header *):not(aside *):not(button):not(button *):not(span):not(a),
-.custom-theme [class*="rounded-2xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(a),
-.custom-theme [class*="rounded-3xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(a),
-.custom-theme [class*="rounded-\[20px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
-.custom-theme [class*="rounded-\[24px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
-.custom-theme [class*="rounded-\[32px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
-.custom-theme [class*="rounded-\[36px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]),
-.custom-theme [class*="rounded-\[40px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]) {
+.custom-theme [class*="rounded-2xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(a):not(.risda-official-letter-sheet):not(.risda-official-letter-sheet *),
+.custom-theme [class*="rounded-3xl"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="bg-risda-orange"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-rose"]):not([class*="rounded-full"]):not([class*="px-"]):not(span):not(a):not(.risda-official-letter-sheet):not(.risda-official-letter-sheet *),
+.custom-theme [class*="rounded-\[20px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]):not(.risda-official-letter-sheet):not(.risda-official-letter-sheet *),
+.custom-theme [class*="rounded-\[24px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]):not(.risda-official-letter-sheet):not(.risda-official-letter-sheet *),
+.custom-theme [class*="rounded-\[32px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]):not(.risda-official-letter-sheet):not(.risda-official-letter-sheet *),
+.custom-theme [class*="rounded-\[36px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]):not(.risda-official-letter-sheet):not(.risda-official-letter-sheet *),
+.custom-theme [class*="rounded-\[40px\]"]:not(button):not(button *):not(aside *):not(header *):not(input):not(select):not([class*="rounded-full"]):not(.risda-official-letter-sheet):not(.risda-official-letter-sheet *) {
   background-image: url('/diraja-emas.png') !important;
   background-size: cover !important;
   background-position: center !important;
@@ -851,7 +967,7 @@ aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
 }
 
 .custom-theme .glass-card:hover,
-.custom-theme .bg-risda-card:hover:not(header *):not(aside *),
+.custom-theme .bg-risda-card:hover:not(header *):not(aside *):not(.risda-official-letter-sheet):not(.risda-official-letter-sheet *),
 .custom-theme button.bg-risda-card:hover:not(header *):not(aside *) {
   border-color: #F4B41A !important;
   box-shadow: 0 12px 40px rgba(4, 8, 18, 0.85), 0 0 14px rgba(244, 180, 26, 0.35) !important;
@@ -874,28 +990,84 @@ aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
 }
 
 /* Diraja Emas Typography: High Contrast Crisp Pure White & Imperial Gold */
-.custom-theme h1,
-.custom-theme h2,
-.custom-theme h3,
-.custom-theme h4,
-.custom-theme .text-white,
-.custom-theme .text-slate-100,
-.custom-theme .text-slate-200,
-.custom-theme .text-slate-300 {
+.custom-theme h1:not(.risda-official-letter-sheet *),
+.custom-theme h2:not(.risda-official-letter-sheet *),
+.custom-theme h3:not(.risda-official-letter-sheet *),
+.custom-theme h4:not(.risda-official-letter-sheet *),
+.custom-theme .text-white:not(.risda-official-letter-sheet *),
+.custom-theme .text-slate-100:not(.risda-official-letter-sheet *),
+.custom-theme .text-slate-200:not(.risda-official-letter-sheet *),
+.custom-theme .text-slate-300:not(.risda-official-letter-sheet *),
+.custom-theme .text-slate-900:not(.risda-official-letter-sheet *),
+.custom-theme .text-slate-800:not(.risda-official-letter-sheet *),
+.custom-theme .text-slate-700:not(.risda-official-letter-sheet *),
+.custom-theme .text-gray-900:not(.risda-official-letter-sheet *),
+.custom-theme .text-gray-800:not(.risda-official-letter-sheet *),
+.custom-theme .text-gray-700:not(.risda-official-letter-sheet *),
+.custom-theme .text-neutral-900:not(.risda-official-letter-sheet *),
+.custom-theme .text-neutral-800:not(.risda-official-letter-sheet *),
+.custom-theme .text-neutral-700:not(.risda-official-letter-sheet *),
+.custom-theme .text-zinc-900:not(.risda-official-letter-sheet *),
+.custom-theme .text-zinc-800:not(.risda-official-letter-sheet *) {
   color: #FFFFFF !important;
 }
 
-.custom-theme .text-risda-text {
+.custom-theme .text-risda-text:not(.risda-official-letter-sheet *) {
   color: #FFFFFF !important;
 }
 
-.custom-theme .text-risda-text-secondary {
+.custom-theme .text-risda-text-secondary:not(.risda-official-letter-sheet *) {
   color: #E2E8F0 !important;
 }
 
-.custom-theme .text-risda-muted,
-.custom-theme .text-slate-400,
-.custom-theme .text-slate-500 {
+.custom-theme .text-risda-muted:not(.risda-official-letter-sheet *),
+.custom-theme .text-slate-400:not(.risda-official-letter-sheet *),
+.custom-theme .text-slate-500:not(.risda-official-letter-sheet *),
+.custom-theme .text-slate-600:not(.risda-official-letter-sheet *),
+.custom-theme .text-gray-500:not(.risda-official-letter-sheet *),
+.custom-theme .text-gray-600:not(.risda-official-letter-sheet *),
+.custom-theme .text-neutral-500:not(.risda-official-letter-sheet *),
+.custom-theme .text-neutral-600:not(.risda-official-letter-sheet *) {
+  color: #CBD5E1 !important;
+}
+
+/* Brighten status indicators in Diraja Emas */
+.custom-theme .text-emerald-700:not(.risda-official-letter-sheet *),
+.custom-theme .text-emerald-800:not(.risda-official-letter-sheet *) {
+  color: #34D399 !important;
+}
+.custom-theme .text-blue-700:not(.risda-official-letter-sheet *),
+.custom-theme .text-blue-800:not(.risda-official-letter-sheet *) {
+  color: #60A5FA !important;
+}
+.custom-theme .text-rose-700:not(.risda-official-letter-sheet *),
+.custom-theme .text-rose-800:not(.risda-official-letter-sheet *) {
+  color: #FB7185 !important;
+}
+.custom-theme .text-amber-700:not(.risda-official-letter-sheet *),
+.custom-theme .text-amber-800:not(.risda-official-letter-sheet *) {
+  color: #FBBF24 !important;
+}
+
+/* Diraja Emas Category Boxes (IKLAN AKTIF, SELESAI, BATAL, SEMUA) */
+.custom-theme #kotak-iklan-aktif,
+.custom-theme #kotak-iklan-selesai,
+.custom-theme #kotak-iklan-batal,
+.custom-theme #kotak-semua-iklan {
+  background-color: #0B1528 !important;
+  border-color: #3A4E75 !important;
+}
+
+.custom-theme #kotak-iklan-aktif .category-box-title,
+.custom-theme #kotak-iklan-selesai .category-box-title,
+.custom-theme #kotak-iklan-batal .category-box-title,
+.custom-theme #kotak-semua-iklan .category-box-title {
+  color: #FFFFFF !important;
+  font-weight: 900 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.custom-theme [class*="text-white/"]:not(button):not(button *):not([class*="badge"]):not([class*="badge"] *):not(.risda-official-letter-sheet *) {
   color: #CBD5E1 !important;
 }
 
@@ -903,18 +1075,18 @@ aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
   color: #F4B41A !important;
 }
 
-.custom-theme table th:not(aside *) {
+.custom-theme table th:not(aside *):not(.risda-official-letter-sheet *) {
   background-color: #070E1C !important;
   color: #F4B41A !important;
   border-color: #1E2B45 !important;
 }
 
-.custom-theme table td:not(aside *) {
+.custom-theme table td:not(aside *):not(.risda-official-letter-sheet *) {
   border-color: #1E2B45 !important;
   color: #FFFFFF !important;
 }
 
-.custom-theme table tr:hover:not(aside *) {
+.custom-theme table tr:hover:not(aside *):not(.risda-official-letter-sheet *) {
   background-color: rgba(244, 180, 26, 0.05) !important;
 }
 
@@ -1016,6 +1188,52 @@ aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
   color: #000000 !important;
 }
 
+/* Custom Theme (Diraja Emas) Format Selection Buttons */
+.custom-theme .format-card-btn-inactive {
+  background-color: rgba(10, 15, 29, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #CBD5E1 !important;
+}
+.custom-theme .format-card-btn-inactive:hover {
+  background-color: rgba(18, 27, 49, 0.9) !important;
+  border-color: rgba(244, 180, 26, 0.4) !important;
+}
+.custom-theme .format-card-btn-inactive .format-title {
+  color: #F8FAFC !important;
+  font-weight: 800 !important;
+}
+.custom-theme .format-card-btn-inactive .format-subtitle {
+  color: #94A3B8 !important;
+  font-weight: 700 !important;
+}
+.custom-theme .format-card-btn-inactive .format-desc {
+  color: #64748B !important;
+}
+
+.custom-theme .format-card-btn-active {
+  background-color: rgba(244, 180, 26, 0.15) !important;
+  border-color: #F4B41A !important;
+  border-width: 2.5px !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 18px rgba(244, 180, 26, 0.25) !important;
+}
+.custom-theme .format-card-btn-active .format-title {
+  color: #F4B41A !important;
+  font-weight: 900 !important;
+}
+.custom-theme .format-card-btn-active .format-subtitle {
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+}
+.custom-theme .format-card-btn-active .format-desc {
+  color: #FDE68A !important;
+  font-weight: 600 !important;
+}
+.custom-theme .format-card-btn-active .format-badge {
+  background-color: #F4B41A !important;
+  color: #000000 !important;
+}
+
 .custom-theme .project-filter-stat-card {
   background-color: #070E1C !important;
   border: 1.5px solid #3A4E75 !important;
@@ -1029,6 +1247,199 @@ aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
 /* ==========================================================================
    5. COMMON BADGES & BUTTONS
    ========================================================================== */
+.format-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 1rem;
+  border-radius: 1rem;
+  border-width: 2px;
+  text-align: center;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+}
+
+.format-card-btn-inactive {
+  background-color: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #CBD5E1;
+}
+.format-card-btn-inactive:hover {
+  border-color: rgba(244, 180, 26, 0.4);
+  background-color: rgba(15, 23, 42, 0.85);
+  color: #FFFFFF;
+}
+.format-card-btn-inactive .format-title {
+  color: #F1F5F9;
+  font-weight: 800;
+}
+.format-card-btn-inactive .format-subtitle {
+  color: #94A3B8;
+  font-weight: 700;
+}
+.format-card-btn-inactive .format-desc {
+  color: #64748B;
+}
+
+.format-card-btn-active {
+  background-color: rgba(244, 180, 26, 0.15);
+  border-color: #F4B41A;
+  border-width: 2.5px;
+  color: #FFFFFF;
+  box-shadow: 0 4px 20px rgba(244, 180, 26, 0.25);
+}
+.format-card-btn-active .format-title {
+  color: #F4B41A;
+  font-weight: 900;
+}
+.format-card-btn-active .format-subtitle {
+  color: #FFFFFF;
+  font-weight: 800;
+}
+.format-card-btn-active .format-desc {
+  color: #FDE68A;
+  font-weight: 600;
+}
+.format-card-btn-active .format-badge {
+  background-color: #F4B41A;
+  color: #000000;
+}
+
+/* ==========================================================================
+   OFFICIAL RISDA LETTER & DOCUMENT PREVIEW SHEET (A4 WHITE PAPER)
+   Must ALWAYS remain authentic pristine white paper (#FFFFFF) with official
+   black print text (#000000) across ALL themes (including Diraja Emas).
+   ========================================================================== */
+.risda-official-letter-sheet,
+.print-page,
+.custom-theme .risda-official-letter-sheet,
+.custom-theme .print-page,
+.theme-nature .risda-official-letter-sheet,
+.theme-nature .print-page,
+.theme-default .risda-official-letter-sheet,
+.theme-default .print-page {
+  background-color: #FFFFFF !important;
+  background-image: none !important;
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 4px 6px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Force official black typography on headings, text, and tables */
+.risda-official-letter-sheet h1,
+.risda-official-letter-sheet h2,
+.risda-official-letter-sheet h3,
+.risda-official-letter-sheet h4,
+.risda-official-letter-sheet p,
+.risda-official-letter-sheet strong,
+.risda-official-letter-sheet b,
+.risda-official-letter-sheet table,
+.risda-official-letter-sheet table td,
+.risda-official-letter-sheet table th,
+.custom-theme .risda-official-letter-sheet h1,
+.custom-theme .risda-official-letter-sheet h2,
+.custom-theme .risda-official-letter-sheet h3,
+.custom-theme .risda-official-letter-sheet h4,
+.custom-theme .risda-official-letter-sheet p,
+.custom-theme .risda-official-letter-sheet strong,
+.custom-theme .risda-official-letter-sheet b,
+.custom-theme .risda-official-letter-sheet table,
+.custom-theme .risda-official-letter-sheet table td,
+.custom-theme .risda-official-letter-sheet table th {
+  color: #000000 !important;
+  background-image: none !important;
+}
+
+.risda-official-letter-sheet table td,
+.risda-official-letter-sheet table th,
+.custom-theme .risda-official-letter-sheet table td,
+.custom-theme .risda-official-letter-sheet table th {
+  background-color: transparent !important;
+}
+
+.risda-official-letter-sheet table tr:hover,
+.custom-theme .risda-official-letter-sheet table tr:hover {
+  background-color: transparent !important;
+}
+
+/* Maintain black dividers in official letter */
+.risda-official-letter-sheet .border-black,
+.custom-theme .risda-official-letter-sheet .border-black {
+  border-color: #000000 !important;
+}
+
+/* Ensure red draft indicator remains visible and high contrast */
+.risda-official-letter-sheet [class*="bg-red-600"],
+.custom-theme .risda-official-letter-sheet [class*="bg-red-600"] {
+  background-color: #DC2626 !important;
+  color: #FFFFFF !important;
+}
+
+/* Format 2 specific metadata table & emphasis styling */
+.risda-official-letter-sheet .bg-slate-50\/55,
+.custom-theme .risda-official-letter-sheet .bg-slate-50\/55 {
+  background-color: rgba(248, 250, 252, 0.85) !important;
+  border-color: #CBD5E1 !important;
+}
+
+.risda-official-letter-sheet .text-red-800,
+.custom-theme .risda-official-letter-sheet .text-red-800 {
+  color: #991B1B !important;
+}
+
+.risda-official-letter-sheet .text-red-700,
+.custom-theme .risda-official-letter-sheet .text-red-700 {
+  color: #B91C1C !important;
+}
+
+.risda-official-letter-sheet .text-red-600,
+.custom-theme .risda-official-letter-sheet .text-red-600 {
+  color: #DC2626 !important;
+}
+
+.risda-official-letter-sheet .text-indigo-900,
+.custom-theme .risda-official-letter-sheet .text-indigo-900,
+.risda-official-letter-sheet .text-indigo-950,
+.custom-theme .risda-official-letter-sheet .text-indigo-950 {
+  color: #1E1B4B !important;
+}
+
+.risda-official-letter-sheet .text-slate-800,
+.custom-theme .risda-official-letter-sheet .text-slate-800 {
+  color: #1E293B !important;
+}
+
+.risda-official-letter-sheet .text-neutral-900,
+.custom-theme .risda-official-letter-sheet .text-neutral-900 {
+  color: #171717 !important;
+}
+
+.risda-official-letter-sheet .bg-red-50,
+.custom-theme .risda-official-letter-sheet .bg-red-50,
+.risda-official-letter-sheet .bg-red-50\/50,
+.custom-theme .risda-official-letter-sheet .bg-red-50\/50 {
+  background-color: #FEF2F2 !important;
+}
+
+.risda-official-letter-sheet .bg-amber-100\/80,
+.custom-theme .risda-official-letter-sheet .bg-amber-100\/80 {
+  background-color: rgba(254, 243, 199, 0.9) !important;
+}
+
+.risda-official-letter-sheet .bg-amber-50,
+.custom-theme .risda-official-letter-sheet .bg-amber-50 {
+  background-color: #FFFBEB !important;
+}
+
+.risda-official-letter-sheet .bg-blue-50\/50,
+.custom-theme .risda-official-letter-sheet .bg-blue-50\/50 {
+  background-color: rgba(239, 246, 255, 0.7) !important;
+}
+
 .badge-status-aktif {
   background-color: #DCFCE7 !important;
   color: #16A34A !important;
@@ -1144,7 +1555,7 @@ aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
   }
 
   .btn-gold {
-    @apply bg-gradient-to-br from-risda-gold via-risda-orange to-risda-accent text-white font-black uppercase tracking-[2px] px-8 py-4 rounded-xl transition-all duration-300 hover:brightness-110 hover:shadow-[0_10px_30px_rgba(0,176,255,0.3)] active:scale-[0.98] flex items-center justify-center gap-2 text-[10px];
+    @apply bg-gradient-to-br from-risda-gold via-risda-orange to-risda-accent text-white font-black uppercase tracking-wider px-8 py-4 rounded-xl transition-all duration-300 hover:brightness-110 hover:shadow-[0_10px_30px_rgba(0,176,255,0.3)] active:scale-[0.98] flex items-center justify-center gap-2 text-xs;
     @apply border border-white/20;
   }
 
@@ -1167,6 +1578,69 @@ aside::-webkit-scrollbar, aside *::-webkit-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+}
+
+/* ==========================================================================
+   UNIVERSAL TYPOGRAPHY NORMALIZATION & ACCESSIBILITY POLISH
+   Semua tema (Executive, Natural, Diraja Emas):
+   Memastikan setiap tulisan terbaca dengan jelas, kemas, cantik dan teratur.
+   ========================================================================== */
+
+/* Antialiasing & Text Rendering Quality */
+html, body, button, input, select, textarea, table, p, span, h1, h2, h3, h4, h5, h6 {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* Normalize Tiny Text Sizes to Clean, Readable Proportions */
+.text-\[7px\],
+.text-\[8px\] {
+  font-size: 0.6875rem !important; /* 11px */
+  line-height: 1.35 !important;
+  letter-spacing: 0.04em !important;
+  font-weight: 700 !important;
+}
+
+.text-\[9px\] {
+  font-size: 0.75rem !important; /* 12px */
+  line-height: 1.4 !important;
+  letter-spacing: 0.04em !important;
+}
+
+.text-\[10px\] {
+  font-size: 0.75rem !important; /* 12px */
+  line-height: 1.4 !important;
+}
+
+.text-\[11px\] {
+  font-size: 0.8125rem !important; /* 13px */
+  line-height: 1.45 !important;
+}
+
+/* Tame Overly Stretched Letter Spacing for Coherent Word Scannability */
+.tracking-\[4px\],
+.tracking-\[5px\],
+.tracking-\[6px\] {
+  letter-spacing: 0.1em !important;
+}
+
+.tracking-\[3px\] {
+  letter-spacing: 0.075em !important;
+}
+
+.tracking-\[2px\] {
+  letter-spacing: 0.05em !important;
+}
+
+/* Ensure Table and Card Typography Hierarchy is Crisp & Well-Structured */
+table th {
+  letter-spacing: 0.05em !important;
+  font-size: 0.75rem !important; /* 12px */
+}
+
+table td {
+  letter-spacing: 0.015em !important;
 }
 
 /* Custom Scrollbar */
@@ -1352,21 +1826,729 @@ body {
   }
 }
 
-@keyframes laserScan {
-  0% {
-    top: 5%;
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    top: 95%;
-    opacity: 0.2;
-  }
+/* ==========================================================================
+   ORDER REQUEST & LOCAL ORDER HIGH-CONTRAST TYPOGRAPHY & BADGES
+   Guarantees crisp, WCAG-compliant legibility across Executive, Natural & Diraja Emas
+   ========================================================================== */
+.order-card-badge-po {
+  background-color: #ECFDF5 !important;
+  border: 1.5px solid #059669 !important;
+  color: #065F46 !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-card-badge-po {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
+  color: #34D399 !important;
 }
 
-.animate-scan {
-  animation: laserScan 2s ease-in-out infinite alternate;
+.order-card-badge-category {
+  background-color: #F1F5F9 !important;
+  border: 1.5px solid #94A3B8 !important;
+  color: #0F172A !important;
+  font-weight: 800 !important;
 }
+.natural-theme .order-card-badge-category {
+  background-color: #F5F2EA !important;
+  border: 1.5px solid #D1C9BC !important;
+  color: #14170E !important;
+}
+.custom-theme .order-card-badge-category {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #FFFFFF !important;
+}
+
+.order-card-badge-lulus {
+  background-color: #ECFDF5 !important;
+  border: 1.5px solid #059669 !important;
+  color: #065F46 !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-card-badge-lulus {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #34D399 !important;
+}
+
+.order-card-badge-dihantar {
+  background-color: #EFF6FF !important;
+  border: 1.5px solid #2563EB !important;
+  color: #1E40AF !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-card-badge-dihantar {
+  background-color: rgba(56, 189, 248, 0.2) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  color: #38BDF8 !important;
+}
+
+.order-card-badge-ditolak {
+  background-color: #FEF2F2 !important;
+  border: 1.5px solid #DC2626 !important;
+  color: #991B1B !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-card-badge-ditolak {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  color: #F87171 !important;
+}
+
+.order-card-badge-amber {
+  background-color: #FFFBEB !important;
+  border: 1.5px solid #D97706 !important;
+  color: #92400E !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-card-badge-amber {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  color: #FCD34D !important;
+}
+
+.order-card-badge-finance-paid {
+  background-color: #ECFDF5 !important;
+  border: 1.5px solid #059669 !important;
+  color: #065F46 !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-card-badge-finance-paid {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #34D399 !important;
+}
+
+.order-card-badge-finance-pending {
+  background-color: #FFFBEB !important;
+  border: 1.5px solid #D97706 !important;
+  color: #92400E !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-card-badge-finance-pending {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  color: #FCD34D !important;
+}
+
+/* Metadata Labels */
+.order-card-meta-label {
+  color: #475569 !important;
+  font-weight: 800 !important;
+}
+.natural-theme .order-card-meta-label {
+  color: #555E40 !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-card-meta-label {
+  color: #F4B41A !important;
+  font-weight: 800 !important;
+}
+
+/* Supplier Value */
+.order-card-supplier-value {
+  color: #047857 !important;
+  font-weight: 900 !important;
+}
+.custom-theme .order-card-supplier-value {
+  color: #34D399 !important;
+  font-weight: 900 !important;
+}
+
+/* Order Amount RM */
+.order-card-amount-value {
+  color: #047857 !important;
+  font-family: monospace, ui-monospace !important;
+  font-weight: 900 !important;
+}
+.custom-theme .order-card-amount-value {
+  color: #34D399 !important;
+  font-family: monospace, ui-monospace !important;
+  font-weight: 900 !important;
+}
+
+/* Action Buttons */
+.order-card-btn-paid {
+  background-color: #ECFDF5 !important;
+  border: 1.5px solid #059669 !important;
+  color: #065F46 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+.order-card-btn-paid:hover {
+  background-color: #D1FAE5 !important;
+}
+.custom-theme .order-card-btn-paid {
+  background-color: rgba(16, 185, 129, 0.25) !important;
+  border: 1.5px solid rgba(52, 211, 153, 0.7) !important;
+  color: #34D399 !important;
+}
+.custom-theme .order-card-btn-paid:hover {
+  background-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.order-card-btn-unpaid {
+  background-color: #FFFBEB !important;
+  border: 1.5px solid #D97706 !important;
+  color: #92400E !important;
+  font-weight: 800 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+.order-card-btn-unpaid:hover {
+  background-color: #FEF3C7 !important;
+}
+.custom-theme .order-card-btn-unpaid {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.5) !important;
+  color: #FCD34D !important;
+}
+.custom-theme .order-card-btn-unpaid:hover {
+  background-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+.order-card-btn-secondary {
+  background-color: #F8FAFC !important;
+  border: 1.5px solid #CBD5E1 !important;
+  color: #0F172A !important;
+  font-weight: 800 !important;
+}
+.order-card-btn-secondary:hover {
+  background-color: #E2E8F0 !important;
+}
+.natural-theme .order-card-btn-secondary {
+  background-color: #F5F2EA !important;
+  border: 1.5px solid #D1C9BC !important;
+  color: #14170E !important;
+}
+.natural-theme .order-card-btn-secondary:hover {
+  background-color: #EAE5D9 !important;
+}
+.custom-theme .order-card-btn-secondary {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #FFFFFF !important;
+}
+.custom-theme .order-card-btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Detail Items Collapsible Bar */
+.order-items-toggle-title {
+  color: #0F172A !important;
+  font-weight: 900 !important;
+}
+.natural-theme .order-items-toggle-title {
+  color: #14170E !important;
+  font-weight: 900 !important;
+}
+.custom-theme .order-items-toggle-title {
+  color: #FFFFFF !important;
+  font-weight: 900 !important;
+}
+
+.order-items-badge-count {
+  background-color: #ECFDF5 !important;
+  border: 1.5px solid #059669 !important;
+  color: #065F46 !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-items-badge-count {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #34D399 !important;
+}
+
+.order-items-toggle-hint {
+  color: #475569 !important;
+  font-weight: 700 !important;
+}
+.natural-theme .order-items-toggle-hint {
+  color: #555E40 !important;
+  font-weight: 700 !important;
+}
+.custom-theme .order-items-toggle-hint {
+  color: #CBD5E1 !important;
+  font-weight: 700 !important;
+}
+
+.order-items-add-button {
+  background-color: #ECFDF5 !important;
+  border: 1.5px solid #059669 !important;
+  color: #065F46 !important;
+  font-weight: 800 !important;
+}
+.order-items-add-button:hover {
+  background-color: #D1FAE5 !important;
+}
+.custom-theme .order-items-add-button {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #34D399 !important;
+}
+.custom-theme .order-items-add-button:hover {
+  background-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+/* ==========================================================================
+   ORDER ITEMS DETAIL TABLE (PERINCIAN ITEM PESANAN)
+   Pristine readability across Executive, Natural & Diraja Emas
+   ========================================================================== */
+.order-items-table-container {
+  background-color: #FFFFFF !important;
+  border: 1.5px solid #CBD5E1 !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
+}
+.natural-theme .order-items-table-container {
+  background-color: #FAF8F5 !important;
+  border-color: #CCC4B4 !important;
+  box-shadow: 0 4px 16px rgba(45, 45, 38, 0.06) !important;
+}
+.custom-theme .order-items-table-container {
+  background-color: #070E1C !important;
+  border-color: #223252 !important;
+  box-shadow: 0 8px 32px rgba(2, 6, 18, 0.7) !important;
+}
+
+.order-items-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+}
+
+.order-items-table th {
+  background-color: #E2E8F0 !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+  font-weight: 900 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.04em !important;
+}
+.natural-theme .order-items-table th {
+  background-color: #E6E0D2 !important;
+  color: #161811 !important;
+  border-color: #CCC4B4 !important;
+}
+.custom-theme .order-items-table th {
+  background-color: #050B17 !important;
+  color: #F4B41A !important;
+  border-color: #223252 !important;
+}
+
+.order-items-table td {
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+.natural-theme .order-items-table td {
+  border-color: #E6E0D2 !important;
+  color: #161811 !important;
+}
+.custom-theme .order-items-table td {
+  border-color: #223252 !important;
+  color: #FFFFFF !important;
+}
+
+.order-items-table tbody tr {
+  transition: background-color 0.15s ease !important;
+}
+.order-items-table tbody tr:hover {
+  background-color: #F8FAFC !important;
+}
+.natural-theme .order-items-table tbody tr:hover {
+  background-color: #F2EFE8 !important;
+}
+.custom-theme .order-items-table tbody tr:hover {
+  background-color: rgba(244, 180, 26, 0.06) !important;
+}
+
+/* Specific Cell Text Elements */
+.order-items-cell-primary {
+  color: #0F172A !important;
+  font-weight: 800 !important;
+}
+.natural-theme .order-items-cell-primary {
+  color: #161811 !important;
+  font-weight: 800 !important;
+}
+.custom-theme .order-items-cell-primary {
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+}
+
+.order-items-cell-mono {
+  color: #334155 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-weight: 700 !important;
+}
+.natural-theme .order-items-cell-mono {
+  color: #4D5639 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-weight: 700 !important;
+}
+.custom-theme .order-items-cell-mono {
+  color: #E2E8F0 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-weight: 700 !important;
+}
+
+.order-items-cell-accent {
+  color: #047857 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-weight: 900 !important;
+}
+.natural-theme .order-items-cell-accent {
+  color: #15803D !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-weight: 900 !important;
+}
+.custom-theme .order-items-cell-accent {
+  color: #34D399 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-weight: 900 !important;
+}
+
+.order-items-cell-muted {
+  color: #64748B !important;
+}
+.natural-theme .order-items-cell-muted {
+  color: #6C705B !important;
+}
+.custom-theme .order-items-cell-muted {
+  color: #94A3B8 !important;
+}
+
+/* Footer / Total Row */
+.order-items-tfoot tr {
+  background-color: #F8FAFC !important;
+  border-top: 2px solid #CBD5E1 !important;
+}
+.natural-theme .order-items-tfoot tr {
+  background-color: #EFECE6 !important;
+  border-top: 2px solid #CCC4B4 !important;
+}
+.custom-theme .order-items-tfoot tr {
+  background-color: #050B17 !important;
+  border-top: 2px solid #223252 !important;
+}
+
+.order-items-total-label {
+  color: #0F172A !important;
+  font-weight: 900 !important;
+}
+.natural-theme .order-items-total-label {
+  color: #161811 !important;
+  font-weight: 900 !important;
+}
+.custom-theme .order-items-total-label {
+  color: #F4B41A !important;
+  font-weight: 900 !important;
+}
+
+.order-items-total-value {
+  color: #047857 !important;
+  font-weight: 900 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+.natural-theme .order-items-total-value {
+  color: #15803D !important;
+  font-weight: 900 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+.custom-theme .order-items-total-value {
+  color: #34D399 !important;
+  font-weight: 900 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* Edit & Delete Action Buttons inside Item Rows */
+.order-item-btn-edit {
+  background-color: #EFF6FF !important;
+  border: 1px solid #BFDBFE !important;
+  color: #1D4ED8 !important;
+  font-weight: 800 !important;
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  transition: all 0.15s ease !important;
+}
+.order-item-btn-edit:hover {
+  background-color: #DBEAFE !important;
+  color: #1E40AF !important;
+  transform: translateY(-1px) !important;
+}
+.natural-theme .order-item-btn-edit {
+  background-color: #F5F2EA !important;
+  border: 1px solid #D1C9BC !important;
+  color: #3E462E !important;
+}
+.natural-theme .order-item-btn-edit:hover {
+  background-color: #EAE5D7 !important;
+  color: #161811 !important;
+}
+.custom-theme .order-item-btn-edit {
+  background-color: #121E36 !important;
+  border: 1px solid #3A4E75 !important;
+  color: #F8FAFC !important;
+}
+.custom-theme .order-item-btn-edit:hover {
+  background-color: #1A2C4F !important;
+  border-color: #F4B41A !important;
+  color: #F4B41A !important;
+}
+
+.order-item-btn-delete {
+  background-color: #FEF2F2 !important;
+  border: 1px solid #FECACA !important;
+  color: #DC2626 !important;
+  font-weight: 800 !important;
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  transition: all 0.15s ease !important;
+}
+.order-item-btn-delete:hover {
+  background-color: #FEE2E2 !important;
+  color: #B91C1C !important;
+  transform: translateY(-1px) !important;
+}
+.natural-theme .order-item-btn-delete {
+  background-color: #FDF2F0 !important;
+  border: 1px solid #FECACA !important;
+  color: #B91C1C !important;
+}
+.natural-theme .order-item-btn-delete:hover {
+  background-color: #FEE2E2 !important;
+  color: #991B1B !important;
+}
+.custom-theme .order-item-btn-delete {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(239, 68, 68, 0.45) !important;
+  color: #F87171 !important;
+}
+.custom-theme .order-item-btn-delete:hover {
+  background-color: rgba(239, 68, 68, 0.3) !important;
+  border-color: #EF4444 !important;
+  color: #FECACA !important;
+}
+
+/* ==========================================================================
+   ALLOCATION CODE TABLE (BENTUK KOD AKAUN & PERUNTUKAN)
+   Seamless, unbroken borders at all corners and footer ends
+   ========================================================================== */
+.allocation-code-table-container {
+  border: 1.5px solid #CBD5E1 !important;
+  border-radius: 1rem !important;
+  background-color: #FFFFFF !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
+}
+.natural-theme .allocation-code-table-container {
+  border-color: #CCC4B4 !important;
+  background-color: #FAF8F5 !important;
+  box-shadow: 0 4px 16px rgba(45, 45, 38, 0.06) !important;
+}
+.custom-theme .allocation-code-table-container {
+  border-color: #223252 !important;
+  background-color: #070E1C !important;
+  box-shadow: 0 8px 32px rgba(2, 6, 18, 0.7) !important;
+}
+
+.allocation-code-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  border: 1.5px solid #CBD5E1 !important;
+}
+.natural-theme .allocation-code-table {
+  border-color: #CCC4B4 !important;
+}
+.custom-theme .allocation-code-table {
+  border-color: #223252 !important;
+}
+
+.allocation-code-table th {
+  border-right: 1px solid #CBD5E1 !important;
+  border-bottom: 1px solid #CBD5E1 !important;
+}
+.natural-theme .allocation-code-table th {
+  border-right-color: #CCC4B4 !important;
+  border-bottom-color: #CCC4B4 !important;
+}
+.custom-theme .allocation-code-table th {
+  border-right-color: #223252 !important;
+  border-bottom-color: #223252 !important;
+}
+
+.allocation-code-table td {
+  border-right: 1px solid #E2E8F0 !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+.natural-theme .allocation-code-table td {
+  border-right-color: #E6E0D2 !important;
+  border-bottom-color: #E6E0D2 !important;
+}
+.custom-theme .allocation-code-table td {
+  border-right-color: #223252 !important;
+  border-bottom-color: #223252 !important;
+}
+
+/* Footer (JUMLAH KESELURUHAN) continuous, fully enclosed borders */
+.allocation-code-table tfoot tr {
+  border-top: 2px solid #94A3B8 !important;
+  border-bottom: 2px solid #94A3B8 !important;
+  background-color: #F8FAFC !important;
+}
+.natural-theme .allocation-code-table tfoot tr {
+  border-top-color: #B8B0A0 !important;
+  border-bottom-color: #B8B0A0 !important;
+  background-color: #EFECE6 !important;
+}
+.custom-theme .allocation-code-table tfoot tr {
+  border-top-color: #3A4E75 !important;
+  border-bottom-color: #3A4E75 !important;
+  background-color: #050B17 !important;
+}
+
+.allocation-code-table tfoot td {
+  border-right: 1px solid #94A3B8 !important;
+  border-bottom: 2px solid #94A3B8 !important;
+}
+.natural-theme .allocation-code-table tfoot td {
+  border-right-color: #B8B0A0 !important;
+  border-bottom-color: #B8B0A0 !important;
+}
+.custom-theme .allocation-code-table tfoot td {
+  border-right-color: #223252 !important;
+  border-bottom-color: #3A4E75 !important;
+}
+
+/* ==========================================================================
+   PWA Direct Install Banner & Modal Guide (High Contrast & Visible in ALL Themes)
+   ========================================================================== */
+.pwa-install-banner,
+.executive-theme .pwa-install-banner,
+.natural-theme .pwa-install-banner,
+.custom-theme .pwa-install-banner {
+  background: linear-gradient(135deg, #061B3A 0%, #0D3468 50%, #061B3A 100%) !important;
+  border: 1.5px solid #3B82F6 !important;
+  box-shadow: 0 10px 25px -5px rgba(6, 27, 58, 0.4), 0 8px 10px -6px rgba(6, 27, 58, 0.3) !important;
+  color: #FFFFFF !important;
+}
+
+.pwa-install-banner .pwa-banner-title,
+.executive-theme .pwa-install-banner .pwa-banner-title,
+.natural-theme .pwa-install-banner .pwa-banner-title {
+  color: #FFFFFF !important;
+  font-weight: 900 !important;
+}
+
+.pwa-install-banner .pwa-banner-badge,
+.executive-theme .pwa-install-banner .pwa-banner-badge,
+.natural-theme .pwa-install-banner .pwa-banner-badge {
+  background-color: #F59E0B !important;
+  color: #0F172A !important;
+  border: 1px solid #FCD34D !important;
+  font-weight: 900 !important;
+}
+
+.pwa-install-banner .pwa-banner-desc,
+.executive-theme .pwa-install-banner .pwa-banner-desc,
+.natural-theme .pwa-install-banner .pwa-banner-desc {
+  color: #E2E8F0 !important;
+  font-weight: 600 !important;
+}
+
+.pwa-guide-modal,
+.executive-theme .pwa-guide-modal,
+.natural-theme .pwa-guide-modal,
+.custom-theme .pwa-guide-modal {
+  background-color: #061B3A !important;
+  background-image: none !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.25) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
+}
+
+.pwa-guide-modal h3,
+.executive-theme .pwa-guide-modal h3,
+.natural-theme .pwa-guide-modal h3 {
+  color: #FFFFFF !important;
+  font-weight: 900 !important;
+}
+
+.pwa-guide-modal p,
+.executive-theme .pwa-guide-modal p,
+.natural-theme .pwa-guide-modal p {
+  color: #E2E8F0 !important;
+}
+
+.pwa-guide-modal .pwa-modal-subtitle,
+.executive-theme .pwa-guide-modal .pwa-modal-subtitle,
+.natural-theme .pwa-guide-modal .pwa-modal-subtitle {
+  color: #CBD5E1 !important;
+  font-weight: 600 !important;
+}
+
+.pwa-guide-modal .pwa-cta-box,
+.executive-theme .pwa-guide-modal .pwa-cta-box,
+.natural-theme .pwa-guide-modal .pwa-cta-box {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.25) 0%, rgba(245, 158, 11, 0.2) 100%) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.5) !important;
+}
+
+.pwa-guide-modal .pwa-cta-title,
+.executive-theme .pwa-guide-modal .pwa-cta-title,
+.natural-theme .pwa-guide-modal .pwa-cta-title {
+  color: #FDE047 !important;
+  font-weight: 900 !important;
+}
+
+.pwa-guide-modal .pwa-cta-desc,
+.executive-theme .pwa-guide-modal .pwa-cta-desc,
+.natural-theme .pwa-guide-modal .pwa-cta-desc {
+  color: #F8FAFC !important;
+  font-weight: 500 !important;
+}
+
+.pwa-guide-modal .pwa-tab-inactive,
+.executive-theme .pwa-guide-modal .pwa-tab-inactive,
+.natural-theme .pwa-guide-modal .pwa-tab-inactive {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #E2E8F0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.pwa-guide-modal .pwa-instructions-card,
+.executive-theme .pwa-guide-modal .pwa-instructions-card,
+.natural-theme .pwa-guide-modal .pwa-instructions-card {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  background-image: none !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.pwa-guide-modal .pwa-instruction-step,
+.executive-theme .pwa-guide-modal .pwa-instruction-step,
+.natural-theme .pwa-guide-modal .pwa-instruction-step {
+  color: #F8FAFC !important;
+  font-weight: 500 !important;
+}
+
+.pwa-guide-modal .pwa-instruction-step strong,
+.executive-theme .pwa-guide-modal .pwa-instruction-step strong,
+.natural-theme .pwa-guide-modal .pwa-instruction-step strong {
+  color: #FDE047 !important;
+  font-weight: 800 !important;
+}
+
+.pwa-guide-modal .pwa-benefit-item,
+.executive-theme .pwa-guide-modal .pwa-benefit-item,
+.natural-theme .pwa-guide-modal .pwa-benefit-item {
+  color: #E2E8F0 !important;
+  font-weight: 600 !important;
+}
+
+.pwa-guide-modal .pwa-benefit-item span,
+.executive-theme .pwa-guide-modal .pwa-benefit-item span,
+.natural-theme .pwa-guide-modal .pwa-benefit-item span {
+  color: #E2E8F0 !important;
+  font-weight: 600 !important;
+}
+
 

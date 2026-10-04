@@ -657,7 +657,7 @@ export default function ReportPanel() {
     else if (selectedQuarter === 'Q4') setAsOfDate(`31 Disember ${selectedYear}`);
   }, [selectedQuarter, selectedYear]);
 
-  const isStaff = role === 'admin' || role === 'penginput' || role === 'pelulus' || role === 'pentadbir';
+  const isStaff = role === 'admin' || role === 'penginput' || role === 'penyemak' || role === 'pelulus' || role === 'pentadbir';
 
   const getPintasanAds = () => {
     let targetOffice = '';

@@ -5,7 +5,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-import { FileText, Download, UserCheck, X, Shield, Search, AlertCircle, FileSpreadsheet, FileArchive, File as FileIcon, Send, MessageCircle, Mail, RotateCcw, QrCode } from 'lucide-react';
+import { FileText, Download, UserCheck, X, Shield, Search, AlertCircle, FileSpreadsheet, FileArchive, File as FileIcon, Send, MessageCircle, Mail, RotateCcw, ChevronDown, ChevronUp, FolderOpen, Clock, CheckCircle2, QrCode, Camera } from 'lucide-react';
 import AttendanceForm from './AttendanceForm';
 import Pagination from './Pagination';
 import { exportToPDF, exportToWord, exportResultToPDF, exportResultToWord, formatMofText, getLicenseNamesForTerms } from '../lib/exportUtils';
@@ -38,7 +38,7 @@ export default function ProjectFilters({
   sourceContext?: 'dashboard' | 'projek' | 'keputusan';
 }) {
   const { role, office: userOffice, state: userState, district: userDistrict } = useAuth();
-  const isStaff = role === 'penginput' || role === 'pelulus' || role === 'admin' || role === 'pentadbir';
+  const isStaff = role === 'penginput' || role === 'penyemak' || role === 'pelulus' || role === 'admin' || role === 'pentadbir';
   const isAdmin = role === 'admin' || role === 'pentadbir';
 
   const effectiveContext = sourceContext || (
@@ -48,11 +48,11 @@ export default function ProjectFilters({
         ? 'dashboard' 
         : 'projek'
   );
+  const isDecisionPortal = initialStatus === 'SELESAI (KEPUTUSAN)' || effectiveContext === 'keputusan';
 
   const [dashboardModalView, setDashboardModalView] = useState<'iklan' | 'keputusan'>('iklan');
 
   const [ads, setAds] = useState<any[]>([]);
-  const [showHelpTip, setShowHelpTip] = useState(true);
   const [adViewFormat, setAdViewFormat] = useState<'preview' | 'data'>('preview');
   const [offices, setOffices] = useState<any[]>([]);
   const [allLocations, setAllLocations] = useState<any[]>([]);
@@ -82,6 +82,30 @@ export default function ProjectFilters({
   const [modalSearch, setModalSearch] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Kawalan paparan senarai iklan ("apabila tekan kotak tersebut baru la keluar senarai")
+  const [isListOpen, setIsListOpen] = useState(
+    sourceContext === 'projek' || sourceContext === 'keputusan'
+  );
+
+  const handleCategoryBoxClick = (statusKey: string) => {
+    if (isListOpen && filters.status === statusKey) {
+      setIsListOpen(false);
+    } else {
+      setFilters(prev => ({ ...prev, status: statusKey }));
+      setIsListOpen(true);
+      setTimeout(() => {
+        tableTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  };
+
+  const handleCategoryBoxDoubleClick = (statusKey: string) => {
+    // Dwi-klik (double click) untuk menutup senarai
+    if (isListOpen) {
+      setIsListOpen(false);
+    }
+  };
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -158,6 +182,7 @@ export default function ProjectFilters({
       setIsRegisterMode(false);
       setIsViewOnlyList(true);
       setSelectedAd({}); // Open modal to select active ad for viewing
+      setIsListOpen(true);
     };
 
     window.addEventListener('triggerRegister', handleRegisterTrigger);
@@ -280,6 +305,14 @@ export default function ProjectFilters({
 
   const totalCount = ads.length;
 
+  const pendingDecisionCount = ads.filter(ad => {
+    const itemDate = ad.visitDate || ad.closingDate || ad.createdAt;
+    const itemYear = itemDate ? new Date(itemDate).getFullYear() : 0;
+    const isOld = itemYear > 0 && itemYear < parseInt(currentYear);
+    const displayStatus = isOld ? 'SELESAI (KEPUTUSAN)' : ad.status;
+    return displayStatus !== 'SELESAI (KEPUTUSAN)' && ad.status !== 'BATAL';
+  }).length;
+
   // Pre-calculate filtered ads to avoid logic branch mess in JSX
   const filteredAds = ads
     .map(ad => {
@@ -291,6 +324,9 @@ export default function ProjectFilters({
     })
     .filter(ad => {
       if (filters.status === 'SEMUA') return true;
+      if (filters.status === 'BELUM_ADA_KEPUTUSAN') {
+        return ad.displayStatus !== 'SELESAI (KEPUTUSAN)' && ad.status !== 'BATAL';
+      }
       return ad.displayStatus === filters.status;
     })
     .filter(ad => {
@@ -333,11 +369,11 @@ export default function ProjectFilters({
     <section className="space-y-12 pb-24 text-left w-full relative">
       <div className="w-full">
         {/* Portal Header with Premium Glassmorphism Statistics Overview */}
-        <div className="relative overflow-hidden bg-risda-card border border-risda-border rounded-[36px] p-6 md:p-10 mb-8 shadow-sm">
+        <div className="relative overflow-hidden bg-risda-card border border-risda-border rounded-[32px] sm:rounded-[36px] p-6 md:p-9 mb-8 shadow-sm">
           {/* Ambient light glow backdrop */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-gradient-to-r from-risda-orange/10 to-risda-gold/10 blur-[130px] pointer-events-none" />
           
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+          <div className="relative z-10 flex flex-col gap-6">
             <div className="space-y-3">
               <div className="badge-live-pill inline-flex items-center gap-2.5 px-4 py-1.5 bg-risda-orange/15 border border-risda-orange/20 rounded-full">
                 <span className="w-1.5 h-1.5 bg-risda-orange rounded-full animate-pulse shadow-[0_0_8px_rgba(255,176,0,1)]" />
@@ -355,255 +391,436 @@ export default function ProjectFilters({
               </p>
             </div>
 
-            {/* Live Stats badging */}
-            {initialStatus === 'SELESAI (KEPUTUSAN)' ? (
-              <div className="grid grid-cols-1 gap-4 sm:gap-6 shrink-0 lg:w-48">
-                <div 
-                  className="project-filter-stat-card bg-risda-card-muted border rounded-3xl p-5 border-blue-500/40 shadow-sm"
+            {isDecisionPortal ? (
+              /* Paparan 2 Kotak Khusus Keputusan Rasmi Kontraktor: Keputusan Selesai & Belum Ada Keputusan */
+              <div className="pt-6 border-t border-risda-border/70 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                {/* 1. KEPUTUSAN SELESAI */}
+                <button
+                  type="button"
+                  id="kotak-keputusan-selesai"
+                  onClick={() => handleCategoryBoxClick('SELESAI (KEPUTUSAN)')}
+                  onDoubleClick={() => handleCategoryBoxDoubleClick('SELESAI (KEPUTUSAN)')}
+                  title={filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen ? "Klik atau dwi-klik untuk tutup senarai" : "Klik untuk papar senarai Keputusan Selesai"}
+                  className={`p-5 sm:p-6 rounded-2xl border-2 transition-all duration-300 text-left flex flex-col justify-between gap-4 group cursor-pointer relative overflow-hidden shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
+                    filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen
+                      ? 'bg-blue-500/10 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30 shadow-sm'
+                      : 'bg-risda-card border-risda-border hover:border-blue-500/70 hover:bg-blue-500/5 dark:hover:bg-blue-950/20'
+                  }`}
                 >
-                  <div className="text-2xl sm:text-3xl font-black text-risda-text">{resolvedCount}</div>
-                  <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Sebut Harga Selesai</div>
-                </div>
-              </div>
-            ) : initialStatus === 'AKTIF' ? (
-              (() => {
-                let countValue = activeCount;
-                let labelText = "Iklan Aktif Terbit";
-                let borderColor = "border-risda-orange/40 shadow-sm";
-                let textColor = "text-risda-text group-hover:text-risda-orange";
-                
-                if (filters.status === 'SELESAI (KEPUTUSAN)') {
-                  countValue = resolvedCount;
-                  labelText = "Iklan Selesai";
-                  borderColor = "border-blue-500/40 shadow-sm";
-                  textColor = "text-risda-text group-hover:text-blue-600";
-                } else if (filters.status === 'BATAL') {
-                  countValue = batalCount;
-                  labelText = "Iklan Batal";
-                  borderColor = "border-red-500/40 shadow-sm";
-                  textColor = "text-risda-text group-hover:text-red-500";
-                } else if (filters.status === 'SEMUA') {
-                  countValue = totalCount;
-                  labelText = "Semua Iklan";
-                  borderColor = "border-risda-border shadow-sm";
-                  textColor = "text-risda-text";
-                }
-
-                return (
-                  <div className="grid grid-cols-1 gap-4 sm:gap-6 shrink-0 lg:w-48">
-                    <div 
-                      className={`project-filter-stat-card bg-risda-card-muted border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-default group ${borderColor}`}
-                    >
-                      <div className={`text-2xl sm:text-3xl font-black transition-colors ${textColor}`}>{countValue}</div>
-                      <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">{labelText}</div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.9)] animate-pulse shrink-0" />
+                      <div className="min-w-0">
+                        <span className="category-box-title text-sm sm:text-base font-black uppercase tracking-wider text-risda-text block truncate">
+                          KEPUTUSAN SELESAI
+                        </span>
+                        <span className="text-[11px] text-risda-muted font-medium hidden sm:inline-block truncate">
+                          Perolehan yang telah dimuktamadkan pemenang lantikan
+                        </span>
+                      </div>
                     </div>
+                    <span className={`min-w-[48px] h-[42px] px-3.5 rounded-xl flex items-center justify-center text-xl sm:text-2xl font-black transition-all shrink-0 ${
+                      filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen
+                        ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-600/30'
+                        : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30 group-hover:bg-blue-500/20'
+                    }`}>
+                      {resolvedCount}
+                    </span>
                   </div>
-                );
-              })()
+                  <div className="flex items-center justify-between text-xs pt-3 border-t border-risda-border/70">
+                    <span className={`font-bold transition-colors ${
+                      filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen 
+                        ? 'text-blue-600 dark:text-blue-400 font-extrabold' 
+                        : 'text-risda-muted group-hover:text-risda-text'
+                    }`}>
+                      {filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen ? '● Sedang Dipapar (Klik 2x Tutup)' : 'Tekan untuk lihat senarai selesai'}
+                    </span>
+                    {filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen ? (
+                      <ChevronUp size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                    ) : (
+                      <ChevronDown size={16} className="text-risda-muted group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-y-0.5 transition-all shrink-0" />
+                    )}
+                  </div>
+                </button>
+
+                {/* 2. BELUM ADA KEPUTUSAN */}
+                <button
+                  type="button"
+                  id="kotak-belum-ada-keputusan"
+                  onClick={() => handleCategoryBoxClick('BELUM_ADA_KEPUTUSAN')}
+                  onDoubleClick={() => handleCategoryBoxDoubleClick('BELUM_ADA_KEPUTUSAN')}
+                  title={filters.status === 'BELUM_ADA_KEPUTUSAN' && isListOpen ? "Klik atau dwi-klik untuk tutup senarai" : "Klik untuk papar senarai Belum Ada Keputusan"}
+                  className={`p-5 sm:p-6 rounded-2xl border-2 transition-all duration-300 text-left flex flex-col justify-between gap-4 group cursor-pointer relative overflow-hidden shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
+                    filters.status === 'BELUM_ADA_KEPUTUSAN' && isListOpen
+                      ? 'bg-amber-500/10 dark:bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/30 shadow-sm'
+                      : 'bg-risda-card border-risda-border hover:border-amber-500/70 hover:bg-amber-500/5 dark:hover:bg-amber-950/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.9)] animate-pulse shrink-0" />
+                      <div className="min-w-0">
+                        <span className="category-box-title text-sm sm:text-base font-black uppercase tracking-wider text-risda-text block truncate">
+                          BELUM ADA KEPUTUSAN
+                        </span>
+                        <span className="text-[11px] text-risda-muted font-medium hidden sm:inline-block truncate">
+                          Perolehan dalam proses penilaian / belum dimuktamadkan
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`min-w-[48px] h-[42px] px-3.5 rounded-xl flex items-center justify-center text-xl sm:text-2xl font-black transition-all shrink-0 ${
+                      filters.status === 'BELUM_ADA_KEPUTUSAN' && isListOpen
+                        ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-500/30'
+                        : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 group-hover:bg-amber-500/20'
+                    }`}>
+                      {pendingDecisionCount}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pt-3 border-t border-risda-border/70">
+                    <span className={`font-bold transition-colors ${
+                      filters.status === 'BELUM_ADA_KEPUTUSAN' && isListOpen 
+                        ? 'text-amber-600 dark:text-amber-400 font-extrabold' 
+                        : 'text-risda-muted group-hover:text-risda-text'
+                    }`}>
+                      {filters.status === 'BELUM_ADA_KEPUTUSAN' && isListOpen ? '● Sedang Dipapar (Klik 2x Tutup)' : 'Tekan untuk lihat senarai dalam proses'}
+                    </span>
+                    {filters.status === 'BELUM_ADA_KEPUTUSAN' && isListOpen ? (
+                      <ChevronUp size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                    ) : (
+                      <ChevronDown size={16} className="text-risda-muted group-hover:text-amber-600 dark:group-hover:text-amber-400 group-hover:translate-y-0.5 transition-all shrink-0" />
+                    )}
+                  </div>
+                </button>
+              </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4 sm:gap-6 shrink-0 lg:w-96">
-                <div 
-                  onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
-                  className={`project-filter-stat-card bg-risda-card-muted border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group shadow-sm ${
-                    filters.status === 'AKTIF' ? 'border-risda-orange/50' : 'border-risda-border'
+              /* Kotak Iklan 4 Kategori (Iklan Aktif, Iklan Selesai, Iklan Batal, Semua Iklan) Di Dalam Banner */
+              <div className="pt-6 border-t border-risda-border/70 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4.5">
+                {/* 1. IKLAN AKTIF */}
+                <button
+                  type="button"
+                  id="kotak-iklan-aktif"
+                  onClick={() => handleCategoryBoxClick('AKTIF')}
+                  onDoubleClick={() => handleCategoryBoxDoubleClick('AKTIF')}
+                  title={filters.status === 'AKTIF' && isListOpen ? "Klik atau dwi-klik untuk tutup senarai" : "Klik untuk papar senarai Iklan Aktif"}
+                  className={`p-4 sm:p-5 rounded-2xl border-2 transition-all duration-300 text-left flex flex-col justify-between gap-3.5 group cursor-pointer relative overflow-hidden shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
+                    filters.status === 'AKTIF' && isListOpen
+                      ? 'bg-emerald-500/10 dark:bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/30 shadow-sm'
+                      : 'bg-risda-card border-risda-border hover:border-emerald-500/70 hover:bg-emerald-500/5 dark:hover:bg-emerald-950/20'
                   }`}
                 >
-                  <div className="text-2xl sm:text-3xl font-black text-risda-text group-hover:text-risda-orange transition-colors">{activeCount}</div>
-                  <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Iklan Aktif Terbit</div>
-                </div>
-                <div 
-                  onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
-                  className={`project-filter-stat-card bg-risda-card-muted border rounded-3xl p-5 hover:scale-[1.03] transition-all cursor-pointer group shadow-sm ${
-                    filters.status === 'SELESAI (KEPUTUSAN)' ? 'border-blue-500/50' : 'border-risda-border'
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse shrink-0" />
+                      <span className="category-box-title text-xs sm:text-sm font-black uppercase tracking-wider text-risda-text truncate">
+                        IKLAN AKTIF
+                      </span>
+                    </div>
+                    <span className={`min-w-[44px] h-[40px] px-3.5 rounded-xl flex items-center justify-center text-lg sm:text-xl font-black transition-all shrink-0 ${
+                      filters.status === 'AKTIF' && isListOpen
+                        ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30'
+                        : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-500/20'
+                    }`}>
+                      {activeCount}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pt-2.5 border-t border-risda-border/70">
+                    <span className={`font-bold transition-colors ${
+                      filters.status === 'AKTIF' && isListOpen 
+                        ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' 
+                        : 'text-risda-muted group-hover:text-risda-text'
+                    }`}>
+                      {filters.status === 'AKTIF' && isListOpen ? '● Sedang Dipapar (Klik 2x Tutup)' : 'Tekan untuk lihat senarai'}
+                    </span>
+                    {filters.status === 'AKTIF' && isListOpen ? (
+                      <ChevronUp size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    ) : (
+                      <ChevronDown size={16} className="text-risda-muted group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-y-0.5 transition-all shrink-0" />
+                    )}
+                  </div>
+                </button>
+
+                {/* 2. IKLAN SELESAI */}
+                <button
+                  type="button"
+                  id="kotak-iklan-selesai"
+                  onClick={() => handleCategoryBoxClick('SELESAI (KEPUTUSAN)')}
+                  onDoubleClick={() => handleCategoryBoxDoubleClick('SELESAI (KEPUTUSAN)')}
+                  title={filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen ? "Klik atau dwi-klik untuk tutup senarai" : "Klik untuk papar senarai Iklan Selesai"}
+                  className={`p-4 sm:p-5 rounded-2xl border-2 transition-all duration-300 text-left flex flex-col justify-between gap-3.5 group cursor-pointer relative overflow-hidden shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
+                    filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen
+                      ? 'bg-blue-500/10 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30 shadow-sm'
+                      : 'bg-risda-card border-risda-border hover:border-blue-500/70 hover:bg-blue-500/5 dark:hover:bg-blue-950/20'
                   }`}
                 >
-                  <div className="text-2xl sm:text-3xl font-black text-risda-text group-hover:text-blue-600 transition-colors">{resolvedCount}</div>
-                  <div className="text-[9px] font-black text-risda-muted uppercase tracking-[2px] mt-1">Sebut Harga Selesai</div>
-                </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.9)] shrink-0" />
+                      <span className="category-box-title text-xs sm:text-sm font-black uppercase tracking-wider text-risda-text truncate">
+                        IKLAN SELESAI
+                      </span>
+                    </div>
+                    <span className={`min-w-[44px] h-[40px] px-3.5 rounded-xl flex items-center justify-center text-lg sm:text-xl font-black transition-all shrink-0 ${
+                      filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen
+                        ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-600/30'
+                        : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30 group-hover:bg-blue-500/20'
+                    }`}>
+                      {resolvedCount}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pt-2.5 border-t border-risda-border/70">
+                    <span className={`font-bold transition-colors ${
+                      filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen 
+                        ? 'text-blue-600 dark:text-blue-400 font-extrabold' 
+                        : 'text-risda-muted group-hover:text-risda-text'
+                    }`}>
+                      {filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen ? '● Sedang Dipapar (Klik 2x Tutup)' : 'Tekan untuk lihat senarai'}
+                    </span>
+                    {filters.status === 'SELESAI (KEPUTUSAN)' && isListOpen ? (
+                      <ChevronUp size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                    ) : (
+                      <ChevronDown size={16} className="text-risda-muted group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-y-0.5 transition-all shrink-0" />
+                    )}
+                  </div>
+                </button>
+
+                {/* 3. IKLAN BATAL */}
+                <button
+                  type="button"
+                  id="kotak-iklan-batal"
+                  onClick={() => handleCategoryBoxClick('BATAL')}
+                  onDoubleClick={() => handleCategoryBoxDoubleClick('BATAL')}
+                  title={filters.status === 'BATAL' && isListOpen ? "Klik atau dwi-klik untuk tutup senarai" : "Klik untuk papar senarai Iklan Batal"}
+                  className={`p-4 sm:p-5 rounded-2xl border-2 transition-all duration-300 text-left flex flex-col justify-between gap-3.5 group cursor-pointer relative overflow-hidden shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
+                    filters.status === 'BATAL' && isListOpen
+                      ? 'bg-rose-500/10 dark:bg-rose-950/40 border-rose-500 ring-2 ring-rose-500/30 shadow-sm'
+                      : 'bg-risda-card border-risda-border hover:border-rose-500/70 hover:bg-rose-500/5 dark:hover:bg-rose-950/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)] shrink-0" />
+                      <span className="category-box-title text-xs sm:text-sm font-black uppercase tracking-wider text-risda-text truncate">
+                        IKLAN BATAL
+                      </span>
+                    </div>
+                    <span className={`min-w-[44px] h-[40px] px-3.5 rounded-xl flex items-center justify-center text-lg sm:text-xl font-black transition-all shrink-0 ${
+                      filters.status === 'BATAL' && isListOpen
+                        ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-600/30'
+                        : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 group-hover:bg-rose-500/20'
+                    }`}>
+                      {batalCount}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pt-2.5 border-t border-risda-border/70">
+                    <span className={`font-bold transition-colors ${
+                      filters.status === 'BATAL' && isListOpen 
+                        ? 'text-rose-600 dark:text-rose-400 font-extrabold' 
+                        : 'text-risda-muted group-hover:text-risda-text'
+                    }`}>
+                      {filters.status === 'BATAL' && isListOpen ? '● Sedang Dipapar (Klik 2x Tutup)' : 'Tekan untuk lihat senarai'}
+                    </span>
+                    {filters.status === 'BATAL' && isListOpen ? (
+                      <ChevronUp size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
+                    ) : (
+                      <ChevronDown size={16} className="text-risda-muted group-hover:text-rose-600 dark:group-hover:text-rose-400 group-hover:translate-y-0.5 transition-all shrink-0" />
+                    )}
+                  </div>
+                </button>
+
+                {/* 4. SEMUA IKLAN */}
+                <button
+                  type="button"
+                  id="kotak-semua-iklan"
+                  onClick={() => handleCategoryBoxClick('SEMUA')}
+                  onDoubleClick={() => handleCategoryBoxDoubleClick('SEMUA')}
+                  title={filters.status === 'SEMUA' && isListOpen ? "Klik atau dwi-klik untuk tutup senarai" : "Klik untuk papar Semua Iklan"}
+                  className={`p-4 sm:p-5 rounded-2xl border-2 transition-all duration-300 text-left flex flex-col justify-between gap-3.5 group cursor-pointer relative overflow-hidden shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
+                    filters.status === 'SEMUA' && isListOpen
+                      ? 'bg-amber-500/10 dark:bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/30 shadow-sm'
+                      : 'bg-risda-card border-risda-border hover:border-amber-500/70 hover:bg-amber-500/5 dark:hover:bg-amber-950/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.9)] shrink-0" />
+                      <span className="category-box-title text-xs sm:text-sm font-black uppercase tracking-wider text-risda-text truncate">
+                        SEMUA IKLAN
+                      </span>
+                    </div>
+                    <span className={`min-w-[44px] h-[40px] px-3.5 rounded-xl flex items-center justify-center text-lg sm:text-xl font-black transition-all shrink-0 ${
+                      filters.status === 'SEMUA' && isListOpen
+                        ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-500/30'
+                        : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 group-hover:bg-amber-500/20'
+                    }`}>
+                      {totalCount}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pt-2.5 border-t border-risda-border/70">
+                    <span className={`font-bold transition-colors ${
+                      filters.status === 'SEMUA' && isListOpen 
+                        ? 'text-amber-500 dark:text-amber-400 font-extrabold' 
+                        : 'text-risda-muted group-hover:text-risda-text'
+                    }`}>
+                      {filters.status === 'SEMUA' && isListOpen ? '● Sedang Dipapar (Klik 2x Tutup)' : 'Tekan untuk lihat senarai'}
+                    </span>
+                    {filters.status === 'SEMUA' && isListOpen ? (
+                      <ChevronUp size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                    ) : (
+                      <ChevronDown size={16} className="text-risda-muted group-hover:text-amber-600 dark:group-hover:text-amber-400 group-hover:translate-y-0.5 transition-all shrink-0" />
+                    )}
+                  </div>
+                </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Unified Master Container (1 Kotak Penuh: Iklan Aktif -> Sebut Harga / Projek) */}
-        <div ref={tableTopRef} className="bg-risda-card border border-risda-border rounded-[24px] sm:rounded-[32px] shadow-sm mb-8 overflow-hidden">
-          {/* Section 1: Master Selector Tab Bar */}
-          <div className="p-5 sm:p-7 pb-5 border-b border-risda-border">
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 overflow-x-auto scrollbar-none">
-              {initialStatus === 'SELESAI (KEPUTUSAN)' ? (
-                <button
-                  onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
-                  className="master-tab-item active-filter-tab px-5 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-default shrink-0 border bg-blue-500/15 text-risda-text border-blue-500/40 shadow-xs whitespace-nowrap"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
-                  <span>KEPUTUSAN RASMI PEROLEHAN</span>
-                  <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{resolvedCount}</span>
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setFilters({ ...filters, status: 'AKTIF' })}
-                    className={`master-tab-item px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-pointer shrink-0 border whitespace-nowrap ${
-                      filters.status === 'AKTIF'
-                        ? 'active-filter-tab bg-risda-orange/15 text-risda-text border-risda-orange/40 shadow-xs font-black'
-                        : 'bg-risda-card hover:bg-risda-card-muted text-risda-muted border-risda-border hover:text-risda-text'
-                    }`}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-                    <span>IKLAN AKTIF</span>
-                    <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{activeCount}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setFilters({ ...filters, status: 'SELESAI (KEPUTUSAN)' })}
-                    className={`master-tab-item px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-pointer shrink-0 border whitespace-nowrap ${
-                      filters.status === 'SELESAI (KEPUTUSAN)'
-                        ? 'active-filter-tab bg-blue-500/15 text-risda-text border-blue-500/40 shadow-xs font-black'
-                        : 'bg-risda-card hover:bg-risda-card-muted text-risda-muted border-risda-border hover:text-risda-text'
-                    }`}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
-                    <span>IKLAN SELESAI</span>
-                    <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{resolvedCount}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setFilters({ ...filters, status: 'BATAL' })}
-                    className={`master-tab-item px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-pointer shrink-0 border whitespace-nowrap ${
-                      filters.status === 'BATAL'
-                        ? 'active-filter-tab bg-red-500/15 text-red-600 border-red-500/40 shadow-xs font-black'
-                        : 'bg-risda-card hover:bg-risda-card-muted text-risda-muted border-risda-border hover:text-risda-text'
-                    }`}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                    <span>IKLAN BATAL</span>
-                    <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{batalCount}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setFilters({ ...filters, status: 'SEMUA' })}
-                    className={`master-tab-item px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 cursor-pointer shrink-0 border whitespace-nowrap ${
-                      filters.status === 'SEMUA'
-                        ? 'active-filter-tab bg-risda-card-muted text-risda-text border-risda-border shadow-xs font-black'
-                        : 'bg-risda-card hover:bg-risda-card-muted text-risda-muted border-risda-border hover:text-risda-text'
-                    }`}
-                  >
-                    <span>SEMUA IKLAN</span>
-                    <span className="px-2 py-0.5 rounded-lg bg-risda-card text-risda-text text-[9px] font-black border border-risda-border">{totalCount}</span>
-                  </button>
-                </>
-              )}
+        {/* Jika senarai belum ditekan, paparkan panduan mesra pengguna */}
+        {!isListOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-risda-card border border-dashed border-risda-border rounded-[24px] sm:rounded-[32px] p-8 sm:p-12 text-center mb-8 shadow-xs"
+          >
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-risda-orange/10 text-risda-orange mb-3.5">
+              <FolderOpen size={24} />
             </div>
-          </div>
+            <h3 className="text-sm sm:text-base font-black uppercase text-risda-text tracking-wider">
+              {isDecisionPortal ? 'Pilih Kotak Keputusan Di Atas Untuk Memaparkan Senarai' : 'Pilih Kotak Iklan Di Atas Untuk Memaparkan Senarai'}
+            </h3>
+            <p className="text-xs sm:text-sm text-risda-text-secondary max-w-lg mx-auto mt-1.5 font-medium leading-relaxed">
+              {isDecisionPortal
+                ? 'Sila tekan mana-mana kotak status di atas (Keputusan Selesai atau Belum Ada Keputusan) untuk memuatkan senarai keputusan sebut harga.'
+                : 'Sila tekan mana-mana kotak status di atas (Iklan Aktif, Iklan Selesai, Iklan Batal atau Semua Iklan) untuk memuatkan senarai sebut harga.'}
+            </p>
+          </motion.div>
+        )}
 
+        {/* Unified Master Container (1 Kotak Penuh: Iklan Aktif -> Sebut Harga / Projek) */}
+        {isListOpen && (
+        <motion.div 
+          ref={tableTopRef} 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-risda-card border border-risda-border rounded-[24px] sm:rounded-[32px] shadow-sm mb-8 overflow-hidden"
+        >
           {/* Section 2: Filters and Searching Deck */}
           <div className="p-5 sm:p-7 border-b border-risda-border">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end w-full">
               
               {/* Realtime Search Searchbar */}
-              <div className="flex flex-col gap-2 md:col-span-4">
-                <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-risda-orange animate-pulse" />
-                    <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">CARI DOKUMEN / PROJEK</label>
+              <div className={`flex flex-col gap-2 ${isDecisionPortal ? 'md:col-span-8' : 'md:col-span-4'}`}>
+                <div className="flex items-center gap-2 px-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange animate-pulse" />
+                  <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">
+                    {isDecisionPortal ? 'CARI KEPUTUSAN / KONTRAKTOR / NO SEBUT HARGA' : 'CARI DOKUMEN / PROJEK'}
+                  </label>
+                </div>
+                <div className="relative group flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-risda-muted group-focus-within:text-risda-orange transition-colors pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={isDecisionPortal ? "Cari No Sebut Harga, Tajuk atau Nama Kontraktor..." : "Cari No Sebut Harga atau Tajuk..."}
+                      className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 pl-10 pr-9 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all placeholder:text-risda-muted uppercase tracking-wide shadow-xs"
+                    />
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-risda-muted hover:text-risda-text transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
                   </div>
+                  
+                  {/* Scan QR Button directly on filter bar */}
                   <button
+                    type="button"
                     onClick={() => window.dispatchEvent(new CustomEvent('triggerQRScanner'))}
-                    className="text-[10px] font-black text-risda-orange hover:text-white bg-risda-orange/15 hover:bg-risda-orange px-2 py-0.5 rounded-md border border-risda-orange/30 flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
-                    title="Buka Kamera Telefon untuk Imbas QR Iklan"
+                    className="p-3 bg-amber-500/15 border border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 rounded-xl text-amber-500 transition-all flex items-center justify-center shrink-0 shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
+                    title="Imbas Kod QR Iklan (Direct Scan QR)"
                   >
-                    <QrCode size={12} />
-                    <span>Imbas QR</span>
+                    <QrCode size={18} />
                   </button>
                 </div>
-                <div className="relative group">
-                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-risda-muted group-focus-within:text-risda-orange transition-colors pointer-events-none" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Cari No Sebut Harga atau Tajuk..."
-                    className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 pl-10 pr-9 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all placeholder:text-risda-muted uppercase tracking-wide shadow-xs"
-                  />
-                  {searchQuery && (
-                    <button 
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-risda-muted hover:text-risda-text transition-colors"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
               </div>
 
-              {/* Negeri Filter */}
-              <div className="flex flex-col gap-2 md:col-span-3">
-                <div className="flex items-center gap-2 px-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
-                  <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">Negeri</label>
-                </div>
-                <div className="relative group">
-                  <select 
-                    value={filters.state}
-                    onChange={(e) => {
-                      const newState = e.target.value;
-                      setFilters({...filters, state: newState, office: ''});
-                      const filtered = allLocations
-                        .filter(loc => (!newState || loc.state === newState) && loc.status === 'Aktif')
-                        .map(loc => loc.name?.trim().toUpperCase())
-                        .filter(Boolean)
-                        .sort();
-                      setOffices(Array.from(new Set(filtered)));
-                    }}
-                    className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 px-3.5 pr-8 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all cursor-pointer appearance-none uppercase tracking-wide shadow-xs"
-                  >
-                    <option value="" className="bg-risda-card text-risda-text">SEMUA NEGERI (MALAYSIA)</option>
-                    <option value="SABAH" className="bg-risda-card text-risda-text">SABAH</option>
-                    <option value="SARAWAK" className="bg-risda-card text-risda-text">SARAWAK</option>
-                    <option value="SELANGOR" className="bg-risda-card text-risda-text">SELANGOR</option>
-                    <option value="KUALA LUMPUR" className="bg-risda-card text-risda-text">KUALA LUMPUR</option>
-                    <option value="JOHOR" className="bg-risda-card text-risda-text">JOHOR</option>
-                    <option value="KEDAH" className="bg-risda-card text-risda-text">KEDAH</option>
-                    <option value="KELANTAN" className="bg-risda-card text-risda-text">KELANTAN</option>
-                    <option value="MELAKA" className="bg-risda-card text-risda-text">MELAKA</option>
-                    <option value="NEGERI SEMBILAN" className="bg-risda-card text-risda-text">NEGERI SEMBILAN</option>
-                    <option value="PAHANG" className="bg-risda-card text-risda-text">PAHANG</option>
-                    <option value="PERAK" className="bg-risda-card text-risda-text">PERAK</option>
-                    <option value="PERLIS" className="bg-risda-card text-risda-text">PERLIS</option>
-                    <option value="PULAU PINANG" className="bg-risda-card text-risda-text">PULAU PINANG</option>
-                    <option value="TERENGGANU" className="bg-risda-card text-risda-text">TERENGGANU</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 group-focus-within:opacity-100 transition-opacity text-risda-muted">
-                    <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              {!isDecisionPortal && (
+                <>
+                  {/* Negeri Filter */}
+                  <div className="flex flex-col gap-2 md:col-span-3">
+                    <div className="flex items-center gap-2 px-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
+                      <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">Negeri</label>
+                    </div>
+                    <div className="relative group">
+                      <select 
+                        value={filters.state}
+                        onChange={(e) => {
+                          const newState = e.target.value;
+                          setFilters({...filters, state: newState, office: ''});
+                          const filtered = allLocations
+                            .filter(loc => (!newState || loc.state === newState) && loc.status === 'Aktif')
+                            .map(loc => loc.name?.trim().toUpperCase())
+                            .filter(Boolean)
+                            .sort();
+                          setOffices(Array.from(new Set(filtered)));
+                        }}
+                        className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 px-3.5 pr-8 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all cursor-pointer appearance-none uppercase tracking-wide shadow-xs"
+                      >
+                        <option value="" className="bg-risda-card text-risda-text">SEMUA NEGERI (MALAYSIA)</option>
+                        <option value="SABAH" className="bg-risda-card text-risda-text">SABAH</option>
+                        <option value="SARAWAK" className="bg-risda-card text-risda-text">SARAWAK</option>
+                        <option value="SELANGOR" className="bg-risda-card text-risda-text">SELANGOR</option>
+                        <option value="KUALA LUMPUR" className="bg-risda-card text-risda-text">KUALA LUMPUR</option>
+                        <option value="JOHOR" className="bg-risda-card text-risda-text">JOHOR</option>
+                        <option value="KEDAH" className="bg-risda-card text-risda-text">KEDAH</option>
+                        <option value="KELANTAN" className="bg-risda-card text-risda-text">KELANTAN</option>
+                        <option value="MELAKA" className="bg-risda-card text-risda-text">MELAKA</option>
+                        <option value="NEGERI SEMBILAN" className="bg-risda-card text-risda-text">NEGERI SEMBILAN</option>
+                        <option value="PAHANG" className="bg-risda-card text-risda-text">PAHANG</option>
+                        <option value="PERAK" className="bg-risda-card text-risda-text">PERAK</option>
+                        <option value="PERLIS" className="bg-risda-card text-risda-text">PERLIS</option>
+                        <option value="PULAU PINANG" className="bg-risda-card text-risda-text">PULAU PINANG</option>
+                        <option value="TERENGGANU" className="bg-risda-card text-risda-text">TERENGGANU</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 group-focus-within:opacity-100 transition-opacity text-risda-muted">
+                        <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Pejabat Filter */}
-              <div className="flex flex-col gap-2 md:col-span-3">
-                <div className="flex items-center gap-2 px-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
-                  <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">Pejabat RISDA</label>
-                </div>
-                <div className="relative group">
-                  <select 
-                    value={filters.office}
-                    onChange={(e) => setFilters({...filters, office: e.target.value})}
-                    className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 px-3.5 pr-8 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all cursor-pointer appearance-none uppercase tracking-wide shadow-xs"
-                  >
-                    <option value="" className="bg-risda-card text-risda-text">SEMUA PEJABAT CAWANGAN</option>
-                    {offices.map((office) => (
-                      <option key={office} value={office} className="bg-risda-card text-risda-text uppercase">{office}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 group-focus-within:opacity-100 transition-opacity text-risda-muted">
-                    <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  {/* Pejabat Filter */}
+                  <div className="flex flex-col gap-2 md:col-span-3">
+                    <div className="flex items-center gap-2 px-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
+                      <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">Pejabat RISDA</label>
+                    </div>
+                    <div className="relative group">
+                      <select 
+                        value={filters.office}
+                        onChange={(e) => setFilters({...filters, office: e.target.value})}
+                        className="w-full bg-risda-card-muted border border-risda-border rounded-xl py-3 px-3.5 pr-8 text-xs sm:text-sm font-bold text-risda-text focus:border-risda-orange focus:bg-risda-card outline-none transition-all cursor-pointer appearance-none uppercase tracking-wide shadow-xs"
+                      >
+                        <option value="" className="bg-risda-card text-risda-text">SEMUA PEJABAT CAWANGAN</option>
+                        {offices.map((office) => (
+                          <option key={office} value={office} className="bg-risda-card text-risda-text uppercase">{office}</option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 group-focus-within:opacity-100 transition-opacity text-risda-muted">
+                        <svg width="12" height="8" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
 
               {/* Year Filter */}
-              <div className="flex flex-col gap-2 md:col-span-2">
+              <div className={`flex flex-col gap-2 ${isDecisionPortal ? 'md:col-span-4' : 'md:col-span-2'}`}>
                 <div className="flex items-center gap-2 px-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-risda-orange" />
                   <label className="text-xs font-black text-risda-orange uppercase tracking-[2px]">Pilih Tahun</label>
@@ -638,7 +855,11 @@ export default function ProjectFilters({
                   <th className="px-6 py-5">Sebut Harga / Projek</th>
                   <th className="px-6 py-5">Negeri / Pejabat</th>
                   <th className="px-6 py-5 text-center whitespace-nowrap min-w-[140px]">Status</th>
-                  {(filters.status === 'SELESAI (KEPUTUSAN)' || filters.status === 'SEMUA') && <th className="px-6 py-5 text-center">Pembekal Terpilih</th>}
+                  {(filters.status === 'SELESAI (KEPUTUSAN)' || filters.status === 'SEMUA' || isDecisionPortal) && (
+                    <th className="px-6 py-5 text-center">
+                      {isDecisionPortal ? 'Keputusan / Pembekal Terpilih' : 'Pembekal Terpilih'}
+                    </th>
+                  )}
                   <th className="px-6 py-5 text-right">Tarikh Tutup</th>
                 </tr>
               </thead>
@@ -669,35 +890,35 @@ export default function ProjectFilters({
                     }}
                   >
                     <td className="px-6 py-6 border-l-2 border-transparent hover:border-risda-orange transition-all">
-                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                        <span className="font-mono text-[10px] text-risda-orange font-bold tracking-widest">{item.tenderNo}</span>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="font-mono text-xs text-risda-orange font-bold tracking-wider">{item.tenderNo}</span>
                         {item.category && (
-                          <span className="px-2 py-0.5 text-[8px] font-black text-white bg-risda-gold/80 rounded uppercase tracking-wider">
+                          <span className="px-2.5 py-1 text-[11px] font-black text-white bg-risda-gold/90 rounded-md uppercase tracking-wider">
                             {item.category}
                           </span>
                         )}
                         {item.licenses?.cidbSpkk && (
-                          <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#C26B4D] rounded uppercase tracking-wider shadow-sm">
+                          <span className="px-2.5 py-1 text-[11px] font-bold text-white bg-[#C26B4D] rounded-md uppercase tracking-wider shadow-sm">
                             CIDB SPKK
                           </span>
                         )}
                         {item.licenses?.cidbPkk && (
-                          <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#6B7052] rounded uppercase tracking-wider shadow-sm">
+                          <span className="px-2.5 py-1 text-[11px] font-bold text-white bg-[#6B7052] rounded-md uppercase tracking-wider shadow-sm">
                             CIDB PKK
                           </span>
                         )}
                         {item.licenses?.stb && (
-                          <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#7C8262] rounded uppercase tracking-wider shadow-sm">
+                          <span className="px-2.5 py-1 text-[11px] font-bold text-white bg-[#7C8262] rounded-md uppercase tracking-wider shadow-sm">
                             STB
                           </span>
                         )}
                         {item.licenses?.mof && (
-                          <span className="px-2 py-0.5 text-[8px] font-bold text-white bg-[#9E5D42] rounded uppercase tracking-wider shadow-sm">
+                          <span className="px-2.5 py-1 text-[11px] font-bold text-white bg-[#9E5D42] rounded-md uppercase tracking-wider shadow-sm">
                             MOF
                           </span>
                         )}
                       </div>
-                      <div className="text-[14px] font-bold text-risda-text group-hover:text-risda-orange transition-colors uppercase font-display mb-3 break-words whitespace-normal leading-relaxed">{item.title}</div>
+                      <div className="text-sm md:text-base font-bold text-risda-text group-hover:text-risda-orange transition-colors uppercase font-display mb-3 break-words whitespace-normal leading-relaxed">{item.title}</div>
                       {showRegistration && 
                         (item.displayStatus === 'AKTIF') && 
                         !(item.title?.toUpperCase().includes('PROJEK JALAN') && (role === 'pelawat' || !role)) && (
@@ -716,48 +937,63 @@ export default function ProjectFilters({
                       )}
                     </td>
                     <td className="px-6 py-6">
-                      <div className="text-[10px] font-bold text-risda-text uppercase">{item.state}</div>
-                      <div className="text-[8px] text-risda-muted font-bold uppercase">{item.office}</div>
+                      <div className="text-xs font-bold text-risda-text uppercase">{item.state}</div>
+                      <div className="text-xs text-risda-muted font-bold uppercase mt-0.5">{item.office}</div>
                     </td>
                     <td className="px-6 py-6 text-center whitespace-nowrap">
-                      <span className={`inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-xs whitespace-nowrap leading-none ${
-                        item.displayStatus === 'AKTIF' 
+                      <span className={`inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-xs whitespace-nowrap leading-none ${
+                        item.displayStatus === 'SELESAI (KEPUTUSAN)'
+                          ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30'
+                          : isDecisionPortal
+                          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
+                          : item.displayStatus === 'AKTIF' 
                           ? 'bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30' 
                           : item.displayStatus === 'BATAL'
                           ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30'
                           : 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30'
                       }`}>
-                        {item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus}
+                        {isDecisionPortal
+                          ? (item.displayStatus === 'SELESAI (KEPUTUSAN)' ? 'KEPUTUSAN SELESAI' : 'BELUM ADA KEPUTUSAN')
+                          : (item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus)}
                       </span>
                     </td>
-                    {(filters.status === 'SELESAI (KEPUTUSAN)' || filters.status === 'SEMUA') && (
+                    {(filters.status === 'SELESAI (KEPUTUSAN)' || filters.status === 'SEMUA' || isDecisionPortal) && (
                       <td className="px-6 py-6 text-center">
-                        {item.winner ? (
-                          item.winner.isReTender || item.winner.companyName === 'SEBUTHARGA SEMULA' ? (
-                            <div className="flex flex-col items-center">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider mb-0.5">
-                                <RotateCcw size={10} />
-                                SEBUTHARGA SEMULA
-                              </span>
-                              <div className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">Keputusan Rasmi</div>
-                            </div>
+                        {item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (
+                          item.winner ? (
+                            item.winner.isReTender || item.winner.companyName === 'SEBUTHARGA SEMULA' ? (
+                              <div className="flex flex-col items-center">
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-black uppercase tracking-wider mb-1">
+                                  <RotateCcw size={12} />
+                                  SEBUTHARGA SEMULA
+                                </span>
+                                <div className="text-xs text-risda-muted font-bold uppercase tracking-wider">Keputusan Rasmi</div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center">
+                                <span className="w-2 h-2 inline-block rounded-full bg-blue-500 animate-pulse mb-1" />
+                                <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase leading-tight">{item.winner.companyName}</div>
+                                <div className="text-xs text-risda-muted font-bold uppercase tracking-wider mt-0.5">{item.winner.ownerName || item.winner.representativeName}</div>
+                              </div>
+                            )
                           ) : (
                             <div className="flex flex-col items-center">
-                              <span className="w-2 h-2 inline-block rounded-full bg-blue-500 animate-pulse mb-1" />
-                              <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase leading-tight">{item.winner.companyName}</div>
-                              <div className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">{item.winner.ownerName || item.winner.representativeName}</div>
+                              <span className="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase">Selesai (Keputusan Rasmi)</span>
                             </div>
                           )
                         ) : (
                           <div className="flex flex-col items-center">
-                            <span className="text-[10px] text-risda-muted font-black uppercase italic opacity-50">Menunggu Pelantikan</span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
+                              <Clock size={12} />
+                              Dalam Proses Penilaian
+                            </span>
                           </div>
                         )}
                       </td>
                     )}
                     <td className="px-6 py-6 text-right">
-                      <div className="text-[11px] text-risda-text font-bold tracking-tight">{formatDate(item.closingDate)}</div>
-                      <div className="text-[8px] text-risda-muted font-bold uppercase tracking-[1px]">{item.closingTime || '12:00 PM'}</div>
+                      <div className="text-xs text-risda-text font-bold tracking-tight">{formatDate(item.closingDate)}</div>
+                      <div className="text-xs text-risda-muted font-bold uppercase mt-0.5">{item.closingTime || '12:00 PM'}</div>
                     </td>
                   </tr>
                 ))
@@ -817,16 +1053,19 @@ export default function ProjectFilters({
                       )}
                     </div>
                     <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider whitespace-nowrap leading-none shrink-0 ${
+                      item.displayStatus === 'SELESAI (KEPUTUSAN)' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30' : 
+                      isDecisionPortal ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30' :
                       item.displayStatus === 'AKTIF' ? 'bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30' : 
-                      item.displayStatus === 'SELESAI (KEPUTUSAN)' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30' :
                       'bg-risda-muted/15 text-risda-muted border border-risda-border'
                     }`}>
-                      {item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus}
+                      {isDecisionPortal
+                        ? (item.displayStatus === 'SELESAI (KEPUTUSAN)' ? 'KEPUTUSAN SELESAI' : 'BELUM ADA KEPUTUSAN')
+                        : (item.displayStatus === 'SELESAI (KEPUTUSAN)' ? (item.isOldProject ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : item.displayStatus)}
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-risda-text leading-relaxed uppercase break-words whitespace-normal">{item.title}</h4>
                 </div>
-                {item.displayStatus === 'SELESAI (KEPUTUSAN)' && item.winner && (
+                {item.displayStatus === 'SELESAI (KEPUTUSAN)' && item.winner ? (
                   item.winner.isReTender || item.winner.companyName === 'SEBUTHARGA SEMULA' ? (
                     <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center gap-3">
                       <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
@@ -844,7 +1083,15 @@ export default function ProjectFilters({
                       <p className="text-[8px] text-risda-muted uppercase font-semibold">{item.winner.ownerName || item.winner.representativeName}</p>
                     </div>
                   )
-                )}
+                ) : isDecisionPortal && item.displayStatus !== 'SELESAI (KEPUTUSAN)' ? (
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-2.5">
+                    <Clock size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div>
+                      <p className="text-[8px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">Status Keputusan:</p>
+                      <p className="text-[10px] font-bold text-amber-800 dark:text-amber-300">Belum Ada Keputusan (Dalam Penilaian)</p>
+                    </div>
+                  </div>
+                ) : null}
                 {showRegistration && 
                   (item.displayStatus === 'AKTIF') && 
                   !(item.title?.toUpperCase().includes('PROJEK JALAN') && (role === 'pelawat' || !role)) && (
@@ -896,7 +1143,8 @@ export default function ProjectFilters({
             />
           </div>
         )}
-      </div>
+        </motion.div>
+        )}
       
         <div className="mt-8 p-6 bg-gradient-to-r from-risda-orange/5 to-transparent border-l-2 border-risda-orange rounded-r-xl">
            <p className="text-[11px] text-risda-text-secondary leading-relaxed italic uppercase tracking-wider">
@@ -1059,150 +1307,152 @@ export default function ProjectFilters({
                         <h2 className="text-2xl md:text-3xl font-black text-risda-text leading-tight tracking-tight uppercase">{selectedAd.title}</h2>
                       </div>
 
-                      {/* Beautiful Unified Download Bar with Contextual Buttons */}
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-risda-card-muted p-5 sm:p-6 rounded-3xl border border-risda-border shadow-sm text-left">
-                        <div className="flex items-center gap-4 w-full sm:w-auto">
-                          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-md shrink-0">
-                            <Download size={20} className="stroke-[3]" />
+                      {/* Beautiful Unified Download Bar with Contextual Buttons - KHAS UNTUK KAKITANGAN SAHAJA */}
+                      {isStaff && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-risda-card-muted p-5 sm:p-6 rounded-3xl border border-risda-border shadow-sm text-left">
+                          <div className="flex items-center gap-4 w-full sm:w-auto">
+                            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-md shrink-0">
+                              <Download size={20} className="stroke-[3]" />
+                            </div>
+                            <div className="text-left">
+                              <p className="text-xs sm:text-sm font-black text-risda-text uppercase tracking-widest leading-none mb-1.5">
+                                {effectiveContext === 'dashboard' 
+                                  ? 'MUAT TURUN DOKUMEN (IKLAN & KEPUTUSAN)' 
+                                  : effectiveContext === 'keputusan' 
+                                    ? 'MUAT TURUN KEPUTUSAN RASMI' 
+                                    : 'MUAT TURUN IKLAN SEBUT HARGA'}
+                              </p>
+                              <p className="text-[10px] text-risda-muted font-medium tracking-wide">
+                                {effectiveContext === 'dashboard'
+                                  ? 'Sila pilih PDF Iklan Sebut Harga atau PDF Keputusan Rasmi.'
+                                  : 'Pilih format untuk simpanan rasmi atau perkongsian.'}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-left">
-                            <p className="text-xs sm:text-sm font-black text-risda-text uppercase tracking-widest leading-none mb-1.5">
-                              {effectiveContext === 'dashboard' 
-                                ? 'MUAT TURUN DOKUMEN (IKLAN & KEPUTUSAN)' 
-                                : effectiveContext === 'keputusan' 
-                                  ? 'MUAT TURUN KEPUTUSAN RASMI' 
-                                  : 'MUAT TURUN IKLAN SEBUT HARGA'}
-                            </p>
-                            <p className="text-[10px] text-risda-muted font-medium tracking-wide">
-                              {effectiveContext === 'dashboard'
-                                ? 'Sila pilih PDF Iklan Sebut Harga atau PDF Keputusan Rasmi.'
-                                : 'Pilih format untuk simpanan rasmi atau perkongsian.'}
-                            </p>
+                          
+                          <div className="flex flex-wrap gap-2.5 w-full sm:w-auto self-stretch sm:self-auto justify-end">
+                            {effectiveContext === 'dashboard' ? (
+                              <>
+                                {/* DUA PDF BUTTONS FOR PUSAT DASHBOARD */}
+                                <button 
+                                  onClick={async () => {
+                                    const t = toast.loading('Menjana PDF Iklan...');
+                                    try {
+                                      await exportToPDF(selectedAd);
+                                      toast.success('PDF Iklan berjaya dijana', { id: t });
+                                    } catch (err) {
+                                      toast.error('Gagal menjana PDF Iklan', { id: t });
+                                    }
+                                  }}
+                                  className="flex-1 sm:flex-initial px-5 py-3.5 bg-risda-orange hover:brightness-110 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Download size={14} className="stroke-[3]" /> PDF IKLAN
+                                </button>
+                                <button 
+                                  onClick={async () => {
+                                    const t = toast.loading('Menjana PDF Keputusan...');
+                                    try {
+                                      await exportResultToPDF({
+                                        tenderNo: selectedAd.tenderNo,
+                                        title: selectedAd.title,
+                                        office: selectedAd.office || 'MALAYSIA',
+                                        winnerName: selectedAd.winnerName || selectedAd.winner?.companyName || (selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'TIADA' : 'DALAM PROSES PENILAIAN'),
+                                        startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
+                                        endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
+                                        location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
+                                      });
+                                      toast.success('PDF Keputusan berjaya dijana', { id: t });
+                                    } catch (err) {
+                                      toast.error('Gagal menjana PDF Keputusan', { id: t });
+                                    }
+                                  }}
+                                  className="flex-1 sm:flex-initial px-5 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Download size={14} className="stroke-[3]" /> PDF KEPUTUSAN
+                                </button>
+                              </>
+                            ) : effectiveContext === 'keputusan' ? (
+                              <>
+                                {/* KEPUTUSAN RASMI PORTAL: PDF KEPUTUSAN SAHAJA */}
+                                <button 
+                                  onClick={async () => {
+                                    const t = toast.loading('Menjana PDF Keputusan...');
+                                    try {
+                                      await exportResultToPDF({
+                                        tenderNo: selectedAd.tenderNo,
+                                        title: selectedAd.title,
+                                        office: selectedAd.office || 'MALAYSIA',
+                                        winnerName: selectedAd.winnerName || selectedAd.winner?.companyName || (selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'TIADA' : 'DALAM PROSES PENILAIAN'),
+                                        startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
+                                        endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
+                                        location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
+                                      });
+                                      toast.success('PDF Keputusan berjaya dijana', { id: t });
+                                    } catch (err) {
+                                      toast.error('Gagal menjana PDF Keputusan', { id: t });
+                                    }
+                                  }}
+                                  className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Download size={14} className="stroke-[3]" /> PDF KEPUTUSAN
+                                </button>
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      await exportResultToWord({
+                                        tenderNo: selectedAd.tenderNo,
+                                        title: selectedAd.title,
+                                        office: selectedAd.office || 'MALAYSIA',
+                                        winnerName: selectedAd.winnerName || selectedAd.winner?.companyName || (selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'TIADA' : 'DALAM PROSES PENILAIAN'),
+                                        startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
+                                        endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
+                                        location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
+                                      });
+                                    } catch (err) {
+                                      console.error(err);
+                                      toast.error('Gagal menjana Word file');
+                                    }
+                                  }}
+                                  className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <FileText size={14} className="stroke-[3]" /> WORD
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                {/* IKLAN SEBUTHARGA PORTAL: PDF IKLAN SAHAJA */}
+                                <button 
+                                  onClick={async () => {
+                                    const t = toast.loading('Menjana PDF Iklan...');
+                                    try {
+                                      await exportToPDF(selectedAd);
+                                      toast.success('PDF Iklan berjaya dijana', { id: t });
+                                    } catch (err) {
+                                      toast.error('Gagal menjana PDF Iklan', { id: t });
+                                    }
+                                  }}
+                                  className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Download size={14} className="stroke-[3]" /> PDF IKLAN
+                                </button>
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      await exportToWord(selectedAd);
+                                    } catch (err) {
+                                      console.error(err);
+                                      toast.error('Gagal menjana Word file');
+                                    }
+                                  }}
+                                  className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <FileText size={14} className="stroke-[3]" /> WORD
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
-                        
-                        <div className="flex flex-wrap gap-2.5 w-full sm:w-auto self-stretch sm:self-auto justify-end">
-                          {effectiveContext === 'dashboard' ? (
-                            <>
-                              {/* DUA PDF BUTTONS FOR PUSAT DASHBOARD */}
-                              <button 
-                                onClick={async () => {
-                                  const t = toast.loading('Menjana PDF Iklan...');
-                                  try {
-                                    await exportToPDF(selectedAd);
-                                    toast.success('PDF Iklan berjaya dijana', { id: t });
-                                  } catch (err) {
-                                    toast.error('Gagal menjana PDF Iklan', { id: t });
-                                  }
-                                }}
-                                className="flex-1 sm:flex-initial px-5 py-3.5 bg-risda-orange hover:brightness-110 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-                              >
-                                <Download size={14} className="stroke-[3]" /> PDF IKLAN
-                              </button>
-                              <button 
-                                onClick={async () => {
-                                  const t = toast.loading('Menjana PDF Keputusan...');
-                                  try {
-                                    await exportResultToPDF({
-                                      tenderNo: selectedAd.tenderNo,
-                                      title: selectedAd.title,
-                                      office: selectedAd.office || 'MALAYSIA',
-                                      winnerName: selectedAd.winnerName || selectedAd.winner?.companyName || (selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'TIADA' : 'DALAM PROSES PENILAIAN'),
-                                      startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
-                                      endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
-                                      location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
-                                    });
-                                    toast.success('PDF Keputusan berjaya dijana', { id: t });
-                                  } catch (err) {
-                                    toast.error('Gagal menjana PDF Keputusan', { id: t });
-                                  }
-                                }}
-                                className="flex-1 sm:flex-initial px-5 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-                              >
-                                <Download size={14} className="stroke-[3]" /> PDF KEPUTUSAN
-                              </button>
-                            </>
-                          ) : effectiveContext === 'keputusan' ? (
-                            <>
-                              {/* KEPUTUSAN RASMI PORTAL: PDF KEPUTUSAN SAHAJA */}
-                              <button 
-                                onClick={async () => {
-                                  const t = toast.loading('Menjana PDF Keputusan...');
-                                  try {
-                                    await exportResultToPDF({
-                                      tenderNo: selectedAd.tenderNo,
-                                      title: selectedAd.title,
-                                      office: selectedAd.office || 'MALAYSIA',
-                                      winnerName: selectedAd.winnerName || selectedAd.winner?.companyName || (selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'TIADA' : 'DALAM PROSES PENILAIAN'),
-                                      startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
-                                      endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
-                                      location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
-                                    });
-                                    toast.success('PDF Keputusan berjaya dijana', { id: t });
-                                  } catch (err) {
-                                    toast.error('Gagal menjana PDF Keputusan', { id: t });
-                                  }
-                                }}
-                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-                              >
-                                <Download size={14} className="stroke-[3]" /> PDF KEPUTUSAN
-                              </button>
-                              <button 
-                                onClick={async () => {
-                                  try {
-                                    await exportResultToWord({
-                                      tenderNo: selectedAd.tenderNo,
-                                      title: selectedAd.title,
-                                      office: selectedAd.office || 'MALAYSIA',
-                                      winnerName: selectedAd.winnerName || selectedAd.winner?.companyName || (selectedAd.status === 'SELESAI (KEPUTUSAN)' ? 'TIADA' : 'DALAM PROSES PENILAIAN'),
-                                      startDate: selectedAd.winner?.contractStartDate || selectedAd.contractStartDate || '-',
-                                      endDate: selectedAd.winner?.contractEndDate || selectedAd.contractEndDate || '-',
-                                      location: selectedAd.winner?.location || selectedAd.location || selectedAd.visitVenue || selectedAd.docVenue || '-'
-                                    });
-                                  } catch (err) {
-                                    console.error(err);
-                                    toast.error('Gagal menjana Word file');
-                                  }
-                                }}
-                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-                              >
-                                <FileText size={14} className="stroke-[3]" /> WORD
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              {/* IKLAN SEBUTHARGA PORTAL: PDF IKLAN SAHAJA */}
-                              <button 
-                                onClick={async () => {
-                                  const t = toast.loading('Menjana PDF Iklan...');
-                                  try {
-                                    await exportToPDF(selectedAd);
-                                    toast.success('PDF Iklan berjaya dijana', { id: t });
-                                  } catch (err) {
-                                    toast.error('Gagal menjana PDF Iklan', { id: t });
-                                  }
-                                }}
-                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-                              >
-                                <Download size={14} className="stroke-[3]" /> PDF IKLAN
-                              </button>
-                              <button 
-                                onClick={async () => {
-                                  try {
-                                    await exportToWord(selectedAd);
-                                  } catch (err) {
-                                    console.error(err);
-                                    toast.error('Gagal menjana Word file');
-                                  }
-                                }}
-                                className="flex-1 sm:flex-initial px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-                              >
-                                <FileText size={14} className="stroke-[3]" /> WORD
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                      )}
 
                       {/* View Selector for Dashboard or Active Ads */}
                       {effectiveContext === 'dashboard' ? (
@@ -1553,27 +1803,6 @@ export default function ProjectFilters({
                     {(selectedAd.status !== 'SELESAI (KEPUTUSAN)' || (isStaff && !showRegistration && initialStatus !== 'SELESAI (KEPUTUSAN)')) ? (
                       <div className="p-8 md:p-14 bg-risda-card-muted/50 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-risda-border lg:col-span-1">
                         <div className="w-full space-y-6">
-                          
-                          {/* Floating Helpful Banner exactly matching the user's uploaded image style */}
-                          {showHelpTip && (
-                            <motion.div 
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="relative bg-risda-card border border-risda-border p-5 rounded-2xl flex items-start gap-3 shadow-md text-left"
-                            >
-                              <div className="flex-1 text-[10px] font-bold text-risda-text leading-relaxed uppercase tracking-wider">
-                                SILA RUJUK LAMPIRAN SIJIL TAWARAN ATAU HUBUNGI PEJABAT RISDA NEGERI/DAERAH YANG BERKAITAN UNTUK MAKLUMAT LANJUT.
-                              </div>
-                              <button 
-                                onClick={() => setShowHelpTip(false)}
-                                className="text-risda-muted hover:text-risda-text p-1.5 rounded-lg bg-risda-card-muted transition-all shrink-0"
-                                title="Tutup Makluman"
-                              >
-                                <X size={14} className="stroke-[2.5]" />
-                              </button>
-                            </motion.div>
-                          )}
-
                           <div className="border-b border-risda-border pb-4 text-center">
                             <h4 className="text-sm font-bold text-risda-text uppercase tracking-widest leading-none">PENDAFTARAN SEGERA</h4>
                             <p className="text-[10px] text-risda-orange uppercase tracking-[3px] mt-1.5 font-bold">Imbas QR Kod</p>
@@ -1595,7 +1824,7 @@ export default function ProjectFilters({
                             </p>
                             <div className="h-px bg-risda-border" />
                             <p className="text-[10px] text-risda-muted leading-relaxed uppercase">
-                              Pastikan anda berada di lokasi taklimat pada tarikh dan masa yang ditetapkan bersendirian. Mohon untuk mengimbas kod qr yang ada pada iklan bagi tujuan pendaftaran secara digital dari iklan di keluarkan atau sehari sebelum hari taklimat tapak.
+                              Mohon untuk mengimbas kod QR yang ada pada iklan bagi tujuan pendaftaran secara digital dari iklan dikeluarkan atau sehari sebelum hari taklimat tapak.
                             </p>
                           </div>
                         </div>
@@ -1607,27 +1836,6 @@ export default function ProjectFilters({
                     ) : (
                       <div className="p-8 md:p-14 bg-risda-card-muted/50 flex flex-col justify-between items-center text-center space-y-8 border-t lg:border-t-0 border-risda-border lg:col-span-1">
                         <div className="w-full space-y-6">
-                          
-                          {/* Floating Helpful Banner exactly matching the user's uploaded image style */}
-                          {showHelpTip && (
-                            <motion.div 
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="relative bg-risda-card border border-risda-border p-5 rounded-2xl flex items-start gap-3 shadow-md text-left"
-                            >
-                              <div className="flex-1 text-[9px] font-bold text-risda-text-secondary leading-relaxed uppercase tracking-wider">
-                                SILA RUJUK LAMPIRAN SIJIL TAWARAN ATAU HUBUNGI PEJABAT RISDA NEGERI/DAERAH YANG BERKAITAN UNTUK MAKLUMAT LANJUT.
-                              </div>
-                              <button 
-                                onClick={() => setShowHelpTip(false)}
-                                className="text-risda-muted hover:text-risda-text p-1 rounded bg-risda-card-muted transition-all hover:scale-105 shrink-0"
-                                title="Tutup Makluman"
-                              >
-                                <X size={12} className="stroke-[2.5]" />
-                              </button>
-                            </motion.div>
-                          )}
-
                           <div className="border-b border-risda-border pb-4 text-center">
                             <h4 className="text-sm font-bold text-risda-text uppercase tracking-widest leading-none">MAKLUMAT KEPUTUSAN</h4>
                             <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase tracking-[3px] mt-1.5 font-bold">RASMI PEROLEHAN</p>

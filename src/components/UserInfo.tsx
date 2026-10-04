@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Info, Shield, UserPlus, FileCheck } from 'lucide-react';
+import { Info, Shield, UserPlus, FileCheck, CheckSquare } from 'lucide-react';
 
 export default function UserInfo() {
   const roles = [
@@ -21,30 +21,45 @@ export default function UserInfo() {
     },
     {
       title: 'Penginput Data',
-      roleKey: 'Input Staff',
+      roleKey: 'Penginput',
       icon: UserPlus,
       color: 'text-blue-400',
       bg: 'bg-blue-400/10',
-      description: 'Penggerak utama operasi di peringkat pejabat yang bertanggungjawab mendaftar dan menyelenggara data harian sistem.',
+      description: 'Penggerak utama operasi di peringkat pejabat yang bertanggungjawab memasukkan draf iklan, draf pelawaan, dan permohonan tawaran terus.',
       tasks: [
-        'Akses Iklan & Status Sebut Harga',
-        'Daftar Kehadiran Manual Kontraktor',
-        'Urus Rekod Kehadiran Pejabat Sendiri',
-        'Validasi Kehadiran Fizikal di Tapak'
+        'Daftar & Draf Iklan Sebut Harga',
+        'Sedia Draf Surat Pelawaan Sebut Harga',
+        'Isi Permohonan Pesanan Tawaran Terus (Jadual Item & BQ)',
+        'Daftar Kehadiran Manual Kontraktor di Tapak'
+      ]
+    },
+    {
+      title: 'Pegawai Penyemak',
+      roleKey: 'Penyemak',
+      icon: CheckSquare,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      description: 'Penyemak teliti yang menyemak iklan, pelawaan dan keputusan sebut harga, serta menyemak kajian pasaran 3 pembekal tawaran terus sebelum dikemukakan kepada Pegawai Pelulus.',
+      tasks: [
+        'Semak Iklan Sebut Harga Sebelum Dikeluarkan',
+        'Semak & Sahkan Senarai Pelawaan Sebut Harga',
+        'Semak Cadangan Keputusan & Pemenang Sebut Harga',
+        'Pilih 3 Pembekal Kajian Pasaran Tawaran Terus',
+        'Tentukan & Syorkan Pembekal Yang Layak Menerima Tawaran Terus'
       ]
     },
     {
       title: 'Pegawai Pelulus',
-      roleKey: 'Approver',
+      roleKey: 'Pelulus',
       icon: FileCheck,
       color: 'text-green-400',
       bg: 'bg-green-400/10',
-      description: 'Penjaga integriti yang memantau dan mengesahkan ketelusan setiap pendaftaran tapak di peringkat pentadbiran pejabat.',
+      description: 'Penjaga integriti dan kuasa melulus yang mengesahkan penerbitan iklan, pengeluaran pelawaan, keputusan sebut harga, dan perolehan tawaran terus.',
       tasks: [
-        'Semak & Sahkan Senarai Kehadiran',
-        'Pantau Status Tender Pejabat Sendiri',
-        'Validasi Integriti Data Pendaftaran',
-        'Akses Laporan Operasi Pejabat'
+        'Lulus & Terbitkan Iklan Sebut Harga Rasmi',
+        'Luluskan Pengeluaran Surat Pelawaan Sebut Harga',
+        'Lulus & Muktamadkan Keputusan Pemenang Sebut Harga',
+        'Luluskan Permohonan & Pesanan Rasmi Tawaran Terus'
       ]
     }
   ];

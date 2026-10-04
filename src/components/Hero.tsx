@@ -22,7 +22,7 @@ function formatRinggitCompact(num: number): string {
 export default function Hero() {
   const { role } = useAuth();
   const isAdmin = role === 'admin' || role === 'pentadbir';
-  const isStaff = role === 'penginput' || role === 'pelulus' || isAdmin;
+  const isStaff = role === 'penginput' || role === 'penyemak' || role === 'pelulus' || isAdmin;
   
   const [adCount, setAdCount] = useState(0);
   const [attendanceCount, setAttendanceCount] = useState(0);
@@ -301,7 +301,7 @@ export default function Hero() {
                 </h2>
               </div>
               <p className="text-sm sm:text-base lg:text-lg text-risda-text-secondary font-medium max-w-2xl mx-auto leading-relaxed mt-4">
-                Satu portal bersepadu untuk ketelusan, integriti, dan kecekapan pengurusan iklan sebut harga serta rekod kehadiran tapak RISDA.
+                Satu portal bersepadu untuk ketelusan, integriti, dan kecekapan pengurusan perolehan RISDA.
               </p>
             </motion.div>
             
@@ -334,17 +334,14 @@ export default function Hero() {
                 </span>
               </button>
 
-              <button 
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('triggerQRScanner'));
-                }}
-                className="group relative overflow-hidden px-8 py-5 rounded-2xl transition-all hover:scale-[1.02] active:scale-95 bg-gradient-to-r from-risda-orange/20 to-amber-500/20 hover:from-risda-orange/30 hover:to-amber-500/30 border-2 border-risda-orange/60 hover:border-risda-orange shadow-md flex items-center justify-center gap-3 w-64 max-w-full text-center cursor-pointer"
-                title="Buka Kamera Telefon untuk Imbas QR Iklan"
+              {/* Direct Scan QR Code Button on Hero */}
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('triggerQRScanner'))}
+                className="group relative overflow-hidden px-6 py-5 rounded-2xl transition-all hover:scale-[1.02] active:scale-95 bg-gradient-to-r from-amber-500 via-risda-orange to-yellow-500 hover:from-amber-600 hover:to-risda-orange text-slate-950 font-black shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2.5 w-64 max-w-full text-center cursor-pointer uppercase tracking-[2px] text-[10px] sm:text-xs border border-yellow-300"
               >
-                <span className="relative z-10 flex items-center justify-center gap-2 font-black uppercase tracking-[2px] text-[10px] sm:text-xs text-risda-orange">
-                  <QrCode size={18} className="animate-pulse" />
-                  IMBAS QR IKLAN
-                </span>
+                <QrCode size={18} className="text-slate-950 stroke-[2.5] animate-pulse" />
+                <span>SCAN QR IKLAN</span>
               </button>
             </motion.div>
 

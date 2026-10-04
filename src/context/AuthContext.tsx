@@ -3,7 +3,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, deleteDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, OperationType, handleFirestoreError } from '../lib/firebase';
 
-export type UserRole = 'admin' | 'penginput' | 'pelulus' | 'pentadbir' | 'pelawat';
+export type UserRole = 'admin' | 'penginput' | 'penyemak' | 'pelulus' | 'pentadbir' | 'pelawat';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthContextType {
   state: string | null;
   district: string | null;
   loading: boolean;
+  switchRole?: (newRole: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -185,8 +186,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const switchRole = (newRole: UserRole) => {
+    setRole(newRole);
+    if (user?.uid) {
+      try {
+        localStorage.setItem(`risda_role_${user.uid}`, newRole);
+      } catch {}
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, role, office, state, district, loading }}>
+    <AuthContext.Provider value={{ user, role, office, state, district, loading, switchRole }}>
       {!loading && children}
     </AuthContext.Provider>
   );

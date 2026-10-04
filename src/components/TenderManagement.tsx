@@ -27,7 +27,10 @@ import {
   FileDown,
   FileUp,
   Copy,
-  RotateCcw
+  RotateCcw,
+  Shield,
+  CheckCircle2,
+  Trophy
 } from 'lucide-react';
 import { exportResultToPDF } from '../lib/exportUtils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -121,6 +124,18 @@ interface Advertisement {
     remarks?: string;
     allocationCode?: string;
   };
+  approvalStatus?: 'MENUNGGU SEMAKAN' | 'MENUNGGU KELULUSAN' | 'DILULUSKAN' | 'DIKEMBALIKAN';
+  reviewedBy?: string;
+  reviewedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  reviewNotes?: string;
+  decisionStatus?: 'MENUNGGU SEMAKAN' | 'MENUNGGU KELULUSAN' | 'DILULUSKAN' | 'DIKEMBALIKAN';
+  decisionReviewedBy?: string;
+  decisionReviewedAt?: string;
+  decisionApprovedBy?: string;
+  decisionApprovedAt?: string;
+  decisionNotes?: string;
   licenses: {
     cidbSpkk: boolean;
     cidbPkk: boolean;
@@ -153,9 +168,12 @@ interface LocationItem {
 }
 
 export default function TenderManagement() {
-  const { role, office: userOffice, state: userState, district: userDistrict } = useAuth();
-  const isStaff = role === 'penginput' || role === 'pelulus' || role === 'admin' || role === 'pentadbir';
+  const { role, office: userOffice, state: userState, district: userDistrict, user } = useAuth();
+  const isStaff = role === 'penginput' || role === 'penyemak' || role === 'pelulus' || role === 'admin' || role === 'pentadbir';
   const isAdmin = role === 'admin' || role === 'pentadbir';
+  const isPenyemak = role === 'penyemak';
+  const isPelulus = role === 'pelulus';
+  const isPenginput = role === 'penginput';
 
   const [ads, setAds] = useState<Advertisement[]>([]);
   const [locations, setLocations] = useState<LocationItem[]>([]);
@@ -449,6 +467,10 @@ export default function TenderManagement() {
       const finalOffice = isAdmin ? formData.office : (userOffice || '');
       const finalState = isAdmin ? formData.state : (userState || '');
       
+      const initialApproval = editingAd 
+        ? (editingAd.approvalStatus || ((isAdmin || isPelulus) ? 'DILULUSKAN' : 'MENUNGGU SEMAKAN'))
+        : ((isAdmin || isPelulus) ? 'DILULUSKAN' : 'MENUNGGU SEMAKAN');
+
       const payload: any = {
         ...formData,
         title: (formData.title || '').toUpperCase().trim(),
@@ -457,8 +479,12 @@ export default function TenderManagement() {
         category: (formData.category || 'KERJA').toUpperCase().trim(),
         office: finalOffice.toUpperCase().trim(),
         state: finalState.toUpperCase().trim(),
+        approvalStatus: initialApproval,
         updatedAt: new Date().toISOString(),
-        ...(editingAd ? {} : { createdAt: new Date().toISOString() })
+        ...(editingAd ? {} : { 
+          createdAt: new Date().toISOString(),
+          createdBy: user?.displayName || user?.email || 'Pegawai Penginput'
+        })
       };
 
       // Preserve winner if editing
@@ -467,6 +493,27 @@ export default function TenderManagement() {
       }
 
       await setDoc(doc(db, 'ads', adId), payload);
+
+      // Trigger system notification to all app users and installed devices when a new ad is created
+      if (!editingAd) {
+        addDoc(collection(db, 'notifications'), {
+          type: 'NEW_AD_CREATED',
+          adId: adId,
+          adTitle: payload.title,
+          tenderNo: payload.tenderNo,
+          category: payload.category || 'KERJA',
+          office: payload.office,
+          closingDate: payload.closingDate || '',
+          closingTime: payload.closingTime || '',
+          briefingDate: payload.briefingDate || '',
+          briefingVenue: payload.briefingVenue || '',
+          timestamp: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          message: `Iklan Sebut Harga Baharu Diterbitkan: ${payload.tenderNo} - ${payload.title} (${payload.office})`,
+          status: 'pending'
+        }).catch(err => console.error("Error creating system notification for new ad:", err));
+      }
+
       setShowModal(false);
       resetForm();
       fetchAds();
@@ -490,6 +537,165 @@ export default function TenderManagement() {
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `ads/${id}`);
       toast.dismiss(loadingToast);
+    }
+  };
+
+  const handleVerifyAd = async (ad: Advertisement, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const tId = toast.loading('Mengesahkan semakan iklan...');
+    try {
+      const reviewer = user?.displayName || user?.email || 'Pegawai Penyemak';
+      await updateDoc(doc(db, 'ads', ad.id), {
+        approvalStatus: 'MENUNGGU KELULUSAN',
+        reviewedBy: reviewer,
+        reviewedAt: new Date().toISOString()
+      });
+      setAds(prev => prev.map(a => a.id === ad.id ? {
+        ...a,
+        approvalStatus: 'MENUNGGU KELULUSAN',
+        reviewedBy: reviewer,
+        reviewedAt: new Date().toISOString()
+      } : a));
+      if (selectedAdDetail?.id === ad.id) {
+        setSelectedAdDetail(prev => prev ? {
+          ...prev,
+          approvalStatus: 'MENUNGGU KELULUSAN',
+          reviewedBy: reviewer,
+          reviewedAt: new Date().toISOString()
+        } : null);
+      }
+      toast.success('Iklan telah disemak & dihantar kepada Pegawai Pelulus!', { id: tId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Gagal mengemaskini status semakan.', { id: tId });
+    }
+  };
+
+  const handleApproveAd = async (ad: Advertisement, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const tId = toast.loading('Meluluskan iklan...');
+    try {
+      const approver = user?.displayName || user?.email || 'Pegawai Pelulus';
+      await updateDoc(doc(db, 'ads', ad.id), {
+        approvalStatus: 'DILULUSKAN',
+        status: 'AKTIF',
+        approvedBy: approver,
+        approvedAt: new Date().toISOString()
+      });
+      setAds(prev => prev.map(a => a.id === ad.id ? {
+        ...a,
+        approvalStatus: 'DILULUSKAN',
+        status: 'AKTIF',
+        approvedBy: approver,
+        approvedAt: new Date().toISOString()
+      } : a));
+      if (selectedAdDetail?.id === ad.id) {
+        setSelectedAdDetail(prev => prev ? {
+          ...prev,
+          approvalStatus: 'DILULUSKAN',
+          status: 'AKTIF',
+          approvedBy: approver,
+          approvedAt: new Date().toISOString()
+        } : null);
+      }
+      toast.success('Iklan telah diluluskan dan disiarkan secara rasmi!', { id: tId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Gagal meluluskan iklan.', { id: tId });
+    }
+  };
+
+  const handleReturnAd = async (ad: Advertisement, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const reason = window.prompt('Sila masukkan catatan / pembetulan untuk dikembalikan kepada Penginput:');
+    if (!reason || !reason.trim()) return;
+    const tId = toast.loading('Mengembalikan iklan kepada Penginput...');
+    try {
+      await updateDoc(doc(db, 'ads', ad.id), {
+        approvalStatus: 'DIKEMBALIKAN',
+        reviewNotes: reason.trim()
+      });
+      setAds(prev => prev.map(a => a.id === ad.id ? {
+        ...a,
+        approvalStatus: 'DIKEMBALIKAN',
+        reviewNotes: reason.trim()
+      } : a));
+      if (selectedAdDetail?.id === ad.id) {
+        setSelectedAdDetail(prev => prev ? {
+          ...prev,
+          approvalStatus: 'DIKEMBALIKAN',
+          reviewNotes: reason.trim()
+        } : null);
+      }
+      toast.success('Iklan dikembalikan kepada Penginput.', { id: tId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Gagal mengembalikan iklan.', { id: tId });
+    }
+  };
+
+  const handleVerifyDecision = async (ad: Advertisement, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const tId = toast.loading('Mengesahkan semakan keputusan...');
+    try {
+      const reviewer = user?.displayName || user?.email || 'Pegawai Penyemak';
+      await updateDoc(doc(db, 'ads', ad.id), {
+        decisionStatus: 'MENUNGGU KELULUSAN',
+        decisionReviewedBy: reviewer,
+        decisionReviewedAt: new Date().toISOString()
+      });
+      setAds(prev => prev.map(a => a.id === ad.id ? {
+        ...a,
+        decisionStatus: 'MENUNGGU KELULUSAN',
+        decisionReviewedBy: reviewer,
+        decisionReviewedAt: new Date().toISOString()
+      } : a));
+      if (selectedAdDetail?.id === ad.id) {
+        setSelectedAdDetail(prev => prev ? {
+          ...prev,
+          decisionStatus: 'MENUNGGU KELULUSAN',
+          decisionReviewedBy: reviewer,
+          decisionReviewedAt: new Date().toISOString()
+        } : null);
+      }
+      toast.success('Keputusan sebut harga telah disemak & dihantar kepada Pegawai Pelulus!', { id: tId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Gagal mengemaskini status keputusan.', { id: tId });
+    }
+  };
+
+  const handleApproveDecision = async (ad: Advertisement, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const tId = toast.loading('Meluluskan keputusan rasmi...');
+    try {
+      const approver = user?.displayName || user?.email || 'Pegawai Pelulus';
+      await updateDoc(doc(db, 'ads', ad.id), {
+        decisionStatus: 'DILULUSKAN',
+        status: 'SELESAI (KEPUTUSAN)',
+        decisionApprovedBy: approver,
+        decisionApprovedAt: new Date().toISOString()
+      });
+      setAds(prev => prev.map(a => a.id === ad.id ? {
+        ...a,
+        decisionStatus: 'DILULUSKAN',
+        status: 'SELESAI (KEPUTUSAN)',
+        decisionApprovedBy: approver,
+        decisionApprovedAt: new Date().toISOString()
+      } : a));
+      if (selectedAdDetail?.id === ad.id) {
+        setSelectedAdDetail(prev => prev ? {
+          ...prev,
+          decisionStatus: 'DILULUSKAN',
+          status: 'SELESAI (KEPUTUSAN)',
+          decisionApprovedBy: approver,
+          decisionApprovedAt: new Date().toISOString()
+        } : null);
+      }
+      toast.success('Keputusan sebut harga telah diluluskan secara rasmi!', { id: tId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Gagal meluluskan keputusan.', { id: tId });
     }
   };
 
@@ -650,6 +856,9 @@ export default function TenderManagement() {
 
     try {
       const autoTempoh = calculateTempohSiapKerja(winnerDates.startDate, winnerDates.endDate);
+      const isApprovedDirectly = isAdmin || isPelulus;
+      const initialDecisionStatus = isApprovedDirectly ? 'DILULUSKAN' : 'MENUNGGU SEMAKAN';
+
       const winnerData = {
         isReTender: Boolean(pendingWinner.isReTender),
         companyName: pendingWinner.companyName,
@@ -664,7 +873,9 @@ export default function TenderManagement() {
         winningPrice: Number(winnerDates.winningPrice) || 0,
         remarks: winnerDates.remarks || (pendingWinner.isReTender ? 'Keputusan Rasmi: Sebutharga Semula' : ''),
         location: winnerDates.location || selectedAdForWinner.visitVenue || selectedAdForWinner.docVenue || '-',
-        allocationCode: winnerDates.allocationCode || ''
+        allocationCode: winnerDates.allocationCode || '',
+        decisionStatus: initialDecisionStatus,
+        submittedBy: user?.displayName || user?.email || 'Pegawai Penginput'
       };
 
       await updateDoc(doc(db, 'ads', adId), {
@@ -675,10 +886,19 @@ export default function TenderManagement() {
         tarikhSetujuTerima: winnerDates.startDate || '',
         tarikhSiapKerja: winnerDates.endDate || '',
         tempohSiapKerja: autoTempoh || '',
-        status: 'SELESAI (KEPUTUSAN)',
+        decisionStatus: initialDecisionStatus,
+        status: isApprovedDirectly ? 'SELESAI (KEPUTUSAN)' : selectedAdForWinner.status,
         statusPelaksanaan: pendingWinner.isReTender ? 'SEBUTHARGA SEMULA' : (selectedAdForWinner.statusPelaksanaan || 'ON TIME'),
         updatedAt: new Date().toISOString()
       });
+
+      if (!isApprovedDirectly) {
+        toast.success(`Keputusan direkodkan! Menunggu semakan oleh Pegawai Penyemak sebelum kelulusan Pelulus.`, { id: loadingToast });
+        setShowWinnerConfirm(false);
+        setShowWinnerModal(false);
+        fetchAds();
+        return;
+      }
 
       if (pendingWinner.isReTender) {
         toast.success('Keputusan rasmi: SEBUTHARGA SEMULA telah disahkan!', { id: loadingToast });
@@ -1030,15 +1250,81 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
           
           return (
           <div key={ad.id} className="glass-card p-5 rounded-2xl space-y-4 border border-white/5">
-            <div className="flex justify-between items-start gap-2">
-              <span className={`inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider leading-none shrink-0 whitespace-nowrap ${
-                displayStatus === 'AKTIF' ? 'bg-green-500/20 text-green-400 border border-green-400/30' : 
-                displayStatus === 'BATAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                'bg-blue-500/20 text-blue-400 border border-blue-400/30'
-              }`}>
-                {displayStatus === 'SELESAI (KEPUTUSAN)' ? (itemYear < currentYear ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : displayStatus}
-              </span>
+            <div className="flex justify-between items-start gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className={`inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider leading-none shrink-0 whitespace-nowrap ${
+                  displayStatus === 'AKTIF' ? 'bg-green-500/20 text-green-400 border border-green-400/30' : 
+                  displayStatus === 'BATAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                  'bg-blue-500/20 text-blue-400 border border-blue-400/30'
+                }`}>
+                  {displayStatus === 'SELESAI (KEPUTUSAN)' ? (itemYear < currentYear ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : displayStatus}
+                </span>
+
+                {ad.approvalStatus && ad.approvalStatus !== 'DILULUSKAN' && (
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[8.5px] font-black uppercase tracking-wider border ${
+                    ad.approvalStatus === 'MENUNGGU SEMAKAN'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : ad.approvalStatus === 'MENUNGGU KELULUSAN'
+                      ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                      : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                  }`}>
+                    {ad.approvalStatus === 'MENUNGGU SEMAKAN' ? 'Semakan Penyemak' :
+                     ad.approvalStatus === 'MENUNGGU KELULUSAN' ? 'Kelulusan Pelulus' : 'Dikembalikan'}
+                  </span>
+                )}
+
+                {ad.winner && ad.decisionStatus && ad.decisionStatus !== 'DILULUSKAN' && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[8.5px] font-black uppercase tracking-wider border bg-indigo-500/20 text-indigo-300 border-indigo-500/40">
+                    Keputusan: {ad.decisionStatus === 'MENUNGGU SEMAKAN' ? 'Menunggu Semakan' : 'Menunggu Kelulusan'}
+                  </span>
+                )}
+              </div>
+
               <div className="flex gap-2 items-center flex-wrap">
+                {/* QUICK REVIEW BUTTON FOR PENYEMAK */}
+                {(isPenyemak || isAdmin) && ad.approvalStatus === 'MENUNGGU SEMAKAN' && (
+                  <button
+                    onClick={(e) => handleVerifyAd(ad, e)}
+                    className="px-2.5 py-1 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                    title="Sahkan Semakan & Hantar Ke Pelulus"
+                  >
+                    Semak Iklan
+                  </button>
+                )}
+
+                {/* QUICK APPROVE BUTTON FOR PELULUS */}
+                {(isPelulus || isAdmin) && ad.approvalStatus === 'MENUNGGU KELULUSAN' && (
+                  <button
+                    onClick={(e) => handleApproveAd(ad, e)}
+                    className="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                    title="Luluskan & Siarkan Iklan"
+                  >
+                    Lulus Iklan
+                  </button>
+                )}
+
+                {/* QUICK REVIEW DECISION FOR PENYEMAK */}
+                {(isPenyemak || isAdmin) && ad.winner && ad.decisionStatus === 'MENUNGGU SEMAKAN' && (
+                  <button
+                    onClick={(e) => handleVerifyDecision(ad, e)}
+                    className="px-2.5 py-1 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                    title="Sahkan Semakan Keputusan & Hantar Ke Pelulus"
+                  >
+                    Semak Keputusan
+                  </button>
+                )}
+
+                {/* QUICK APPROVE DECISION FOR PELULUS */}
+                {(isPelulus || isAdmin) && ad.winner && ad.decisionStatus === 'MENUNGGU KELULUSAN' && (
+                  <button
+                    onClick={(e) => handleApproveDecision(ad, e)}
+                    className="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                    title="Luluskan Keputusan Rasmi"
+                  >
+                    Lulus Keputusan
+                  </button>
+                )}
+
                 <button 
                   onClick={() => setSelectedAdDetail(ad)} 
                   className="px-2.5 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-blue-500/20 transition-all flex items-center gap-1" 
@@ -1078,22 +1364,22 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
             
             <div>
               {ad.category && (
-                <span className="inline-block px-2.5 py-0.5 text-[8px] font-black text-white bg-risda-orange/20 border border-risda-orange/30 rounded-md uppercase tracking-wider mb-2 mr-2">
+                <span className="inline-block px-2.5 py-1 text-xs font-black text-white bg-risda-orange rounded-md uppercase tracking-wider mb-2 mr-2">
                   {ad.category}
                 </span>
               )}
-              <h4 className="text-sm font-black text-white uppercase leading-tight mb-2">{ad.title}</h4>
-              <p className="text-[10px] font-mono text-risda-gold/80 font-black uppercase tracking-[1px]">{ad.tenderNo}</p>
+              <h4 className="text-sm md:text-base font-black text-risda-text uppercase leading-snug mb-2">{ad.title}</h4>
+              <p className="text-xs font-mono text-risda-orange font-bold uppercase tracking-wider">{ad.tenderNo}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-risda-border">
               <div>
-                <p className="text-[8px] font-black text-risda-muted uppercase tracking-[1px] mb-1">Pejabat</p>
-                <p className="text-[10px] font-black text-white uppercase">{ad.office || 'SELURUH RISDA'}</p>
+                <p className="text-xs font-bold text-risda-muted uppercase tracking-wider mb-1">Pejabat</p>
+                <p className="text-xs font-black text-risda-text uppercase">{ad.office || 'SELURUH RISDA'}</p>
               </div>
               <div>
-                <p className="text-[8px] font-black text-risda-muted uppercase tracking-[1px] mb-1">Tarikh Tutup</p>
-                <p className="text-[10px] font-black text-white uppercase">{formatDate(ad.closingDate)} <span className="text-risda-gold italic">(12PM)</span></p>
+                <p className="text-xs font-bold text-risda-muted uppercase tracking-wider mb-1">Tarikh Tutup</p>
+                <p className="text-xs font-black text-risda-text uppercase">{formatDate(ad.closingDate)} <span className="text-risda-orange italic">(12PM)</span></p>
               </div>
             </div>
           </div>
@@ -1132,32 +1418,53 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                 return (
                 <tr key={ad.id} className="group hover:bg-white/[0.02] transition-colors">
                   <td className="px-8 py-8 whitespace-nowrap">
-                    <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider leading-none whitespace-nowrap ${
-                      displayStatus === 'AKTIF' ? 'bg-green-500/20 text-green-400 border border-green-400/30' : 
-                      displayStatus === 'BATAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                      'bg-blue-500/20 text-blue-400 border border-blue-400/30'
-                    }`}>
-                      {displayStatus === 'SELESAI (KEPUTUSAN)' ? (itemYear < currentYear ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : displayStatus}
-                    </span>
+                    <div className="flex flex-col gap-1.5 items-start">
+                      <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider leading-none whitespace-nowrap ${
+                        displayStatus === 'AKTIF' ? 'bg-green-500/20 text-green-400 border border-green-400/30' : 
+                        displayStatus === 'BATAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                        'bg-blue-500/20 text-blue-400 border border-blue-400/30'
+                      }`}>
+                        {displayStatus === 'SELESAI (KEPUTUSAN)' ? (itemYear < currentYear ? 'KEPUTUSAN RASMI (TAMAT)' : 'KEPUTUSAN RASMI') : displayStatus}
+                      </span>
+
+                      {ad.approvalStatus && ad.approvalStatus !== 'DILULUSKAN' && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${
+                          ad.approvalStatus === 'MENUNGGU SEMAKAN'
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : ad.approvalStatus === 'MENUNGGU KELULUSAN'
+                            ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                            : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                        }`}>
+                          {ad.approvalStatus === 'MENUNGGU SEMAKAN' ? 'Semakan Penyemak' :
+                           ad.approvalStatus === 'MENUNGGU KELULUSAN' ? 'Kelulusan Pelulus' : 'Dikembalikan'}
+                        </span>
+                      )}
+
+                      {ad.winner && ad.decisionStatus && ad.decisionStatus !== 'DILULUSKAN' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border bg-indigo-500/20 text-indigo-300 border-indigo-500/40">
+                          Keputusan: {ad.decisionStatus === 'MENUNGGU SEMAKAN' ? 'Semakan' : 'Kelulusan'}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-8 py-8">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       {ad.category && (
-                        <span className="inline-block px-2 py-0.5 text-[8px] font-black text-white bg-risda-orange/25 border border-risda-orange/40 rounded uppercase tracking-wider">
+                        <span className="inline-block px-2.5 py-1 text-xs font-black text-white bg-risda-orange rounded-md uppercase tracking-wider">
                           {ad.category}
                         </span>
                       )}
-                      <div className="text-base font-black text-white group-hover:text-risda-gold transition-colors leading-tight uppercase max-w-xl">{ad.title}</div>
+                      <div className="text-base font-black text-risda-text group-hover:text-risda-orange transition-colors leading-tight uppercase max-w-xl">{ad.title}</div>
                     </div>
-                    <div className="text-xs font-mono text-risda-gold/60 font-black uppercase tracking-[2px]">{ad.tenderNo}</div>
+                    <div className="text-xs font-mono text-risda-orange font-bold uppercase tracking-wider">{ad.tenderNo}</div>
                   </td>
                   <td className="px-8 py-8">
-                    <div className="text-xs font-black text-white uppercase tracking-[2px] mb-1">{ad.office || 'SELURUH RISDA'}</div>
-                    <div className="text-[10px] text-white/50 font-black tracking-[2px] uppercase">{ad.state || 'MALAYSIA'}</div>
+                    <div className="text-xs font-black text-risda-text uppercase tracking-wider mb-1">{ad.office || 'SELURUH RISDA'}</div>
+                    <div className="text-xs text-risda-muted font-bold tracking-wider uppercase">{ad.state || 'MALAYSIA'}</div>
                   </td>
                   <td className="px-8 py-8">
-                    <div className="text-sm font-black text-white mb-1 uppercase tracking-tight">{formatDate(ad.closingDate)}</div>
-                    <div className="text-[10px] text-risda-gold font-black uppercase tracking-[2px]">12:00 PM</div>
+                    <div className="text-sm font-black text-risda-text mb-1 uppercase tracking-tight">{formatDate(ad.closingDate)}</div>
+                    <div className="text-xs text-risda-muted font-bold uppercase tracking-wider">12:00 PM</div>
                   </td>
                   <td className="px-8 py-8 text-right">
                     {isStaff && (
@@ -2069,6 +2376,135 @@ Unit Perolehan PEJABAT RISDA DAERAH BEAUFORT`;
                     <h5 className="text-xs font-bold text-risda-muted uppercase tracking-wider mb-1">Syarat Kelayakan / Kod Bidang</h5>
                     <div className="p-4 bg-risda-card-muted border border-risda-border rounded-xl text-xs font-semibold text-risda-text uppercase">
                       {selectedAdDetail.licenseRequirements}
+                    </div>
+                  </div>
+                )}
+
+                {/* Workflow Semakan & Kelulusan (Penyemak & Pelulus) */}
+                <div className="p-4 bg-gradient-to-br from-black/40 to-black/20 border border-white/10 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-risda-gold uppercase tracking-[1.5px] flex items-center gap-1.5">
+                      <Shield size={14} className="text-risda-orange" /> Aliran Semakan &amp; Kelulusan Iklan
+                    </span>
+                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
+                      selectedAdDetail.approvalStatus === 'DILULUSKAN' || (!selectedAdDetail.approvalStatus && selectedAdDetail.status === 'AKTIF')
+                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                        : selectedAdDetail.approvalStatus === 'MENUNGGU KELULUSAN'
+                        ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+                        : selectedAdDetail.approvalStatus === 'DIKEMBALIKAN'
+                        ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                        : 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                    }`}>
+                      {selectedAdDetail.approvalStatus || (selectedAdDetail.status === 'AKTIF' ? 'DILULUSKAN' : 'MENUNGGU SEMAKAN')}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-300 space-y-1">
+                    <p><span className="text-white/40 uppercase text-[9px]">Disediakan Oleh (Penginput):</span> <strong className="text-white">{selectedAdDetail.createdBy || 'Pegawai Penginput'}</strong></p>
+                    {selectedAdDetail.reviewedBy && (
+                      <p><span className="text-white/40 uppercase text-[9px]">Disemak Oleh (Penyemak):</span> <strong className="text-sky-300">{selectedAdDetail.reviewedBy}</strong></p>
+                    )}
+                    {selectedAdDetail.approvedBy && (
+                      <p><span className="text-white/40 uppercase text-[9px]">Diluluskan Oleh (Pelulus):</span> <strong className="text-emerald-300">{selectedAdDetail.approvedBy}</strong></p>
+                    )}
+                    {selectedAdDetail.reviewNotes && (
+                      <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-[10px]">
+                        <strong>Catatan Semakan:</strong> {selectedAdDetail.reviewNotes}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions for Ad Review & Approval */}
+                  <div className="pt-2 flex flex-wrap gap-2 border-t border-white/5">
+                    {(isPenyemak || isAdmin) && selectedAdDetail.approvalStatus === 'MENUNGGU SEMAKAN' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyAd(selectedAdDetail)}
+                          className="flex-1 py-2 px-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                        >
+                          <CheckCircle2 size={13} /> Semak Iklan &amp; Hantar Ke Pelulus
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReturnAd(selectedAdDetail)}
+                          className="py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Kembalikan Ke Penginput
+                        </button>
+                      </>
+                    )}
+
+                    {(isPelulus || isAdmin) && selectedAdDetail.approvalStatus === 'MENUNGGU KELULUSAN' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleApproveAd(selectedAdDetail)}
+                          className="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-black font-black rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                        >
+                          <CheckCircle2 size={13} /> Luluskan &amp; Siarkan Iklan Rasmi
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReturnAd(selectedAdDetail)}
+                          className="py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Kembalikan Iklan
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Workflow Semakan & Kelulusan Keputusan (jika ada pemenang/keputusan) */}
+                {selectedAdDetail.winner && (
+                  <div className="p-4 bg-gradient-to-br from-indigo-950/30 to-black/20 border border-indigo-500/20 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-indigo-300 uppercase tracking-[1.5px] flex items-center gap-1.5">
+                        <Trophy size={14} className="text-amber-400" /> Aliran Semakan &amp; Kelulusan Keputusan
+                      </span>
+                      <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
+                        selectedAdDetail.decisionStatus === 'DILULUSKAN' || (!selectedAdDetail.decisionStatus && selectedAdDetail.status === 'SELESAI (KEPUTUSAN)')
+                          ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                          : selectedAdDetail.decisionStatus === 'MENUNGGU KELULUSAN'
+                          ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+                          : 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                      }`}>
+                        {selectedAdDetail.decisionStatus || (selectedAdDetail.status === 'SELESAI (KEPUTUSAN)' ? 'DILULUSKAN' : 'MENUNGGU SEMAKAN')}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-300 space-y-1">
+                      <p><span className="text-white/40 uppercase text-[9px]">Syarikat Terpilih:</span> <strong className="text-white">{selectedAdDetail.winner.companyName}</strong></p>
+                      <p><span className="text-white/40 uppercase text-[9px]">Harga Keputusan:</span> <strong className="text-emerald-400 font-mono">RM {Number(selectedAdDetail.winner.winningPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></p>
+                      {selectedAdDetail.decisionReviewedBy && (
+                        <p><span className="text-white/40 uppercase text-[9px]">Disemak Oleh:</span> <strong className="text-sky-300">{selectedAdDetail.decisionReviewedBy}</strong></p>
+                      )}
+                      {selectedAdDetail.decisionApprovedBy && (
+                        <p><span className="text-white/40 uppercase text-[9px]">Diluluskan Oleh:</span> <strong className="text-emerald-300">{selectedAdDetail.decisionApprovedBy}</strong></p>
+                      )}
+                    </div>
+
+                    <div className="pt-2 flex flex-wrap gap-2 border-t border-white/5">
+                      {(isPenyemak || isAdmin) && selectedAdDetail.decisionStatus === 'MENUNGGU SEMAKAN' && (
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyDecision(selectedAdDetail)}
+                          className="flex-1 py-2 px-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                        >
+                          <CheckCircle2 size={13} /> Semak Keputusan &amp; Hantar Ke Pelulus
+                        </button>
+                      )}
+
+                      {(isPelulus || isAdmin) && selectedAdDetail.decisionStatus === 'MENUNGGU KELULUSAN' && (
+                        <button
+                          type="button"
+                          onClick={() => handleApproveDecision(selectedAdDetail)}
+                          className="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-black font-black rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                        >
+                          <CheckCircle2 size={13} /> Luluskan Keputusan Sebut Harga
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

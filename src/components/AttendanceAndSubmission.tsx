@@ -90,7 +90,7 @@ const RisdaLogoSVG = ({ size = 48 }: { size?: number }) => (
 export default function AttendanceAndSubmission() {
   const { role, office: userOffice, state: userState, district: userDistrict } = useAuth();
   const isAdmin = role === 'admin' || role === 'pentadbir';
-  const isStaff = role === 'penginput' || role === 'pelulus' || isAdmin;
+  const isStaff = role === 'penginput' || role === 'penyemak' || role === 'pelulus' || isAdmin;
   const currentYearStr = new Date().getFullYear().toString();
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

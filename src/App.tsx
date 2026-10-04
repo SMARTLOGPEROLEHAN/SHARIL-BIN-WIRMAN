@@ -11,7 +11,6 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import Stats from './components/Stats';
 import ProjectFilters from './components/ProjectFilters';
-import AIButton from './components/AIButton';
 import LoginPage from './components/LoginPage';
 import DecorationBackground from './components/DecorationBackground';
 import StaffManagement from './components/StaffManagement';
@@ -24,21 +23,28 @@ import SessionGuard from './components/SessionGuard';
 import SupplierInvitation from './components/SupplierInvitation';
 import OrderRequestManagement from './components/OrderRequestManagement';
 import AllocationCodeManagement from './components/AllocationCodeManagement';
+import DirectAwardBudgetBook from './components/DirectAwardBudgetBook';
+import AttendanceAndSubmission from './components/AttendanceAndSubmission';
+import UserInfo from './components/UserInfo';
+import DirectAwardDashboard from './components/DirectAwardDashboard';
+import DirectAwardGuide from './components/DirectAwardGuide';
+import DirectAwardManagement from './components/DirectAwardManagement';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ModuleProvider, useProcurementModule } from './context/ModuleContext';
 import PublicAttendancePage from './components/PublicAttendancePage';
 import PublicLetterPage from './components/PublicLetterPage';
 import AttendanceNotificationModal from './components/AttendanceNotificationModal';
+import NewAdNotificationBanner from './components/NewAdNotificationBanner';
 import QRScannerModal from './components/QRScannerModal';
-import OfflineIndicator from './components/OfflineIndicator';
-import { QrCode } from 'lucide-react';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 function AppContent() {
   const { user, role } = useAuth();
-  const [view, setView] = useState<'dashboard' | 'login' | 'staff' | 'tenders' | 'attendance' | 'laporan' | 'info' | 'locations' | 'userInfo' | 'projek' | 'keputusan' | 'attendance-records' | 'pelawaan' | 'permintaan' | 'peruntukan'>('dashboard');
+  const { activeModule } = useProcurementModule();
+  const [view, setView] = useState<'dashboard' | 'login' | 'staff' | 'tenders' | 'attendance' | 'laporan' | 'info' | 'locations' | 'userInfo' | 'projek' | 'keputusan' | 'attendance-records' | 'pelawaan' | 'permintaan' | 'peruntukan' | 'panduan-tt'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [adIdParam, setAdIdParam] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('adId');
@@ -51,6 +57,16 @@ function AppContent() {
     const params = new URLSearchParams(window.location.search);
     return params.get('company');
   });
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenQRScanner = () => {
+      setIsQRScannerOpen(true);
+    };
+
+    window.addEventListener('triggerQRScanner', handleOpenQRScanner);
+    return () => window.removeEventListener('triggerQRScanner', handleOpenQRScanner);
+  }, []);
 
   // Sync search parameters to detect if we have adId, viewLetter, etc.
   useEffect(() => {
@@ -113,6 +129,22 @@ function AppContent() {
         setView('keputusan');
       } else if (path === '/rekod-kehadiran') {
         setView('attendance-records');
+      } else if (path === '/panduan-tawaran-terus') {
+        setView('panduan-tt');
+      } else if (path === '/tt-permohonan') {
+        setView('tt-permohonan');
+      } else if (path === '/tt-pelawaan') {
+        setView('tt-pelawaan');
+      } else if (path === '/tt-tawaran') {
+        setView('tt-tawaran');
+      } else if (path === '/tt-penilaian') {
+        setView('tt-penilaian');
+      } else if (path === '/tt-pemilihan') {
+        setView('tt-pemilihan');
+      } else if (path === '/tt-pesanan') {
+        setView('tt-pesanan');
+      } else if (path === '/tt-laporan') {
+        setView('tt-laporan');
       } else {
         setView('dashboard');
       }
@@ -121,14 +153,17 @@ function AppContent() {
     window.addEventListener('popstate', handlePopState);
     handlePopState();
 
-    const handleTriggerScanner = () => {
-      setIsScannerOpen(true);
+    const handleModuleChanged = () => {
+      // If user switches module while on root or certain subroutes, ensure view is responsive
+      if (window.location.pathname === '/') {
+        setView('dashboard');
+      }
     };
-    window.addEventListener('triggerQRScanner', handleTriggerScanner);
+    window.addEventListener('moduleChanged', handleModuleChanged);
 
     return () => {
       window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('triggerQRScanner', handleTriggerScanner);
+      window.removeEventListener('moduleChanged', handleModuleChanged);
     };
   }, []);
 
@@ -202,6 +237,9 @@ function AppContent() {
       case 'permintaan':
         return <OrderRequestManagement />;
       case 'peruntukan':
+        if (activeModule === 'tawaran_terus') {
+          return <DirectAwardBudgetBook />;
+        }
         return <AllocationCodeManagement />;
       case 'attendance':
         return <AttendanceList />;
@@ -211,6 +249,22 @@ function AppContent() {
         return <LocationManagement />;
       case 'info':
         return <InfoPortal />;
+      case 'panduan-tt':
+        return <DirectAwardGuide />;
+      case 'tt-permohonan':
+        return <DirectAwardManagement activeSection="permohonan" />;
+      case 'tt-pelawaan':
+        return <DirectAwardManagement activeSection="pelawaan" />;
+      case 'tt-tawaran':
+        return <DirectAwardManagement activeSection="tawaran" />;
+      case 'tt-penilaian':
+        return <DirectAwardManagement activeSection="penilaian" />;
+      case 'tt-pemilihan':
+        return <DirectAwardManagement activeSection="pemilihan" />;
+      case 'tt-pesanan':
+        return <DirectAwardManagement activeSection="pesanan" />;
+      case 'tt-laporan':
+        return <DirectAwardManagement activeSection="laporan" />;
       case 'projek':
         return (
           <div className="w-full pt-10">
@@ -224,20 +278,19 @@ function AppContent() {
           </div>
         );
       case 'attendance-records':
-        const AttendanceAndSubmission = lazy(() => import('./components/AttendanceAndSubmission'));
-        return (
-          <Suspense fallback={<div className="p-20 text-center text-risda-muted font-black animate-pulse">MEMUATKAN...</div>}>
-            <AttendanceAndSubmission />
-          </Suspense>
-        );
+        return <AttendanceAndSubmission />;
       case 'userInfo':
-        const UserInfo = lazy(() => import('./components/UserInfo'));
-        return (
-          <Suspense fallback={<div className="p-20 text-center text-risda-muted font-black animate-pulse">MEMUATKAN...</div>}>
-            <UserInfo />
-          </Suspense>
-        );
+        return <UserInfo />;
       default:
+        // When activeModule is Tawaran Terus and user is staff, show DirectAwardDashboard
+        if (isStaff && activeModule === 'tawaran_terus') {
+          return (
+            <div className="w-full space-y-8">
+              <DirectAwardDashboard />
+            </div>
+          );
+        }
+
         return (
           <div className="w-full space-y-8">
             <Hero />
@@ -249,31 +302,21 @@ function AppContent() {
   };
 
   const isAdmin = role === 'admin' || role === 'pentadbir';
-  const isStaff = role === 'penginput' || role === 'pelulus' || isAdmin;
+  const isStaff = role === 'penginput' || role === 'penyemak' || role === 'pelulus' || isAdmin;
 
   return (
     <div className="flex items-stretch bg-transparent min-h-screen text-risda-text font-sans technical-grid w-full relative">
-      <OfflineIndicator />
       <DecorationBackground 
         isStaff={Boolean(isStaff)}
         isSidebarCollapsed={isSidebarCollapsed}
       />
       <SessionGuard />
       <AttendanceNotificationModal />
+      <NewAdNotificationBanner />
       <QRScannerModal 
-        isOpen={isScannerOpen} 
-        onClose={() => setIsScannerOpen(false)} 
+        isOpen={isQRScannerOpen} 
+        onClose={() => setIsQRScannerOpen(false)} 
       />
-      {/* Mobile Floating Quick-Scan QR Button */}
-      <div className="sm:hidden fixed bottom-5 right-5 z-40">
-        <button
-          onClick={() => setIsScannerOpen(true)}
-          className="w-14 h-14 rounded-full bg-gradient-to-tr from-risda-orange via-amber-500 to-risda-gold text-white flex items-center justify-center shadow-2xl border-2 border-white/30 active:scale-95 transition-transform"
-          title="Imbas QR Iklan Telefon"
-        >
-          <QrCode size={26} />
-        </button>
-      </div>
       {isStaff && (
         <Sidebar 
           isOpen={isSidebarOpen} 
@@ -298,10 +341,9 @@ function AppContent() {
             {renderView()}
           </motion.div>
         </main>
-
-        <AIButton />
       </div>
 
+      <OfflineIndicator />
       <Toaster 
         position="top-center"
         toastOptions={{
@@ -317,7 +359,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <ModuleProvider>
+          <AppContent />
+        </ModuleProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -1,624 +1,370 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Camera, X, RefreshCw, AlertCircle, CheckCircle, Flashlight, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, Camera, FlipHorizontal, Flashlight, Image as ImageIcon, 
-  CheckCircle2, AlertCircle, ArrowRight, ExternalLink, RefreshCw, 
-  FileText, Building2, Calendar, MapPin, Sparkles, Smartphone 
-} from 'lucide-react';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import toast from 'react-hot-toast';
 
 interface QRScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdFound?: (ad: any) => void;
+  onScanSuccess?: (detectedUrlOrAdId: string) => void;
 }
 
-export default function QRScannerModal({ isOpen, onClose, onAdFound }: QRScannerModalProps) {
-  const [scannerState, setScannerState] = useState<'idle' | 'starting' | 'scanning' | 'found' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [scannedRawText, setScannedRawText] = useState<string | null>(null);
-  const [matchedAd, setMatchedAd] = useState<any | null>(null);
-  const [searchingAd, setSearchingAd] = useState(false);
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [hasTorch, setHasTorch] = useState(false);
+export default function QRScannerModal({ isOpen, onClose, onScanSuccess }: QRScannerModalProps) {
+  const [scannerActive, setScannerActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const [torchOn, setTorchOn] = useState(false);
-  
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const containerId = 'risda-qr-reader-container';
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [scannedResult, setScannedResult] = useState<string | null>(null);
 
-  // Sound and haptic feedback on successful scan
-  const triggerScanFeedback = () => {
-    try {
-      if ('vibrate' in navigator) {
-        navigator.vibrate([40, 50, 40]);
-      }
-    } catch {
-      // Ignore vibration error
-    }
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const qrReaderId = 'html5-qr-code-scanner-element';
 
+  // Play audio beep when QR is detected
+  const playBeep = () => {
+    if (!soundEnabled) return;
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        const audioCtx = new AudioContextClass();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.13);
-      }
+      const AudioCtx = window.document ? (window.AudioContext || (window as any).webkitAudioContext) : null;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1046.5, ctx.currentTime); // C6 tone
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
     } catch {
-      // Ignore audio error
+      // Audio autoplay policy
     }
   };
 
-  // Process scanned QR text to locate the advertisement in Firestore
-  const processScannedResult = async (decodedText: string) => {
-    triggerScanFeedback();
-    setScannedRawText(decodedText);
-    setScannerState('found');
-    setSearchingAd(true);
-    setErrorMessage(null);
-
-    // Stop active camera feed
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try {
-        await scannerRef.current.stop();
-      } catch (e) {
-        console.warn('Error stopping scanner camera:', e);
+  // Helper to extract adId from URL or raw text
+  const parseAdId = (rawText: string): { adId: string | null; isExternalUrl: boolean } => {
+    try {
+      const trimmed = rawText.trim();
+      // Check if URL
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        const parsed = new URL(trimmed);
+        const adId = parsed.searchParams.get('adId');
+        if (adId) {
+          return { adId, isExternalUrl: false };
+        }
+        return { adId: null, isExternalUrl: true };
       }
+      // Or check if direct ID e.g. AD-12345 or starts with AD-
+      if (trimmed.startsWith('AD-') || trimmed.startsWith('ad-')) {
+        return { adId: trimmed, isExternalUrl: false };
+      }
+      return { adId: null, isExternalUrl: false };
+    } catch {
+      return { adId: null, isExternalUrl: false };
     }
+  };
+
+  // Start Scanner
+  const startScanner = async (cameraId?: string) => {
+    setCameraError(null);
+    setScannedResult(null);
 
     try {
-      let targetAdId: string | null = null;
-      let targetQuotationNo: string | null = null;
-
-      // Case A: URL with adId query parameter (e.g. https://...?adId=xyz)
-      if (decodedText.includes('adId=')) {
+      if (html5QrCodeRef.current) {
         try {
-          const url = new URL(decodedText.startsWith('http') ? decodedText : `https://example.com/${decodedText}`);
-          targetAdId = url.searchParams.get('adId');
+          if (html5QrCodeRef.current.isScanning) {
+            await html5QrCodeRef.current.stop();
+          }
+          await html5QrCodeRef.current.clear();
         } catch {
-          const match = decodedText.match(/[?&]adId=([a-zA-Z0-9_-]+)/);
-          if (match && match[1]) targetAdId = match[1];
+          // ignore
         }
+        html5QrCodeRef.current = null;
       }
 
-      // Case B: Quotation number format (e.g. SH/...)
-      if (!targetAdId && (decodedText.toUpperCase().startsWith('SH/') || decodedText.toUpperCase().includes('/202') || decodedText.toUpperCase().includes('BFT/'))) {
-        targetQuotationNo = decodedText.trim();
+      // Check available cameras
+      const devices = await Html5Qrcode.getCameras();
+      if (!devices || devices.length === 0) {
+        setCameraError('Tiada kamera dikesan pada peranti ini. Sila benarkan akses kamera dalam pelayar.');
+        return;
       }
 
-      // Case C: Raw Firestore Document ID (alphanumeric 15-30 chars)
-      if (!targetAdId && !targetQuotationNo && /^[a-zA-Z0-9_-]{15,35}$/.test(decodedText.trim())) {
-        targetAdId = decodedText.trim();
-      }
+      setCameras(devices);
+      // Prefer back camera if available, else first device
+      const chosenCam = cameraId || devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment') || d.label.toLowerCase().includes('belakang'))?.id || devices[0].id;
+      setSelectedCameraId(chosenCam);
 
-      let adFound: any = null;
+      const html5QrCode = new Html5Qrcode(qrReaderId, {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        verbose: false
+      });
+      html5QrCodeRef.current = html5QrCode;
 
-      // 1. Try finding by ID
-      if (targetAdId) {
-        try {
-          const docSnap = await getDoc(doc(db, 'ads', targetAdId));
-          if (docSnap.exists()) {
-            adFound = { id: docSnap.id, ...docSnap.data() };
-          }
-        } catch (e) {
-          console.warn('Error fetching ad by ID:', e);
-        }
-      }
+      const config = {
+        fps: 15,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+      };
 
-      // 2. Try finding by quotationNo
-      if (!adFound && (targetQuotationNo || decodedText)) {
-        try {
-          const term = (targetQuotationNo || decodedText).trim();
-          const q = query(collection(db, 'ads'), where('quotationNo', '==', term));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-            adFound = { id: snap.docs[0].id, ...snap.docs[0].data() };
-          }
-        } catch (e) {
-          console.warn('Error fetching ad by quotationNo:', e);
-        }
-      }
-
-      // 3. Fallback: Search all ads for substring match
-      if (!adFound) {
-        try {
-          const snap = await getDocs(collection(db, 'ads'));
-          const cleanText = decodedText.toLowerCase().trim();
-          const match = snap.docs.find(d => {
-            const data = d.data();
-            const qNo = (data.quotationNo || '').toLowerCase();
-            const title = (data.title || '').toLowerCase();
-            return cleanText.includes(d.id.toLowerCase()) || 
-                   (qNo && cleanText.includes(qNo)) || 
-                   (qNo && qNo.includes(cleanText));
-          });
-          if (match) {
-            adFound = { id: match.id, ...match.data() };
-          }
-        } catch (e) {
-          console.warn('Error in fallback search:', e);
-        }
-      }
-
-      if (adFound) {
-        setMatchedAd(adFound);
-        toast.success(`Iklan Sebut Harga Ditemui: ${adFound.quotationNo || adFound.title}`);
-        if (onAdFound) {
-          onAdFound(adFound);
-        }
-      } else {
-        setMatchedAd(null);
-      }
-    } catch (err: any) {
-      console.error('Failed to parse scan result:', err);
-      setErrorMessage('Ralat memproses data QR: ' + (err.message || 'Sila cuba lagi'));
-    } finally {
-      setSearchingAd(false);
-    }
-  };
-
-  // Start the scanner camera
-  const startCamera = async (mode: 'environment' | 'user' = facingMode) => {
-    setScannerState('starting');
-    setErrorMessage(null);
-
-    // Give DOM a tick to ensure reader container is rendered
-    await new Promise(r => setTimeout(r, 100));
-
-    try {
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(containerId, {
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-          verbose: false,
-        });
-      }
-
-      // Ensure clean previous instance
-      if (scannerRef.current.isScanning) {
-        await scannerRef.current.stop();
-      }
-
-      await scannerRef.current.start(
-        { facingMode: mode },
-        {
-          fps: 15,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            const edgeSize = Math.floor(minEdge * 0.72);
-            return { width: edgeSize, height: edgeSize };
-          },
-          aspectRatio: 1.0,
-        },
+      await html5QrCode.start(
+        chosenCam,
+        config,
         (decodedText) => {
-          processScannedResult(decodedText);
+          handleSuccessfulScan(decodedText);
         },
         () => {
-          // ignore transient scan frame misses
+          // Frame scan error (no QR code in frame), suppress logging
         }
       );
 
-      setScannerState('scanning');
-
-      // Check if torch/flashlight is supported
-      try {
-        const capabilities = (scannerRef.current as any).getRunningTrackCapabilities?.();
-        if (capabilities && 'torch' in capabilities) {
-          setHasTorch(true);
-        }
-      } catch {
-        setHasTorch(false);
-      }
+      setScannerActive(true);
     } catch (err: any) {
-      console.error('Camera startup error:', err);
-      setScannerState('error');
-      
-      const errStr = String(err).toLowerCase();
-      if (errStr.includes('permission') || errStr.includes('notallowed') || errStr.includes('denied')) {
-        setErrorMessage('Kebenaran akses kamera ditolak. Sila benarkan akses kamera dalam tetapan pelayar anda (Safari / Chrome), atau gunakan pilihan "Muat Naik Gambar QR dari Galeri".');
-      } else if (errStr.includes('notfound') || errStr.includes('device')) {
-        setErrorMessage('Tiada peranti kamera dikesan pada telefon anda.');
-      } else {
-        setErrorMessage('Gagal membuka kamera: ' + (err.message || 'Sila semak kebenaran kamera atau muat naik foto QR.'));
+      console.error('Kamera gagal dimulakan:', err);
+      let errMsg = 'Gagal mengakses kamera.';
+      if (err?.name === 'NotAllowedError' || err?.message?.includes('Permission')) {
+        errMsg = 'Akses kamera ditolak. Sila benarkan kebenaran kamera (Camera Permission) di pelayar anda.';
+      } else if (err?.name === 'NotFoundError') {
+        errMsg = 'Kamera tidak dijumpai pada peranti anda.';
+      } else if (err?.message) {
+        errMsg = `Ralat: ${err.message}`;
       }
+      setCameraError(errMsg);
+      setScannerActive(false);
     }
   };
 
-  // Stop camera helper
-  const stopCamera = async () => {
-    if (scannerRef.current) {
+  // Stop Scanner
+  const stopScanner = async () => {
+    if (html5QrCodeRef.current) {
       try {
-        if (scannerRef.current.isScanning) {
-          await scannerRef.current.stop();
+        if (html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
         }
-        await scannerRef.current.clear();
+        await html5QrCodeRef.current.clear();
       } catch (e) {
-        console.warn('Error closing scanner:', e);
+        console.warn('Ralat henti kamera:', e);
       }
-      scannerRef.current = null;
+      html5QrCodeRef.current = null;
     }
+    setScannerActive(false);
+    setTorchOn(false);
   };
 
-  // Toggle Front / Back camera
-  const toggleFacingMode = async () => {
-    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
-    setFacingMode(nextMode);
-    await stopCamera();
-    startCamera(nextMode);
-  };
-
-  // Toggle Torch/Flashlight
+  // Toggle Torch/Flashlight if supported
   const toggleTorch = async () => {
-    if (!scannerRef.current || !hasTorch) return;
+    if (!html5QrCodeRef.current || !html5QrCodeRef.current.isScanning) return;
     try {
-      const nextTorch = !torchOn;
-      await (scannerRef.current as any).applyVideoConstraints({
-        advanced: [{ torch: nextTorch }],
+      // Html5Qrcode supports applyVideoConstraints
+      const newTorch = !torchOn;
+      await html5QrCodeRef.current.applyVideoConstraints({
+        advanced: [{ torch: newTorch } as any]
       });
-      setTorchOn(nextTorch);
+      setTorchOn(newTorch);
     } catch (e) {
-      console.warn('Torch toggle failed:', e);
+      toast.error('Lampu denyar (Flashlight) tidak disokong pada peranti ini.');
     }
   };
 
-  // Scan from photo file
-  const handleFileScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Handle Scan Hit
+  const handleSuccessfulScan = async (text: string) => {
+    playBeep();
+    setScannedResult(text);
 
-    setScannerState('starting');
-    setErrorMessage(null);
+    // Stop scanning once detected
+    await stopScanner();
 
-    try {
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(containerId, {
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-          verbose: false,
-        });
+    const { adId, isExternalUrl } = parseAdId(text);
+
+    if (adId) {
+      toast.success('Kod QR Iklan Berjaya Dikesan!');
+      if (onScanSuccess) {
+        onScanSuccess(adId);
       }
-
-      if (scannerRef.current.isScanning) {
-        await scannerRef.current.stop();
+      // Navigate to adId directly
+      const url = new URL(window.location.href);
+      url.searchParams.set('adId', adId);
+      window.history.pushState({}, '', url.pathname + url.search);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      onClose();
+    } else if (isExternalUrl) {
+      toast.success('Pautan Luar Dikesan');
+      if (window.confirm(`Kod QR mengandungi pautan web: \n${text}\n\nBuka pautan ini sekarang?`)) {
+        window.open(text, '_blank');
       }
-
-      const decodedText = await scannerRef.current.scanFile(file, true);
-      processScannedResult(decodedText);
-    } catch (err: any) {
-      console.error('File scan error:', err);
-      setScannerState('error');
-      setErrorMessage('Tiada Kod QR sah dikesan dalam gambar yang dimuat naik. Sila pastikan gambar QR jelas dan tidak kabur.');
-    } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      onClose();
+    } else {
+      toast(`Kod QR: ${text}`, { icon: 'ℹ️' });
+      if (onScanSuccess) {
+        onScanSuccess(text);
       }
+      onClose();
     }
   };
 
-  // Reset and scan again
-  const handleScanAgain = () => {
-    setMatchedAd(null);
-    setScannedRawText(null);
-    setErrorMessage(null);
-    startCamera();
+  // Switch Camera
+  const handleCameraChange = async (newCamId: string) => {
+    setSelectedCameraId(newCamId);
+    await stopScanner();
+    setTimeout(() => {
+      startScanner(newCamId);
+    }, 200);
   };
 
-  // Action: Open the matched advertisement attendance form
-  const handleOpenAttendance = () => {
-    if (!matchedAd) return;
-    onClose();
-    // Update URL and notify listeners
-    const url = new URL(window.location.href);
-    url.searchParams.set('adId', matchedAd.id);
-    window.history.pushState({}, '', url.pathname + url.search);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  };
-
-  // Handle open external link if scanned text is URL
-  const handleOpenExternalUrl = () => {
-    if (scannedRawText && scannedRawText.startsWith('http')) {
-      window.open(scannedRawText, '_blank', 'noopener,noreferrer');
-    }
-  };
-
-  // Trigger camera when modal opens
   useEffect(() => {
     if (isOpen) {
-      setMatchedAd(null);
-      setScannedRawText(null);
-      setErrorMessage(null);
-      startCamera('environment');
+      // Small timeout to allow DOM container to render
+      const timer = setTimeout(() => {
+        startScanner();
+      }, 300);
+      return () => {
+        clearTimeout(timer);
+        stopScanner();
+      };
     } else {
-      stopCamera();
-      setScannerState('idle');
+      stopScanner();
     }
-
-    return () => {
-      stopCamera();
-    };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md">
         <motion.div
-          initial={{ opacity: 0, scale: 0.92, y: 20 }}
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.92, y: 20 }}
-          className="relative w-full max-w-md bg-[#070d1e] border border-risda-border/80 rounded-[32px] shadow-2xl overflow-hidden text-risda-text flex flex-col my-auto"
-          style={{ maxHeight: '92vh' }}
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          className="relative w-full max-w-md bg-risda-card border-2 border-risda-orange/60 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col"
         >
           {/* Header */}
-          <div className="p-4 sm:p-5 border-b border-risda-border flex items-center justify-between bg-gradient-to-r from-risda-orange/15 via-transparent to-transparent shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-risda-orange/20 border border-risda-orange/40 flex items-center justify-center text-risda-orange">
-                <Camera size={20} className="animate-pulse" />
+          <div className="bg-gradient-to-r from-risda-orange via-amber-600 to-yellow-600 p-4 sm:p-5 text-white flex items-center justify-between shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/20">
+                <Camera size={20} className="text-white" />
               </div>
               <div>
-                <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-risda-text">
-                  Pengimbas QR Iklan
+                <span className="text-[9px] font-black uppercase tracking-widest text-yellow-200 block">
+                  PENGIMBAS PANTAS
+                </span>
+                <h3 className="text-sm sm:text-base font-black uppercase tracking-tight text-white leading-tight">
+                  SCAN KOD QR IKLAN
                 </h3>
-                <p className="text-[10px] text-risda-muted font-bold uppercase tracking-wider">
-                  Android & iOS • Sebut Harga RISDA
-                </p>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-risda-muted hover:text-white flex items-center justify-center transition-colors border border-white/10"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
               title="Tutup Pengimbas"
             >
               <X size={18} />
             </button>
           </div>
 
-          {/* Main Content Body */}
-          <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
-            {/* Viewfinder Frame / Result Card */}
-            {scannerState !== 'found' ? (
-              <div className="space-y-4">
-                {/* Camera Viewfinder Box */}
-                <div className="relative w-full aspect-square bg-black/80 rounded-3xl overflow-hidden border-2 border-dashed border-risda-orange/40 flex items-center justify-center shadow-inner">
-                  {/* html5-qrcode DOM Target */}
-                  <div id={containerId} className="w-full h-full object-cover [&_video]:w-full [&_video]:h-full [&_video]:object-cover" />
+          {/* Scanner Viewport Container */}
+          <div className="p-4 sm:p-6 flex flex-col items-center justify-center space-y-4">
+            <div className="relative w-full aspect-square max-w-[320px] bg-black rounded-2xl overflow-hidden border-2 border-dashed border-risda-orange/60 flex items-center justify-center shadow-inner">
+              <div id={qrReaderId} className="w-full h-full object-cover" />
 
-                  {/* Targeting Reticle Overlay (Animated Laser Frame) */}
-                  {scannerState === 'scanning' && (
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      {/* Reticle corners */}
-                      <div className="relative w-3/4 h-3/4 max-w-[260px] max-h-[260px]">
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-risda-orange rounded-tl-xl shadow-lg" />
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-risda-orange rounded-tr-xl shadow-lg" />
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-risda-orange rounded-bl-xl shadow-lg" />
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-risda-orange rounded-br-xl shadow-lg" />
-                        
-                        {/* Scanning Laser Line */}
-                        <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-risda-orange to-transparent animate-scan shadow-[0_0_12px_#ff9900]" />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Loading / Starting indicator */}
-                  {scannerState === 'starting' && (
-                    <div className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center p-4 text-center space-y-3 z-10">
-                      <RefreshCw size={36} className="text-risda-orange animate-spin" />
-                      <p className="text-xs font-black uppercase tracking-wider text-risda-text">
-                        Mengaktifkan Kamera Telefon...
-                      </p>
-                      <p className="text-[10px] text-risda-muted max-w-[240px]">
-                        Sila benarkan akses kamera apabila diminta oleh telefon anda.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Error banner inside viewfinder */}
-                  {scannerState === 'error' && (
-                    <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-6 text-center space-y-3 z-10">
-                      <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400">
-                        <AlertCircle size={24} />
-                      </div>
-                      <p className="text-xs font-black text-red-400 uppercase tracking-wider">
-                        Kamera Tidak Dapat Dibuka
-                      </p>
-                      <p className="text-[11px] text-risda-muted leading-relaxed max-w-[280px]">
-                        {errorMessage || 'Sila pastikan kebenaran kamera dibenarkan, atau imbas gambar kod QR dari galeri telefon.'}
-                      </p>
-                      <button
-                        onClick={() => startCamera()}
-                        className="px-4 py-2 bg-white/10 hover:bg-white/15 rounded-xl text-xs font-bold text-white uppercase tracking-wider border border-white/20 transition-all flex items-center gap-2 mt-2"
-                      >
-                        <RefreshCw size={14} />
-                        Cuba Semula
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Quick Camera Controls */}
-                <div className="flex items-center justify-center gap-3 pt-1">
-                  <button
-                    onClick={toggleFacingMode}
-                    className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold text-risda-text flex items-center gap-2 transition-all"
-                    title="Tukar Kamera Depan / Belakang"
-                  >
-                    <FlipHorizontal size={16} className="text-risda-orange" />
-                    <span>Tukar Kamera</span>
-                  </button>
-
-                  {hasTorch && (
-                    <button
-                      onClick={toggleTorch}
-                      className={`p-3 border rounded-2xl text-xs font-bold flex items-center gap-2 transition-all ${
-                        torchOn 
-                          ? 'bg-risda-orange text-white border-risda-orange' 
-                          : 'bg-white/5 hover:bg-white/10 border-white/10 text-risda-text'
-                      }`}
-                      title="Lampu Kilat / Torch"
-                    >
-                      <Flashlight size={16} />
-                      <span>Lampu {torchOn ? 'ON' : 'OFF'}</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold text-risda-text flex items-center gap-2 transition-all"
-                    title="Imbas daripada fail imej"
-                  >
-                    <ImageIcon size={16} className="text-blue-400" />
-                    <span>Pilih Gambar</span>
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileScan}
-                    className="hidden"
-                  />
-                </div>
-
-                {/* Instructional Text */}
-                <div className="p-3.5 bg-white/[0.03] border border-risda-border rounded-2xl text-center space-y-1.5">
-                  <div className="flex items-center justify-center gap-1.5 text-risda-orange text-xs font-black uppercase tracking-wider">
-                    <Sparkles size={14} />
-                    <span>Cara Penggunaan</span>
+              {/* Scanning visual overlay & crosshairs */}
+              {scannerActive && !cameraError && (
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  {/* Glowing Laser Scan Bar */}
+                  <div className="w-4/5 h-0.5 bg-red-500 shadow-[0_0_15px_#ef4444] animate-pulse relative">
+                    <div className="absolute inset-0 bg-yellow-400 opacity-75 blur-xs" />
                   </div>
-                  <p className="text-[11px] text-risda-muted leading-relaxed">
-                    Halakan lensa kamera telefon anda tepat ke kod QR pada iklan sebut harga atau dokumen sebut harga RISDA. Sistem akan mengesan dan membuka borang kehadiran secara automatik.
-                  </p>
+
+                  {/* Corner Targets */}
+                  <div className="absolute top-4 left-4 w-6 h-6 border-t-4 border-l-4 border-risda-orange rounded-tl" />
+                  <div className="absolute top-4 right-4 w-6 h-6 border-t-4 border-r-4 border-risda-orange rounded-tr" />
+                  <div className="absolute bottom-4 left-4 w-6 h-6 border-b-4 border-l-4 border-risda-orange rounded-bl" />
+                  <div className="absolute bottom-4 right-4 w-6 h-6 border-b-4 border-r-4 border-risda-orange rounded-br" />
                 </div>
+              )}
+
+              {/* Error Placeholder */}
+              {cameraError && (
+                <div className="absolute inset-0 p-6 bg-slate-900/95 flex flex-col items-center justify-center text-center space-y-3 z-10">
+                  <AlertCircle size={36} className="text-red-400 animate-bounce" />
+                  <p className="text-xs text-red-200 font-bold leading-relaxed">{cameraError}</p>
+                  <button
+                    onClick={() => startScanner(selectedCameraId)}
+                    className="px-4 py-2 bg-risda-orange text-white text-xs font-black uppercase rounded-xl hover:bg-amber-600 transition-all flex items-center gap-2"
+                  >
+                    <RefreshCw size={14} /> Cuba Lagi
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Instruction Text */}
+            <p className="text-[11px] text-risda-muted font-bold text-center tracking-wide uppercase max-w-xs">
+              Halakan kamera ke arah Kod QR Iklan Sebut Harga RISDA untuk terus membuka maklumat & borang pendaftaran tapak secara langsung.
+            </p>
+
+            {/* Controls Bar: Switch Camera, Torch, Sound */}
+            <div className="w-full flex items-center justify-between gap-2 pt-2 border-t border-risda-border">
+              {/* Camera Selector */}
+              {cameras.length > 1 ? (
+                <select
+                  value={selectedCameraId}
+                  onChange={(e) => handleCameraChange(e.target.value)}
+                  className="text-[11px] font-bold bg-risda-card-muted border border-risda-border text-risda-text rounded-xl px-2.5 py-2 outline-none max-w-[150px] truncate"
+                >
+                  {cameras.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label || `Kamera ${c.id.slice(0, 5)}`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-[10px] text-risda-muted font-bold uppercase">
+                  {scannerActive ? '● Kamera Aktif' : 'Memuatkan Kamera...'}
+                </span>
+              )}
+
+              <div className="flex items-center gap-2">
+                {/* Torch Toggle */}
+                <button
+                  type="button"
+                  onClick={toggleTorch}
+                  className={`p-2 rounded-xl border text-xs font-bold transition-all ${
+                    torchOn
+                      ? 'bg-yellow-500 text-slate-950 border-yellow-400 shadow-md'
+                      : 'bg-risda-card-muted text-risda-muted border-risda-border hover:text-risda-text'
+                  }`}
+                  title="Buka / Tutup Flash"
+                >
+                  <Flashlight size={16} />
+                </button>
+
+                {/* Sound Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className={`p-2 rounded-xl border text-xs font-bold transition-all ${
+                    soundEnabled
+                      ? 'bg-risda-card-muted text-risda-orange border-risda-border'
+                      : 'bg-risda-card-muted text-risda-muted border-risda-border'
+                  }`}
+                  title="Bunyi Bip Imbasan"
+                >
+                  {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                </button>
+
+                {/* Refresh/Restart */}
+                <button
+                  type="button"
+                  onClick={() => startScanner(selectedCameraId)}
+                  className="p-2 rounded-xl bg-risda-card-muted text-risda-muted hover:text-risda-text border border-risda-border transition-all"
+                  title="Muat Semula Kamera"
+                >
+                  <RefreshCw size={16} />
+                </button>
               </div>
-            ) : (
-              /* RESULT VIEW: ADVERTISEMENT FOUND OR SCANNED CODE */
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-4"
-              >
-                {searchingAd ? (
-                  <div className="p-8 text-center space-y-3 bg-white/[0.03] rounded-3xl border border-risda-border">
-                    <RefreshCw size={32} className="text-risda-orange animate-spin mx-auto" />
-                    <p className="text-xs font-black uppercase tracking-widest text-risda-text">
-                      Mencari Iklan Sebut Harga...
-                    </p>
-                    <p className="text-[10px] text-risda-muted font-bold truncate">
-                      {scannedRawText}
-                    </p>
-                  </div>
-                ) : matchedAd ? (
-                  <div className="bg-gradient-to-br from-risda-orange/15 via-white/[0.03] to-transparent border border-risda-orange/40 rounded-3xl p-5 space-y-4 shadow-xl">
-                    <div className="flex items-center justify-between">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500/20 border border-green-500/40 rounded-full text-green-400 text-[10px] font-black uppercase tracking-wider">
-                        <CheckCircle2 size={12} />
-                        <span>Iklan Dikesan & Sepadan</span>
-                      </div>
-                      <span className="text-[10px] font-bold text-risda-muted uppercase">
-                        {matchedAd.status || 'AKTIF'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-mono font-bold text-risda-orange tracking-wider block mb-1">
-                        {matchedAd.quotationNo || 'SEBUT HARGA RISDA'}
-                      </span>
-                      <h4 className="text-sm font-black text-white leading-snug uppercase line-clamp-3">
-                        {matchedAd.title}
-                      </h4>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-[10px] pt-1 border-t border-white/10">
-                      <div className="flex items-center gap-1.5 text-risda-muted">
-                        <Building2 size={13} className="text-risda-orange shrink-0" />
-                        <span className="truncate">{matchedAd.office || matchedAd.district || 'RISDA'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-risda-muted">
-                        <Calendar size={13} className="text-blue-400 shrink-0" />
-                        <span className="truncate">Tutup: {matchedAd.closingDate || '-'}</span>
-                      </div>
-                      {matchedAd.location && (
-                        <div className="col-span-2 flex items-center gap-1.5 text-risda-muted">
-                          <MapPin size={13} className="text-amber-400 shrink-0" />
-                          <span className="truncate">{matchedAd.location}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Main CTA */}
-                    <div className="space-y-2 pt-2">
-                      <button
-                        onClick={handleOpenAttendance}
-                        className="w-full py-3.5 px-4 bg-gradient-to-r from-risda-orange to-risda-gold hover:opacity-95 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
-                      >
-                        <span>Buka Borang & Hadir Lawat Tapak</span>
-                        <ArrowRight size={16} />
-                      </button>
-
-                      <button
-                        onClick={handleScanAgain}
-                        className="w-full py-2.5 px-4 bg-white/5 hover:bg-white/10 text-risda-muted hover:text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all border border-white/10 flex items-center justify-center gap-2"
-                      >
-                        <RefreshCw size={13} />
-                        <span>Imbas Iklan Lain</span>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* Ad not directly found in DB */
-                  <div className="bg-white/[0.03] border border-risda-border rounded-3xl p-5 space-y-4">
-                    <div className="flex items-center gap-2 text-amber-400">
-                      <AlertCircle size={18} />
-                      <h4 className="text-xs font-black uppercase tracking-wider">
-                        Kod QR Dikesan (Tiada Rekod Langsung)
-                      </h4>
-                    </div>
-
-                    <div className="p-3 bg-black/40 rounded-2xl border border-white/5 break-all text-[11px] font-mono text-risda-muted max-h-28 overflow-y-auto">
-                      {scannedRawText}
-                    </div>
-
-                    <p className="text-[11px] text-risda-muted leading-relaxed">
-                      Kod QR berjaya diimbas tetapi tidak sepadan dengan mana-mana ID iklan sebut harga semasa dalam sistem.
-                    </p>
-
-                    {scannedRawText && scannedRawText.startsWith('http') && (
-                      <button
-                        onClick={handleOpenExternalUrl}
-                        className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow flex items-center justify-center gap-2"
-                      >
-                        <span>Buka Pautan Luar</span>
-                        <ExternalLink size={14} />
-                      </button>
-                    )}
-
-                    <button
-                      onClick={handleScanAgain}
-                      className="w-full py-3 px-4 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-2xl transition-all flex items-center justify-center gap-2"
-                    >
-                      <RefreshCw size={14} />
-                      <span>Imbas Semula</span>
-                    </button>
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* Mobile PWA Tips */}
-            <div className="pt-2 text-[10px] text-risda-muted/70 text-center flex items-center justify-center gap-1.5">
-              <Smartphone size={12} />
-              <span>Sesuai digunakan pada telefon Android (Chrome) & Apple iPhone (Safari)</span>
             </div>
           </div>
         </motion.div>

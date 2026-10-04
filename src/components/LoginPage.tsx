@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogIn, Mail, Lock, ShieldCheck, ArrowRight, Chrome, AlertCircle, Eye, EyeOff, X, User } from 'lucide-react';
+import { LogIn, Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, X, User } from 'lucide-react';
 import { signInWithGoogle, auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, addDoc, Timestamp, query, where, getDocs, limit, updateDoc, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -228,15 +228,15 @@ export default function LoginPage() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md space-y-8 relative z-10"
+        className="w-full max-w-md space-y-7 relative z-10"
       >
         {/* Brand */}
-        <div className="text-center space-y-5">
-          <div className="inline-flex items-center justify-center p-3 h-28 w-28 group transition-transform duration-500 mx-auto overflow-hidden">
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center p-2.5 h-24 w-24 group transition-transform duration-500 mx-auto">
             <img 
               src="/PUBLIC/intrologo_RISDA.png" 
               alt="RISDA" 
-              className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-transform duration-500 group-hover:scale-110" 
+              className="w-full h-full object-contain filter drop-shadow-md transition-transform duration-500 group-hover:scale-105" 
               onError={(e) => {
                 const img = e.currentTarget;
                 if (!img.src.includes("/api/logo") && !img.src.endsWith("/api/logo")) {
@@ -247,91 +247,107 @@ export default function LoginPage() {
               }}
             />
           </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-poppins font-light text-risda-text tracking-tight">SMART LOG <span className="font-bold text-risda-gold-light">PEROLEHAN</span></h1>
-            <p className="text-[10px] text-risda-gold font-black uppercase tracking-[5px]">RISDA DAERAH BEAUFORT</p>
+          <div className="space-y-1.5">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-poppins text-risda-text">
+              SMART LOG <span className="text-risda-orange font-black">PEROLEHAN</span>
+            </h1>
+            <p className="text-[11px] text-risda-gold font-black uppercase tracking-[3.5px]">
+              RISDA DAERAH BEAUFORT
+            </p>
           </div>
         </div>
 
-        <div className="bg-risda-card border border-risda-border rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-          <div className="p-10 space-y-8">
-            <div className="space-y-2 border-l-2 border-risda-gold pl-5">
-              <h2 className="text-lg font-bold text-risda-text uppercase tracking-widest leading-none">Akses Sistem</h2>
-              <p className="text-xs text-risda-text-secondary font-medium">Log masuk mengikut peranan anda.</p>
+        <div className="bg-risda-card border border-risda-border rounded-2xl shadow-xl overflow-hidden transition-colors">
+          <div className="p-7 sm:p-8 space-y-6">
+            <div className="space-y-1 pb-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-risda-orange inline-block shrink-0" />
+                <h2 className="text-base sm:text-lg font-black text-risda-text uppercase tracking-wider leading-none">
+                  Akses Sistem
+                </h2>
+              </div>
+              <p className="text-xs text-risda-text-secondary font-medium pl-4.5">
+                Sila log masuk mengikut peranan akaun anda.
+              </p>
             </div>
 
             {error && (
               <motion.div 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="p-4 bg-red-500/5 border-l-2 border-red-500 text-[10px] text-red-400 font-bold uppercase tracking-wider"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-600 dark:text-red-400 font-bold flex items-center gap-2.5"
               >
-                {error}
+                <AlertCircle size={16} className="shrink-0 text-red-500" />
+                <span>{error}</span>
               </motion.div>
             )}
 
-            <div className="space-y-6">
-              {/* Google Login for Admin */}
+            <div className="space-y-5">
+              {/* Login for Admin */}
               <button 
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="w-full h-14 bg-white text-black font-black text-[11px] uppercase tracking-[2px] rounded-xl flex items-center justify-center gap-3 hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-50 shadow-xl"
+                className="w-full h-12 bg-risda-card-muted/80 hover:bg-risda-card-muted border border-risda-border hover:border-risda-orange/60 text-risda-text font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center transition-all active:scale-[0.99] disabled:opacity-50 shadow-sm cursor-pointer"
               >
-                <Chrome size={20} />
-                Pentadbir (Google)
+                <span>Pentadbir Sistem</span>
               </button>
 
-              <div className="relative">
+              <div className="relative my-2">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-risda-border"></div>
                 </div>
-                <div className="relative flex justify-center text-[10px] uppercase font-black tracking-[4px]">
-                  <span className="bg-risda-card px-4 text-risda-muted italic">E-Portal Staff</span>
+                <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[2.5px]">
+                  <span className="bg-risda-card px-3 text-risda-text-secondary/70">Portal Kakitangan</span>
                 </div>
               </div>
 
               {/* Staff Login Form */}
-              <form onSubmit={handleStaffLogin} className="space-y-5">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-risda-muted uppercase tracking-[3px] px-1">Nama / ID Staff / Email</label>
+              <form onSubmit={handleStaffLogin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-risda-text uppercase tracking-wider block">
+                    Nama / ID Staf / E-mel
+                  </label>
                   <div className="relative">
-                    <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-risda-gold/50" />
+                    <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-risda-orange shrink-0 pointer-events-none" />
                     <input 
                       type="text" 
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
                       placeholder="Contoh: Ali / RS-1002"
-                      className="w-full bg-risda-dark/40 border border-risda-border rounded-xl py-3.5 pl-12 pr-4 text-xs text-risda-text focus:outline-none focus:border-risda-gold/40 transition-all placeholder-risda-muted shadow-inner"
+                      className="w-full bg-risda-card-muted/60 border border-risda-border rounded-xl py-3 pl-10 pr-4 text-xs sm:text-sm text-risda-text font-medium focus:outline-none focus:border-risda-orange focus:ring-2 focus:ring-risda-orange/20 transition-all placeholder:text-risda-text-secondary/50 shadow-sm"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-black text-risda-muted uppercase tracking-[3px]">Kata Laluan</label>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold text-risda-text uppercase tracking-wider">
+                      Kata Laluan
+                    </label>
                     <button 
                       type="button"
                       onClick={() => setShowResetModal(true)}
-                      className="text-[9px] font-black text-risda-orange uppercase tracking-[1px] hover:underline transition-all"
+                      className="text-[11px] font-bold text-risda-orange hover:text-risda-orange-hover hover:underline transition-colors cursor-pointer"
                     >
                       Lupa Password?
                     </button>
                   </div>
                   <div className="relative">
-                    <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-risda-gold/50" />
+                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-risda-orange shrink-0 pointer-events-none" />
                     <input 
                       type={showPassword ? 'text' : 'password'} 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-risda-dark/40 border border-risda-border rounded-xl py-3.5 pl-12 pr-12 text-xs text-risda-text focus:outline-none focus:border-risda-gold/40 transition-all placeholder-risda-muted shadow-inner"
+                      className="w-full bg-risda-card-muted/60 border border-risda-border rounded-xl py-3 pl-10 pr-10 text-xs sm:text-sm text-risda-text font-medium focus:outline-none focus:border-risda-orange focus:ring-2 focus:ring-risda-orange/20 transition-all placeholder:text-risda-text-secondary/50 shadow-sm"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-risda-muted hover:text-risda-gold transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-risda-text-secondary/70 hover:text-risda-orange transition-colors cursor-pointer p-1"
+                      title={showPassword ? "Sembunyi kata laluan" : "Papar kata laluan"}
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -341,30 +357,31 @@ export default function LoginPage() {
                 <button 
                   type="submit"
                   disabled={loading}
-                  className="btn-gold w-full h-14 text-[11px] font-black uppercase tracking-[3px] shadow-2xl"
+                  className="btn-gold w-full h-12 text-xs font-black uppercase tracking-[2.5px] rounded-xl flex items-center justify-center gap-2.5 transition-all active:scale-[0.99] disabled:opacity-50 shadow-md cursor-pointer pt-0.5"
                 >
-                  <LogIn size={18} />
-                  Log Masuk Staff
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <LogIn size={17} />
+                      <span>Log Masuk Staf</span>
+                    </>
+                  )}
                 </button>
               </form>
             </div>
           </div>
-
-          <div className="p-5 bg-risda-dark/60 border-t border-risda-border flex items-center justify-center gap-3">
-            <ShieldCheck size={18} className="text-risda-gold" />
-            <span className="text-[10px] text-risda-muted font-black uppercase tracking-[3px]">Secure Protocol Active</span>
-          </div>
         </div>
 
-        <div className="text-center">
+        <div className="text-center pt-1">
           <button 
             onClick={() => {
               window.history.pushState({}, '', '/');
               window.dispatchEvent(new PopStateEvent('popstate'));
             }}
-            className="text-[11px] text-risda-gold/60 font-bold uppercase tracking-[3px] hover:text-risda-gold transition-colors inline-flex items-center gap-3"
+            className="text-xs text-risda-orange hover:text-risda-orange-hover font-bold uppercase tracking-wider hover:underline transition-colors inline-flex items-center gap-2 cursor-pointer"
           >
-            Dashboard Awam
+            <span>Dashboard Awam</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -385,32 +402,32 @@ export default function LoginPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-sm bg-risda-card border border-risda-border rounded-3xl overflow-hidden shadow-2xl p-8"
+              className="relative w-full max-w-sm bg-risda-card border border-risda-border rounded-2xl overflow-hidden shadow-2xl p-7"
             >
               <button 
                 onClick={() => setShowResetModal(false)}
-                className="absolute right-6 top-6 text-risda-muted hover:text-white transition-colors"
+                className="absolute right-5 top-5 text-risda-text-secondary/70 hover:text-risda-text transition-colors p-1"
               >
                 <X size={20} />
               </button>
 
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-risda-text tracking-tight">Lupa Kata Laluan?</h3>
-                  <p className="text-xs text-risda-muted font-medium">Sila masukkan e-mel anda. Kami akan menghantar makluman kepada Pentadbir Sistem untuk tindakan selanjutnya.</p>
+              <div className="space-y-5">
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-black text-risda-text tracking-tight uppercase">Lupa Kata Laluan?</h3>
+                  <p className="text-xs text-risda-text-secondary font-medium">Sila masukkan e-mel anda. Kami akan menghantar makluman kepada Pentadbir Sistem untuk tindakan selanjutnya.</p>
                 </div>
 
                 <form onSubmit={handleResetRequest} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-risda-muted uppercase tracking-[3px] px-1">E-mel Berdaftar</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-risda-text uppercase tracking-wider block">E-mel Berdaftar</label>
                     <div className="relative">
-                      <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-risda-gold/50" />
+                      <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-risda-orange pointer-events-none" />
                       <input 
                         type="email" 
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                         placeholder="nama@email.com"
-                        className="w-full bg-risda-dark/40 border border-risda-border rounded-xl py-3.5 pl-12 pr-4 text-xs text-risda-text focus:outline-none focus:border-risda-gold/40 transition-all placeholder-risda-muted shadow-inner"
+                        className="w-full bg-risda-card-muted/60 border border-risda-border rounded-xl py-3 pl-10 pr-4 text-xs text-risda-text font-medium focus:outline-none focus:border-risda-orange focus:ring-2 focus:ring-risda-orange/20 transition-all placeholder:text-risda-text-secondary/50 shadow-sm"
                         required
                       />
                     </div>
@@ -419,14 +436,14 @@ export default function LoginPage() {
                   <button 
                     type="submit"
                     disabled={resetLoading}
-                    className="btn-gold w-full h-14 text-[11px] font-black uppercase tracking-[3px] shadow-2xl flex items-center justify-center gap-3"
+                    className="btn-gold w-full h-12 text-xs font-black uppercase tracking-wider rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer disabled:opacity-50"
                   >
                     {resetLoading ? (
-                      <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <ArrowRight size={18} />
-                        Hantar ke Pentadbir
+                        <ArrowRight size={17} />
+                        <span>Hantar ke Pentadbir</span>
                       </>
                     )}
                   </button>

@@ -13,9 +13,20 @@ import {
   MapPin,
   Mail,
   ShoppingBag,
-  Coins
+  Coins,
+  FileCheck,
+  Building2,
+  FileSpreadsheet,
+  CheckCircle2,
+  Sparkles,
+  ClipboardList,
+  BookOpenCheck,
+  Scale,
+  Inbox,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useProcurementModule } from '../context/ModuleContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
 
@@ -33,10 +44,10 @@ const SidebarItem = ({ icon: Icon, label, active, collapsed, onClick, subItems }
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    if (active) {
+    if (active || (subItems && subItems.some(s => s.active))) {
       setIsExpanded(true);
     }
-  }, [active]);
+  }, [active, subItems]);
 
   const handleClick = () => {
     if (subItems && !collapsed) {
@@ -144,6 +155,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, setCollapsed: propSetCollapsed }: SidebarProps) {
   const { user, role, district } = useAuth();
+  const { activeModule, setActiveModule } = useProcurementModule();
   const [localCollapsed, setLocalCollapsed] = useState(false);
   const collapsed = propCollapsed !== undefined ? propCollapsed : localCollapsed;
   const setCollapsed = propSetCollapsed !== undefined ? propSetCollapsed : setLocalCollapsed;
@@ -167,7 +179,7 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
   }, []);
 
   const isAdmin = role === 'admin' || role === 'pentadbir';
-  const isStaff = role === 'penginput' || role === 'pelulus' || isAdmin;
+  const isStaff = role === 'penginput' || role === 'penyemak' || role === 'pelulus' || isAdmin;
 
   const navigateTo = (path: string, hash?: string) => {
     onClose?.();
@@ -237,32 +249,49 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
           <div className="flex-1 flex flex-col p-2.5 sm:p-3 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden bg-risda-sidebar">
             {/* Brand Logo */}
             <div 
-              className={`flex ${collapsed ? 'items-center justify-center' : 'flex-col items-start gap-2'} mb-3 cursor-pointer p-1 group/logo relative shrink-0`}
+              className={`flex ${collapsed ? 'items-center justify-center' : 'flex-col items-center justify-center gap-2'} mb-4 cursor-pointer p-1 group/logo relative shrink-0 w-full text-center`}
               onClick={() => setCollapsed(!collapsed)}
               onMouseEnter={() => collapsed && setIsLogoHovered(true)}
               onMouseLeave={() => setIsLogoHovered(false)}
             >
-              {collapsed ? (
-                <div className="w-11 h-11 bg-[#070e1d] rounded-xl border border-risda-gold/50 flex items-center justify-center overflow-hidden shadow-lg p-1 relative group-hover/logo:scale-105 group-hover/logo:border-risda-gold transition-all duration-300">
+              {/* Logo eTapak on Top */}
+              {!collapsed ? (
+                <div className="w-full flex items-center justify-center pt-1 pb-0.5">
                   <img 
-                    src="/smartlog-logo.png" 
-                    alt="SMART LOG PEROLEHAN" 
-                    className="w-full h-full object-cover object-center rounded-lg"
+                    src="/logo-etapak.png" 
+                    alt="Logo eTapak SMART LOG PEROLEHAN" 
+                    className="w-28 max-w-[125px] h-auto max-h-16 object-contain drop-shadow-md group-hover/logo:scale-105 transition-transform duration-300"
                     onError={(e) => {
-                      e.currentTarget.src = "/photo_6325549721438589280_y.jpg";
+                      const target = e.currentTarget;
+                      if (!target.src.includes('logo%20etapak.png') && !target.src.endsWith('logo etapak.png')) {
+                        target.src = '/logo etapak.png';
+                      }
                     }}
                   />
                 </div>
               ) : (
-                <div className="w-full h-24 bg-[#070e1d] rounded-2xl border border-risda-gold/50 shadow-xl overflow-hidden relative group-hover/logo:border-risda-gold transition-all duration-300 p-1.5 flex items-center justify-center">
+                <div className="w-11 h-11 bg-gradient-to-br from-risda-orange/20 to-risda-gold/20 border border-risda-orange/40 rounded-xl p-1.5 flex items-center justify-center shadow-md relative group-hover/logo:scale-110 transition-all duration-300 mx-auto">
                   <img 
-                    src="/smartlog-logo.png" 
-                    alt="SMART LOG PEROLEHAN" 
-                    className="w-full h-full object-contain object-center transition-transform duration-500 group-hover/logo:scale-105"
+                    src="/logo-etapak.png" 
+                    alt="Logo eTapak" 
+                    className="w-full h-full object-contain"
                     onError={(e) => {
-                      e.currentTarget.src = "/photo_6325549721438589280_y.jpg";
+                      const target = e.currentTarget;
+                      if (!target.src.includes('logo%20etapak.png') && !target.src.endsWith('logo etapak.png')) {
+                        target.src = '/logo etapak.png';
+                      }
                     }}
                   />
+                </div>
+              )}
+
+              {/* SMART LOG PEROLEHAN Badge Centered Underneath Logo */}
+              {!collapsed && (
+                <div className="w-auto px-3.5 h-8 bg-gradient-to-br from-risda-orange to-risda-gold rounded-xl flex items-center justify-center text-white font-black italic shrink-0 shadow-md relative group-hover/logo:scale-105 transition-all duration-300 mx-auto">
+                  <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/logo:opacity-100 transition-opacity rounded-xl" />
+                  <span className="text-[9.5px] whitespace-nowrap relative z-10 tracking-tight font-poppins">
+                    SMART LOG PEROLEHAN
+                  </span>
                 </div>
               )}
 
@@ -272,12 +301,22 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
                     initial={{ opacity: 0, x: 20, scale: 0.9 }}
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: 20, scale: 0.9 }}
-                    className="fixed left-[90px] bg-[#071326] border border-risda-gold/60 p-2.5 rounded-2xl shadow-2xl z-[1000] pointer-events-none flex items-center gap-3 whitespace-nowrap"
+                    className="fixed left-[90px] bg-risda-card border border-risda-border px-4 py-3 rounded-2xl shadow-xl z-[1000] pointer-events-none whitespace-nowrap flex items-center gap-3"
                   >
-                    <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-4 h-4 bg-[#071326] border-l border-b border-risda-gold/60 rotate-45" />
-                    <img src="/smartlog-logo.png" alt="SMART LOG PEROLEHAN" className="w-12 h-12 object-contain rounded-xl border border-risda-gold/40 bg-black/60 p-0.5" />
-                    <div className="flex flex-col pr-2">
-                      <span className="text-white text-[12px] font-black uppercase tracking-[2px]">SMART LOG</span>
+                    <div className="absolute left-[-10px] top-1/2 -translate-y-1/2 w-4 h-4 bg-risda-card border-l border-b border-risda-border rotate-45" />
+                    <img 
+                      src="/logo-etapak.png" 
+                      alt="Logo eTapak" 
+                      className="w-9 h-9 object-contain"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.src.includes('logo%20etapak.png')) {
+                          target.src = '/logo etapak.png';
+                        }
+                      }}
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-risda-text text-[12px] font-black uppercase tracking-[2px]">SMART LOG</span>
                       <span className="text-risda-gold text-[10px] font-black uppercase tracking-[1.5px]">PEROLEHAN</span>
                     </div>
                   </motion.div>
@@ -286,19 +325,14 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
 
               {!collapsed && (
                 <motion.div 
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex flex-col w-full pl-1 mt-0.5"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-col w-full items-center text-center mt-1 px-1"
                 >
-                  <div className="flex items-center justify-between border-b border-risda-orange/30 pb-1 mb-1">
-                    <span className="text-2xl font-black tracking-[-0.05em] text-risda-text uppercase italic leading-none font-editorial-heading">
-                      RISDA
-                    </span>
-                    <span className="text-[8px] bg-risda-orange/20 text-risda-orange border border-risda-orange/40 font-black px-1.5 py-0.5 rounded">
-                      E-PEROLEHAN
-                    </span>
-                  </div>
-                  <span className="text-[9px] text-risda-gold font-black tracking-[1.2px] uppercase whitespace-nowrap">
+                  <span className="text-2xl font-black tracking-[-0.05em] text-risda-text uppercase italic leading-none border-b border-risda-orange/30 pb-1 mb-1 font-editorial-heading w-full text-center">
+                    RISDA
+                  </span>
+                  <span className="text-[9px] text-risda-gold font-black tracking-[1.5px] uppercase whitespace-nowrap text-center">
                     {isAdmin ? 'PENTADBIR SISTEM (SEMUA PEJABAT)' : `DAERAH ${district ? district.toUpperCase() : 'BEAUFORT'}`}
                   </span>
                 </motion.div>
@@ -306,77 +340,190 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
             </div>
 
             <nav className="flex-1 flex flex-col gap-2.5">
-              <div className="space-y-0.5">
-                {!collapsed && (
-                  <div className="text-[9px] text-risda-muted font-black uppercase tracking-[1.5px] mb-1 px-2">Papan Pemuka</div>
-                )}
-                <SidebarItem icon={Home} label="PUSAT DASHBOARD" active={currentPath === '/'} collapsed={collapsed} onClick={() => navigateTo('/')} />
-                {isStaff && (
-                  <>
-                    <SidebarItem icon={Megaphone} label="IKLAN SEBUTHARGA" active={currentPath === '/projek'} collapsed={collapsed} onClick={() => navigateTo('/projek')} />
-                    <SidebarItem icon={Trophy} label="KEPUTUSAN RASMI" active={currentPath === '/keputusan'} collapsed={collapsed} onClick={() => navigateTo('/keputusan')} />
-                    <SidebarItem icon={Users} label="KEHADIRAN & SERAHAN" active={currentPath === '/rekod-kehadiran'} collapsed={collapsed} onClick={() => navigateTo('/rekod-kehadiran')} />
-                    <SidebarItem icon={Users} label="DATA KEHADIRAN" active={currentPath === '/data-kehadiran'} collapsed={collapsed} onClick={() => navigateTo('/data-kehadiran')} />
+              {/* MODULE: SEBUTHARGA */}
+              {activeModule === 'sebutharga' ? (
+                <>
+                  <div className="space-y-0.5">
+                    {!collapsed && (
+                      <div className="text-[9px] text-risda-muted font-black uppercase tracking-[1.5px] mb-1 px-2">Papan Pemuka Sebutharga</div>
+                    )}
+                    <SidebarItem icon={Home} label="PUSAT DASHBOARD" active={currentPath === '/'} collapsed={collapsed} onClick={() => navigateTo('/')} />
+                    {isStaff && (
+                      <>
+                        <SidebarItem icon={Megaphone} label="IKLAN SEBUTHARGA" active={currentPath === '/projek'} collapsed={collapsed} onClick={() => navigateTo('/projek')} />
+                        <SidebarItem icon={Trophy} label="KEPUTUSAN RASMI" active={currentPath === '/keputusan'} collapsed={collapsed} onClick={() => navigateTo('/keputusan')} />
+                        <SidebarItem icon={Users} label="KEHADIRAN & SERAHAN" active={currentPath === '/rekod-kehadiran'} collapsed={collapsed} onClick={() => navigateTo('/rekod-kehadiran')} />
+                        <SidebarItem icon={Users} label="DATA KEHADIRAN" active={currentPath === '/data-kehadiran'} collapsed={collapsed} onClick={() => navigateTo('/data-kehadiran')} />
+                        <SidebarItem 
+                          icon={BarChart3} 
+                          label="LAPORAN SEBUTHARGA" 
+                          active={currentPath === '/laporan' && (!currentHash || currentHash === '')} 
+                          collapsed={collapsed} 
+                          onClick={() => navigateTo('/laporan')} 
+                          subItems={[
+                            { 
+                              label: 'LAPORAN SUKUAN BULANAN', 
+                              active: currentHash === '#sukuan', 
+                              onClick: () => navigateTo('/laporan', 'sukuan')
+                            },
+                            { 
+                              label: 'LAPORAN TAHUNAN', 
+                              active: currentHash === '#tahunan', 
+                              onClick: () => navigateTo('/laporan', 'tahunan')
+                            }
+                          ]}
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  {isStaff && (
+                    <div className="space-y-0.5">
+                      {!collapsed && (
+                        <div className="text-[9px] text-risda-muted font-black uppercase tracking-[1.5px] mb-1 px-2">Kawalan Operasi Sebutharga</div>
+                      )}
+                      <SidebarItem icon={Edit3} label="URUS SEBUT HARGA" active={currentPath === '/urus-sebut-harga'} collapsed={collapsed} onClick={() => navigateTo('/urus-sebut-harga')} />
+                      <SidebarItem icon={Mail} label="PELAWAAN SEBUTHARGA" active={currentPath === '/pelawaan-sebutharga'} collapsed={collapsed} onClick={() => navigateTo('/pelawaan-sebutharga')} />
+                      <SidebarItem icon={ShoppingBag} label="URUS PERMINTAAN PESANAN" active={currentPath === '/urus-permintaan-pesanan'} collapsed={collapsed} onClick={() => navigateTo('/urus-permintaan-pesanan')} />
+                      <SidebarItem 
+                        icon={Coins} 
+                        label="KOD PERUNTUKAN" 
+                        active={currentPath === '/kod-peruntukan'} 
+                        collapsed={collapsed} 
+                        onClick={() => navigateTo('/kod-peruntukan')} 
+                        subItems={[
+                          { 
+                            label: 'PENGELASAN KOD PERUNTUKAN', 
+                            active: currentPath === '/kod-peruntukan' && (!currentHash || currentHash === '' || currentHash === '#pengelasan'), 
+                            onClick: () => navigateTo('/kod-peruntukan', 'pengelasan')
+                          },
+                          { 
+                            label: 'LAPORAN PERUNTUKAN TERPERINCI', 
+                            active: currentPath === '/kod-peruntukan' && (currentHash === '#terperinci' || currentHash === '#laporan'), 
+                            onClick: () => navigateTo('/kod-peruntukan', 'terperinci')
+                          }
+                        ]}
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* MODULE: TAWARAN TERUS */
+                <>
+                  <div className="space-y-0.5">
+                    {!collapsed && (
+                      <div className="text-xs text-slate-700 dark:text-slate-300 font-black uppercase tracking-wider mb-1.5 px-2.5">Papan Pemuka Tawaran Terus</div>
+                    )}
+                    <SidebarItem 
+                      icon={Home} 
+                      label="DASHBOARD TAWARAN TERUS" 
+                      active={currentPath === '/'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/')} 
+                    />
+
+                    {/* 📋 PERMOHONAN */}
+                    <SidebarItem 
+                      icon={FileText} 
+                      label="PERMOHONAN" 
+                      active={currentPath === '/tt-permohonan'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/tt-permohonan')}
+                    />
+
+                    {/* 📢 PELAWAAN */}
+                    <SidebarItem 
+                      icon={Megaphone} 
+                      label="PELAWAAN" 
+                      active={currentPath === '/tt-pelawaan'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/tt-pelawaan')}
+                    />
+
+                    {/* 📥 TAWARAN PEMBEKAL */}
+                    <SidebarItem 
+                      icon={Inbox} 
+                      label="TAWARAN PEMBEKAL" 
+                      active={currentPath === '/tt-tawaran'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/tt-tawaran')}
+                    />
+
+                    {/* ⚖️ PENILAIAN */}
+                    <SidebarItem 
+                      icon={Scale} 
+                      label="PENILAIAN" 
+                      active={currentPath === '/tt-penilaian'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/tt-penilaian')}
+                    />
+
+                    {/* 🏆 PEMILIHAN PEMBEKAL */}
+                    <SidebarItem 
+                      icon={Trophy} 
+                      label="PEMILIHAN PEMBEKAL" 
+                      active={currentPath === '/tt-pemilihan'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/tt-pemilihan')}
+                    />
+
+                    {/* 📄 PESANAN / LO */}
+                    <SidebarItem 
+                      icon={FileCheck} 
+                      label="PESANAN / LO" 
+                      active={currentPath === '/tt-pesanan'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/tt-pesanan')}
+                    />
+
+                    {/* 📊 LAPORAN */}
                     <SidebarItem 
                       icon={BarChart3} 
-                      label="LAPORAN SEBUTHARGA" 
-                      active={currentPath === '/laporan' && (!currentHash || currentHash === '')} 
+                      label="LAPORAN" 
+                      active={currentPath === '/tt-laporan'} 
                       collapsed={collapsed} 
-                      onClick={() => navigateTo('/laporan')} 
-                      subItems={[
-                        { 
-                          label: 'LAPORAN SUKUAN BULANAN', 
-                          active: currentHash === '#sukuan', 
-                          onClick: () => navigateTo('/laporan', 'sukuan')
-                        },
-                        { 
-                          label: 'LAPORAN TAHUNAN', 
-                          active: currentHash === '#tahunan', 
-                          onClick: () => navigateTo('/laporan', 'tahunan')
-                        }
-                      ]}
+                      onClick={() => navigateTo('/tt-laporan')}
                     />
-                    <SidebarItem icon={BookOpen} label="INFO PORTAL" active={currentPath === '/info'} collapsed={collapsed} onClick={() => navigateTo('/info')} />
-                  </>
-                )}
-              </div>
 
-              {isStaff && (
-                <div className="space-y-0.5">
-                  {!collapsed && (
-                    <div className="text-[9px] text-risda-muted font-black uppercase tracking-[1.5px] mb-1 px-2">Kawalan Operasi</div>
-                  )}
-                  <SidebarItem icon={Edit3} label="URUS SEBUT HARGA" active={currentPath === '/urus-sebut-harga'} collapsed={collapsed} onClick={() => navigateTo('/urus-sebut-harga')} />
-                  <SidebarItem icon={Mail} label="PELAWAAN SEBUTHARGA" active={currentPath === '/pelawaan-sebutharga'} collapsed={collapsed} onClick={() => navigateTo('/pelawaan-sebutharga')} />
-                  <SidebarItem icon={ShoppingBag} label="URUS PERMINTAAN PESANAN" active={currentPath === '/urus-permintaan-pesanan'} collapsed={collapsed} onClick={() => navigateTo('/urus-permintaan-pesanan')} />
-                  <SidebarItem 
-                    icon={Coins} 
-                    label="KOD PERUNTUKAN" 
-                    active={currentPath === '/kod-peruntukan'} 
-                    collapsed={collapsed} 
-                    onClick={() => navigateTo('/kod-peruntukan')} 
-                    subItems={[
-                      { 
-                        label: 'PENGELASAN KOD PERUNTUKAN', 
-                        active: currentPath === '/kod-peruntukan' && (!currentHash || currentHash === '' || currentHash === '#pengelasan'), 
-                        onClick: () => navigateTo('/kod-peruntukan', 'pengelasan')
-                      },
-                      { 
-                        label: 'LAPORAN PERUNTUKAN TERPERINCI', 
-                        active: currentPath === '/kod-peruntukan' && (currentHash === '#terperinci' || currentHash === '#laporan'), 
-                        onClick: () => navigateTo('/kod-peruntukan', 'terperinci')
-                      }
-                    ]}
-                  />
-                </div>
+                    {/* BUKU VOT & PERUNTUKAN */}
+                    <SidebarItem 
+                      icon={Coins} 
+                      label="BUKU VOT & PERUNTUKAN" 
+                      active={currentPath === '/kod-peruntukan'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/kod-peruntukan')} 
+                    />
+
+                    {/* DATA PEMBEKAL */}
+                    <SidebarItem 
+                      icon={Users} 
+                      label="DATA PEMBEKAL" 
+                      active={currentPath === '/pelawaan-sebutharga'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/pelawaan-sebutharga', 'pembekal')} 
+                    />
+
+                    <SidebarItem 
+                      icon={BookOpenCheck} 
+                      label="PANDUAN PEROLEHAN TAWARAN TERUS" 
+                      active={currentPath === '/panduan-tawaran-terus'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/panduan-tawaran-terus')} 
+                    />
+                  </div>
+                </>
               )}
 
-              {isStaff && (
+              {/* Kawalan Sistem (Hanya Dipaparkan Untuk Modul Sebutharga) */}
+              {activeModule === 'sebutharga' && (
                 <div className="space-y-0.5">
                   {!collapsed && (
-                    <div className="text-[9px] text-risda-muted font-black uppercase tracking-[1.5px] mb-1 px-2">Kawalan Sistem</div>
+                    <div className="text-xs text-slate-700 dark:text-slate-300 font-black uppercase tracking-wider mb-1.5 px-2.5">Kawalan Sistem</div>
                   )}
-                  <SidebarItem icon={UserCog} label="URUS KAKITANGAN" active={currentPath === '/urus-staff'} collapsed={collapsed} onClick={() => navigateTo('/urus-staff')} />
+                  <SidebarItem icon={BookOpen} label="INFO PORTAL" active={currentPath === '/info'} collapsed={collapsed} onClick={() => navigateTo('/info')} />
+                  {isStaff && (
+                    <SidebarItem icon={UserCog} label="URUS KAKITANGAN" active={currentPath === '/urus-staff'} collapsed={collapsed} onClick={() => navigateTo('/urus-staff')} />
+                  )}
                   {isAdmin && (
                     <SidebarItem icon={MapPin} label="URUS KAWASAN" active={currentPath === '/urus-kawasan'} collapsed={collapsed} onClick={() => navigateTo('/urus-kawasan')} />
                   )}

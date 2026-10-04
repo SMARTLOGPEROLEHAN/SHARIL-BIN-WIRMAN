@@ -228,12 +228,12 @@ export default function AttendanceNotificationModal() {
             </div>
 
             {/* Contractor Details Box */}
-            <div className="space-y-3 bg-white/5 border border-white/10 rounded-2xl p-4">
-              <div className="flex items-start gap-3 border-b border-white/10 pb-3">
-                <Building2 size={20} className="text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-3 bg-risda-card-muted/60 border border-risda-border rounded-2xl p-4">
+              <div className="flex items-start gap-3 border-b border-risda-border pb-3">
+                <Building2 size={20} className="text-risda-orange shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[10px] text-risda-muted font-bold uppercase tracking-widest">Nama Syarikat / Kontraktor</p>
-                  <p className="text-sm font-black text-white uppercase tracking-wide leading-snug">
+                  <p className="text-xs text-risda-muted font-bold uppercase tracking-wider">Nama Syarikat / Kontraktor</p>
+                  <p className="text-sm font-black text-risda-text uppercase tracking-wide leading-snug">
                     {activePopup.companyName}
                   </p>
                 </div>
@@ -241,39 +241,39 @@ export default function AttendanceNotificationModal() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                 <div className="flex items-center gap-2.5">
-                  <User size={16} className="text-blue-400 shrink-0" />
+                  <User size={16} className="text-blue-500 shrink-0" />
                   <div>
-                    <p className="text-[9px] text-risda-muted font-bold uppercase tracking-wider">Penama / Pemilik</p>
-                    <p className="text-xs font-extrabold text-slate-100 uppercase">{activePopup.ownerName}</p>
+                    <p className="text-xs text-risda-muted font-bold uppercase tracking-wider">Penama / Pemilik</p>
+                    <p className="text-xs font-extrabold text-risda-text uppercase">{activePopup.ownerName}</p>
                   </div>
                 </div>
 
                 {activePopup.phoneNumber && (
                   <div className="flex items-center gap-2.5">
-                    <Phone size={16} className="text-emerald-400 shrink-0" />
+                    <Phone size={16} className="text-emerald-500 shrink-0" />
                     <div>
-                      <p className="text-[9px] text-risda-muted font-bold uppercase tracking-wider">No. Telefon</p>
-                      <p className="text-xs font-extrabold text-slate-100">{activePopup.phoneNumber}</p>
+                      <p className="text-xs text-risda-muted font-bold uppercase tracking-wider">No. Telefon</p>
+                      <p className="text-xs font-extrabold text-risda-text font-mono">{activePopup.phoneNumber}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Tender Title */}
-              <div className="flex items-start gap-3 pt-2 border-t border-white/5">
-                <FileText size={18} className="text-indigo-400 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 pt-2 border-t border-risda-border">
+                <FileText size={18} className="text-indigo-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[9px] text-risda-muted font-bold uppercase tracking-widest">Tajuk Sebutharga / Projek</p>
-                  <p className="text-xs font-black text-slate-200 uppercase line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-risda-muted font-bold uppercase tracking-wider">Tajuk Sebutharga / Projek</p>
+                  <p className="text-xs font-black text-risda-text uppercase line-clamp-2 leading-relaxed">
                     {activePopup.adTitle}
                   </p>
                 </div>
               </div>
 
               {/* Extra Metadata */}
-              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[10px]">
+              <div className="flex items-center justify-between pt-2 border-t border-risda-border text-xs">
                 {activePopup.docSeriesNo && (
-                  <div className="flex items-center gap-1.5 text-amber-400 font-black">
+                  <div className="flex items-center gap-1.5 text-risda-orange font-black">
                     <Hash size={13} />
                     <span>No. Siri: #{activePopup.docSeriesNo}</span>
                   </div>
@@ -300,7 +300,7 @@ export default function AttendanceNotificationModal() {
 
               <button
                 onClick={() => handleDismiss(activePopup.id)}
-                className="w-full bg-white/10 hover:bg-white/20 text-white font-black py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider border border-white/10 transition-all"
+                className="w-full bg-risda-card-muted hover:bg-risda-border text-risda-text font-black py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider border border-risda-border transition-all"
               >
                 <ShieldCheck size={16} />
                 <span>Tutup & Maklumkan</span>

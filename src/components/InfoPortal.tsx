@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
-import { Info, Target, Zap, Cpu, Bell } from 'lucide-react';
+import { Info, Target, Zap, Cpu, Bell, Download } from 'lucide-react';
+import { PWAInstallButton } from './PWAInstallButton';
 
 export default function InfoPortal() {
   return (
@@ -21,6 +22,9 @@ export default function InfoPortal() {
         </div>
       </div>
 
+      {/* PWA Direct Download Banner */}
+      <PWAInstallButton variant="banner" />
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-12">
           <motion.div 
@@ -38,7 +42,7 @@ export default function InfoPortal() {
             <p className="text-lg lg:text-xl text-risda-text leading-relaxed font-semibold">
               Sistem ini merupakan inisiatif perintis yang dibangunkan untuk mendigitalkan proses perolehan di peringkat agensi. 
               Ia memfokuskan kepada ketelusan dan kecekapan dalam pengurusan sebut harga, terutamanya bagi 
-              aktiviti lawatan tapak yang memerlukan pengesahan fizikal dan digital yang kukuh.
+              aktiviti lawatan tapak yang memerlukan pengesahan fizikal dan digital yang kukuh. Selain itu juga, sistem ini juga memfokuskan kepada tawaran terus perkhidmatan, bekalan dan kerja agar selari dengan perolehan yang terdapat di RISDA.
             </p>
           </motion.div>
         </div>

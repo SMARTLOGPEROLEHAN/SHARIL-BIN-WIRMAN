@@ -3,6 +3,8 @@ import { Coins, Plus, Search, Edit2, Trash2, XCircle, CheckCircle2, DollarSign, 
 import { collection, query, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { useProcurementModule } from '../context/ModuleContext';
+import DirectAwardBudgetBook from './DirectAwardBudgetBook';
 import { exportDetailedAllocationReportToPDF, DetailedReportCodeData } from '../lib/reportExportUtils';
 import toast from 'react-hot-toast';
 
@@ -62,7 +64,12 @@ const isObjSubCode = (sc: SubAllocationCode | { subCode: string }, itemAkt?: str
 
 export default function AllocationCodeManagement() {
   const { role, office, district } = useAuth();
+  const { activeModule } = useProcurementModule();
   const isAdmin = role === 'admin' || role === 'pentadbir';
+
+  if (activeModule === 'tawaran_terus') {
+    return <DirectAwardBudgetBook />;
+  }
 
   const [activeTab, setActiveTab] = useState<'PENGELASAN' | 'LAPORAN_TERPERINCI'>('PENGELASAN');
   const [codes, setCodes] = useState<AllocationCode[]>([]);
@@ -1002,8 +1009,8 @@ export default function AllocationCodeManagement() {
 
           {/* Main Table: Matches User Uploaded Image Layout Exactly */}
           <div className="bg-risda-card/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[1000px]">
+            <div className="overflow-x-auto allocation-code-table-container rounded-2xl border border-white/20">
+              <table className="w-full text-left border-collapse min-w-[1000px] allocation-code-table border border-white/20">
                 <thead>
                   <tr className="border-b border-white/20 text-white font-black text-[11px] uppercase tracking-wider bg-black/50">
                     <th colSpan={3} className="py-3 px-4 text-center border-r border-white/10 bg-white/5">
@@ -1027,7 +1034,7 @@ export default function AllocationCodeManagement() {
                     <th rowSpan={2} className="py-3 px-3 text-right border-r border-white/10 align-middle text-emerald-400 bg-emerald-500/5">
                       BAKI<br />PERUNTUKAN (RM)
                     </th>
-                    <th rowSpan={2} className="py-3 px-3 text-center align-middle">
+                    <th rowSpan={2} className="py-3 px-3 text-center align-middle border-r border-white/10">
                       TINDAKAN
                     </th>
                   </tr>
@@ -1111,7 +1118,7 @@ export default function AllocationCodeManagement() {
                         <td className="py-3.5 px-3 border-r border-white/10 text-right font-mono font-black text-emerald-400 bg-emerald-500/5">
                           {formatRM(item.bakiPeruntukan)}
                         </td>
-                        <td className="py-3.5 px-3 text-center">
+                        <td className="py-3.5 px-3 text-center border-r border-white/10">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleEdit(item)}
@@ -1134,29 +1141,31 @@ export default function AllocationCodeManagement() {
                   )}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-white/30 bg-black/70 text-white font-black text-xs uppercase">
-                    <td colSpan={3} className="py-4 px-4 text-right border-r border-white/10">
-                      JUMLAH KESELURAHAN (RM):
+                  <tr className="border-t-2 border-b-2 border-white/30 bg-black/70 text-white font-black text-xs uppercase">
+                    <td colSpan={3} className="py-4 px-4 text-right border-r border-b-2 border-white/20">
+                      JUMLAH KESELURUHAN (RM):
                     </td>
-                    <td className="py-4 px-3 text-right border-r border-white/10 font-mono">
+                    <td className="py-4 px-3 text-right border-r border-b-2 border-white/20 font-mono">
                       {formatRM(filteredCodes.reduce((sum, c) => sum + c.nkeaKwr, 0))}
                     </td>
-                    <td className="py-4 px-3 text-right border-r border-white/10 font-mono">
+                    <td className="py-4 px-3 text-right border-r border-b-2 border-white/20 font-mono">
                       {formatRM(filteredCodes.reduce((sum, c) => sum + c.peruntukanBlk, 0))}
                     </td>
-                    <td className="py-4 px-3 text-right border-r border-white/10 font-mono text-risda-gold">
+                    <td className="py-4 px-3 text-right border-r border-b-2 border-white/20 font-mono text-risda-gold">
                       {formatRM(totalDiterima)}
                     </td>
-                    <td className="py-4 px-3 text-right border-r border-white/10 font-mono text-amber-300">
+                    <td className="py-4 px-3 text-right border-r border-b-2 border-white/20 font-mono text-amber-300">
                       {formatRM(filteredCodes.reduce((sum, c) => sum + c.pertanggunganBelumDijelaskan, 0))}
                     </td>
-                    <td className="py-4 px-3 text-right border-r border-white/10 font-mono text-sky-300">
+                    <td className="py-4 px-3 text-right border-r border-b-2 border-white/20 font-mono text-sky-300">
                       {formatRM(totalBelanja)}
                     </td>
-                    <td className="py-4 px-3 text-right border-r border-white/10 font-mono text-emerald-400">
+                    <td className="py-4 px-3 text-right border-r border-b-2 border-white/20 font-mono text-emerald-400">
                       {formatRM(totalBaki)}
                     </td>
-                    <td></td>
+                    <td className="py-4 px-3 text-center border-r border-b-2 border-white/20 font-mono text-risda-muted text-xs">
+                      -
+                    </td>
                   </tr>
                 </tfoot>
               </table>
@@ -1394,8 +1403,8 @@ export default function AllocationCodeManagement() {
                       </div>
 
                       {/* Detailed Accounting Table */}
-                      <div className="overflow-x-auto bg-black/40 rounded-2xl border border-white/10 print:bg-white print:border-black">
-                        <table className="w-full text-left text-xs border-collapse min-w-[950px] print:text-black">
+                      <div className="overflow-x-auto bg-black/40 rounded-2xl border border-white/10 allocation-code-table-container print:bg-white print:border-black">
+                        <table className="w-full text-left text-xs border-collapse min-w-[950px] allocation-code-table print:text-black">
                           <thead>
                             {/* Header Row 1 */}
                             <tr className="border-b border-white/20 text-white font-black text-[10px] uppercase bg-black/70 print:bg-gray-200 print:text-black print:border-gray-400">
@@ -1405,7 +1414,7 @@ export default function AllocationCodeManagement() {
                               <th rowSpan={2} className="py-3 px-3 border-r border-white/10 align-middle print:border-gray-300">PERIHAL ITEM / PESANAN</th>
                               <th colSpan={2} className="py-2 px-3 text-center border-r border-white/10 bg-amber-500/10 text-amber-300 print:bg-gray-100 print:text-black print:border-gray-300">MAKLUMAT PERTANGGUNGAN</th>
                               <th colSpan={2} className="py-2 px-3 text-center border-r border-white/10 bg-sky-500/10 text-sky-300 print:bg-gray-100 print:text-black print:border-gray-300">MAKLUMAT PERBELANJAAN</th>
-                              <th colSpan={2} className="py-2 px-3 text-center bg-emerald-500/10 text-emerald-300 print:bg-gray-100 print:text-black">MAKLUMAT PERUNTUKAN</th>
+                              <th colSpan={2} className="py-2 px-3 text-center border-r border-white/10 bg-emerald-500/10 text-emerald-300 print:bg-gray-100 print:text-black">MAKLUMAT PERUNTUKAN</th>
                             </tr>
                             {/* Header Row 2 */}
                             <tr className="border-b border-white/20 text-white/80 font-black text-[9px] uppercase bg-black/50 print:bg-gray-50 print:text-black print:border-gray-400">
@@ -1414,7 +1423,7 @@ export default function AllocationCodeManagement() {
                               <th className="py-2 px-3 text-right border-r border-white/10 w-28 print:border-gray-300">NILAI</th>
                               <th className="py-2 px-3 text-right border-r border-white/10 w-28 print:border-gray-300">TERKUMPUL</th>
                               <th className="py-2 px-3 text-right border-r border-white/10 w-28 print:border-gray-300">NILAI</th>
-                              <th className="py-2 px-3 text-right w-28">BAKI</th>
+                              <th className="py-2 px-3 text-right border-r border-white/10 w-28">BAKI</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/10 font-mono text-xs text-white/90 print:text-black print:divide-gray-300">
@@ -1435,7 +1444,7 @@ export default function AllocationCodeManagement() {
                                 <td className={`py-2.5 px-3 border-r border-white/10 text-right print:border-gray-300 ${r.peruntukanNilai !== 0 ? 'text-risda-gold font-bold' : 'text-white/40'}`}>
                                   {r.peruntukanNilai !== 0 ? formatRM(r.peruntukanNilai) : '0.00'}
                                 </td>
-                                <td className="py-2.5 px-3 text-right font-black text-emerald-400 print:text-black">{formatRM(r.peruntukanBaki)}</td>
+                                <td className="py-2.5 px-3 border-r border-white/10 text-right font-black text-emerald-400 print:text-black">{formatRM(r.peruntukanBaki)}</td>
                               </tr>
                             ))}
                           </tbody>

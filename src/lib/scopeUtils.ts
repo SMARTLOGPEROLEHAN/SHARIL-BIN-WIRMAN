@@ -36,8 +36,8 @@ export function isWithinUserScope(
   const iDistrict = (item.district || '').trim().toUpperCase();
   const iOffice = (item.office || '').trim().toUpperCase();
 
-  // PENGINPUT / PELULUS (Kakitangan di setiap pejabat) -> District / Office level scope (Hanya nampak rekod pejabat/daerah sendiri)
-  if (role === 'penginput' || role === 'pelulus') {
+  // PENGINPUT / PENYEMAK / PELULUS (Kakitangan di setiap pejabat) -> District / Office level scope (Hanya nampak rekod pejabat/daerah sendiri)
+  if (role === 'penginput' || role === 'penyemak' || role === 'pelulus') {
     // If staff has no district or office assigned yet, permit all as fallback or until assigned
     if (!uDistrict && !uOffice) return true;
 

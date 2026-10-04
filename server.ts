@@ -339,6 +339,155 @@ Answer in Bahasa Melayu properly. Be professional, humble, helpful, and concise.
     }
   });
 
+  // API Route for Gemini AI Direct Award Specification & BQ Generator
+  app.post("/api/generate-direct-award-spec", async (req, res) => {
+    try {
+      const { prompt, category = 'BEKALAN', budget = 15000 } = req.body;
+      const budgetNum = Number(budget) || 15000;
+
+      // Smart fallback generator if Gemini is not reachable or quota limited
+      const generateSmartFallback = () => {
+        const text = (prompt || '').toLowerCase();
+        let cat = category;
+        let title = '';
+        let kodBidang = '';
+        let tempohHari = 14;
+        let items: any[] = [];
+
+        if (text.includes('hawa dingin') || text.includes('aircond') || text.includes('pendingin')) {
+          cat = 'PERKHIDMATAN';
+          title = 'Perkhidmatan Penyelenggaraan Dan Servis Pencegahan 12 Unit Pendingin Hawa Serta Pengisian Gas R410A Di Pejabat RISDA';
+          kodBidang = '220501 - Penyelenggaraan / Pembaikan Alat Hawa Dingin';
+          tempohHari = 14;
+          items = [
+            {
+              description: 'Servis Kimia dan Servis Menyeluruh (Major Overhaul) Unit Pendingin Hawa',
+              quantity: 12,
+              unit: 'Unit',
+              rate: Math.round((budgetNum * 0.7) / 12),
+              specs: 'Mencuci gegelung penyejuk, blower, dulang air dan pembersihan saluran paip pemeluwap.'
+            },
+            {
+              description: 'Ujian Tekanan, Pemeriksaan Kebocoran & Pengisian Semula Gas R410A / R32',
+              quantity: 12,
+              unit: 'Unit',
+              rate: Math.round((budgetNum * 0.3) / 12),
+              specs: 'Memastikan bacaan gas mematuhi standard pengeluar dan bilik server mencapai suhu optimum.'
+            }
+          ];
+        } else if (text.includes('bumbung') || text.includes('cerun') || text.includes('longkang') || text.includes('kerja') || cat === 'KERJA') {
+          cat = 'KERJA';
+          title = prompt ? `Kerja-Kerja Pembaikan Dan Penyelenggaraan Kecil: ${prompt}` : 'Kerja-Kerja Pembaikan Bumbung Bocor Dan Longkang Kuarters Blok C';
+          kodBidang = 'CIDB G1 (CE21, B04)';
+          tempohHari = 21;
+          items = [
+            {
+              description: 'Kerja-Kerja Merombak, Mengganti Kepingan Bumbung Rosak dan Memasang Waterproofing',
+              quantity: 1,
+              unit: 'Lot',
+              rate: Math.round(budgetNum * 0.65),
+              specs: 'Menggunakan kepingan bumbung berkualiti tinggi dan sapuan lapisan kalis air elastomeric.'
+            },
+            {
+              description: 'Pembaikan Struktur Kekuda, Pembersihan Salur Air Hujan & Kemasan Akhir',
+              quantity: 1,
+              unit: 'Lot',
+              rate: Math.round(budgetNum * 0.35),
+              specs: 'Memastikan tiada kebocoran berulang dan tapak dibersihkan sepenuhnya mengikut piawaian JKR.'
+            }
+          ];
+        } else {
+          // Default Bekalan / Supplies
+          cat = cat || 'BEKALAN';
+          title = prompt ? `Perolehan Dan Pembekalan Bagi: ${prompt}` : 'Perolehan Bekalan Alat Tulis, Kertas Percetakan Dan Peralatan Pejabat';
+          kodBidang = '020101 - Alat Tulis & Percetakan';
+          tempohHari = 10;
+          items = [
+            {
+              description: prompt ? `${prompt} - Pakej Utama Mematuhi Spesifikasi Jabatan` : 'Bekalan / Skop Kerja Utama',
+              quantity: 1,
+              unit: 'Lot',
+              rate: budgetNum,
+              specs: 'Mematuhi spesifikasi teknikal jabatan dan kualiti terjamin.'
+            }
+          ];
+        }
+
+        return {
+          title,
+          category: cat,
+          kodBidang,
+          tempohHari,
+          justifikasi: `Nilai perolehan di bawah had siling Tawaran Terus (1PP PK 2) dan memerlukan penyelesaian segera bagi kelancaran operasi jabatan.`,
+          items
+        };
+      };
+
+      const key = process.env.GEMINI_API_KEY;
+      if (!key || key === "MY_GEMINI_API_KEY" || key.trim() === "") {
+        return res.json(generateSmartFallback());
+      }
+
+      try {
+        const ai = new GoogleGenAI({
+          apiKey: key,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            }
+          }
+        });
+
+        const promptInstruction = `Anda adalah pakar perolehan kerajaan Malaysia mengikut tatacara Pekeliling Perbendaharaan 1PP PK 2 (Kaedah Tawaran Terus) untuk agensi RISDA.
+Berdasarkan keperluan pengguna berikut:
+Keperluan: "${prompt || 'Keperluan am pejabat'}"
+Kategori Dicadangkan: ${category}
+Anggaran Bajet: RM ${budgetNum}
+
+Sila jana spesifikasi lengkap dan Bill of Quantities (BQ) dalam format JSON sah dengan skema berikut:
+{
+  "title": "Tajuk rasmi perolehan yang tepat dan formal (Cth: Perkhidmatan Penyelenggaraan... / Cadangan Kerja-Kerja...)",
+  "category": "BEKALAN" atau "PERKHIDMATAN" atau "KERJA",
+  "kodBidang": "Kod bidang MOF yang sah (cth: 020101 / 220501) atau pengkhususan CIDB G1 (cth: CIDB G1 (CE21, B04))",
+  "tempohHari": tempoh hari pembekalan atau siap (integer cth 14),
+  "justifikasi": "Justifikasi formal 1PP PK 2 mengapa kaedah tawaran terus digunakan",
+  "items": [
+    {
+      "description": "Perihalan item / skop kerja",
+      "quantity": 1,
+      "unit": "Unit" atau "Lot" atau "Pakej",
+      "rate": jumlah harga seunit (nombor, jumlah semua item mestilah anggaran RM ${budgetNum}),
+      "specs": "Spesifikasi teknikal terperinci dan jaminan kualiti"
+    }
+  ]
+}
+HANYA pulangkan JSON sah tanpa sebarang markdown atau penerangan tambahan.`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+          contents: promptInstruction,
+          config: {
+            responseMimeType: "application/json",
+          }
+        });
+
+        const rawText = (response.text || "").trim();
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return res.json(parsed);
+        }
+        return res.json(generateSmartFallback());
+      } catch (geminiError: any) {
+        console.warn("Gemini spec generator fallback triggered:", geminiError?.message);
+        return res.json(generateSmartFallback());
+      }
+    } catch (error: any) {
+      console.error("Error generating direct award spec:", error);
+      res.status(500).json({ error: error.message || "Failed to generate spec" });
+    }
+  });
+
   // Expose the PUBLIC directory as static files for both uppercase and lowercase paths
   app.use("/PUBLIC", express.static(path.join(process.cwd(), "PUBLIC")));
   app.use("/public", express.static(path.join(process.cwd(), "PUBLIC")));
@@ -460,15 +609,27 @@ Answer in Bahasa Melayu properly. Be professional, humble, helpful, and concise.
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    process.env.DISABLE_HMR = "true";
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: false },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
+        }
+      }
+    }));
     app.get("*", (req, res) => {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
