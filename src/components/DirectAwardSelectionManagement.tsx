@@ -283,7 +283,7 @@ export default function DirectAwardSelectionManagement({
               className="px-5 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-amber-500/25 transition-all cursor-pointer flex items-center gap-2 hover:scale-105 active:scale-95 shrink-0"
             >
               <Plus size={16} className="stroke-[3]" />
-              <span>+ PEMILIHAN BAHARU</span>
+              <span>PEMILIHAN BAHARU</span>
             </button>
           </div>
 

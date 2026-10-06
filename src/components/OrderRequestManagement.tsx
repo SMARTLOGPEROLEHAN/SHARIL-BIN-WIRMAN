@@ -2124,7 +2124,7 @@ export default function OrderRequestManagement() {
             <p className="text-xs sm:text-sm font-semibold mt-1 max-w-2xl opacity-90 leading-relaxed">
               {isSebuthargaModule 
                 ? 'Pusat pengurusan pesanan tempatan (LO), penyelarasan sebutharga dan borang perolehan rasmi bagi pembekal pemenang sebutharga.'
-                : 'Pengurusan dan pemantauan perolehan terus di bawah had nilai RM100,000 (Kerja G2) / RM50,000 (Bekalan & Perkhidmatan) mengikut 1PP PK 2.'
+                : 'Pengurusan dan pemantauan perolehan terus di bawah had nilai RM50,000 (Kerja G1 / Bekalan & Perkhidmatan) mengikut 1PP PK 2.'
               }
             </p>
           </div>
@@ -4343,7 +4343,7 @@ export default function OrderRequestManagement() {
                         <p className="text-xs text-slate-200 leading-relaxed font-semibold">
                           {isDetailSebutharga
                             ? 'Sistem mengesahkan lantikan mematuhi keputusan rasmi Mesyuarat Jawatankuasa / Lembaga Sebutharga RISDA, melepasi penilaian teknikal & harga, dan kontraktor mempunyai lesen CIDB/MOF aktif.'
-                            : `Sistem mengesahkan tiada unsur pecah kecil perolehan, had perolehan mematuhi siling rasmi (RM ${selectedRequestForDetail.category === 'KERJA' ? '100,000' : '50,000'}), dan kod bidang pembekal aktif dan sah.`
+                            : `Sistem mengesahkan tiada unsur pecah kecil perolehan, had perolehan mematuhi siling rasmi (RM 50,000), dan kod bidang pembekal aktif dan sah.`
                           }
                         </p>
                       </div>

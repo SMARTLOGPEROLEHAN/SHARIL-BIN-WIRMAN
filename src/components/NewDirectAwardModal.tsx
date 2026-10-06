@@ -197,8 +197,8 @@ export default function NewDirectAwardModal({
     return items.reduce((acc, curr) => acc + (curr.total || 0), 0);
   }, [items]);
 
-  // Ceiling check (AP 173 / 1PP PK 2)
-  const ceilingLimit = category === 'KERJA' ? 100000 : 50000;
+  // Ceiling check (AP 173 / 1PP PK 2) - Had siling Tawaran Terus RM50,000
+  const ceilingLimit = 50000;
   const isWithinCeiling = totalAmount <= ceilingLimit && totalAmount > 0;
 
   // Item Handlers
@@ -520,7 +520,7 @@ export default function NewDirectAwardModal({
                   >
                     <option value="BEKALAN">Bekalan (Had Siling: RM 50,000)</option>
                     <option value="PERKHIDMATAN">Perkhidmatan (Had Siling: RM 50,000)</option>
-                    <option value="KERJA">Kerja (Had Siling: RM 100,000)</option>
+                    <option value="KERJA">Kerja (Had Siling: RM 50,000)</option>
                   </select>
                 </div>
 

@@ -136,41 +136,42 @@ export default function DirectAwardEvaluationView({
     <div className="space-y-6 text-slate-800 dark:text-slate-100 animate-in fade-in duration-200">
       
       {/* 1. KAD UTAMA: PERBANDINGAN TAWARAN */}
-      <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-white/10 rounded-3xl shadow-md overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden">
         
-        {/* Banner Tajuk */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 p-6 text-white border-b border-amber-500/30">
+        {/* Banner Tajuk - Adaptif mengikut tema (terang dalam mod cerah, kemas dalam mod gelap) */}
+        <div className="bg-slate-100 dark:bg-slate-950 border-b border-slate-200 dark:border-white/10 p-5 sm:p-6 transition-colors">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider">
+              <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-500/40 text-[10px] sm:text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5 shadow-xs">
                 1PP PK 2 • MODUL TAWARAN TERUS
               </span>
-              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight font-poppins mt-1 text-white">
-                ⚖️ PERBANDINGAN TAWARAN
+              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight font-poppins mt-2 text-slate-950 dark:text-white flex items-center gap-2">
+                <span>⚖️</span>
+                <span>PERBANDINGAN TAWARAN</span>
               </h2>
             </div>
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-xl bg-white/10 text-xs font-mono text-amber-300 font-bold border border-amber-500/30">
+              <span className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 text-xs font-mono text-amber-700 dark:text-amber-400 font-black border border-amber-500/30 shadow-xs">
                 Format AP 173
               </span>
             </div>
           </div>
 
-          <div className="h-[1px] bg-white/15 my-4" />
+          <div className="h-[1px] bg-slate-200 dark:bg-white/10 my-4" />
 
           {/* Maklumat Permohonan */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-sans font-bold">No. Permohonan :</span>
-              <span className="font-black text-amber-400 text-sm">{orderNo}</span>
+              <span className="text-slate-600 dark:text-slate-400 font-bold font-sans">No. Permohonan :</span>
+              <span className="font-mono font-black text-amber-700 dark:text-amber-400 text-sm tracking-wide">{orderNo}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-sans font-bold">Perkara :</span>
-              <span className="font-bold text-white font-sans truncate">{orderTitle}</span>
+              <span className="text-slate-600 dark:text-slate-400 font-bold font-sans">Perkara :</span>
+              <span className="font-bold text-slate-950 dark:text-white font-sans truncate">{orderTitle}</span>
             </div>
             <div className="flex items-center gap-2 sm:justify-end">
-              <span className="text-slate-400 font-sans font-bold">Tarikh Tutup :</span>
-              <span className="font-bold text-slate-200">{closingDate}</span>
+              <span className="text-slate-600 dark:text-slate-400 font-bold font-sans">Tarikh Tutup :</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-slate-200">{closingDate}</span>
             </div>
           </div>
         </div>
@@ -611,18 +612,18 @@ export default function DirectAwardEvaluationView({
           <div className="relative bg-white dark:bg-[#0c1322] border-2 border-amber-500/40 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[94vh] animate-in fade-in zoom-in-95 duration-200 text-slate-800 dark:text-slate-100">
             
             {/* Header */}
-            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 p-5 sm:p-6 text-white border-b border-amber-500/30 flex items-center justify-between">
+            <div className="bg-slate-100 dark:bg-slate-950 p-5 sm:p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-500/40 text-[10px] font-black uppercase">
                     PAPARAN DOKUMEN SAH
                   </span>
-                  <span className="text-[11px] font-mono text-amber-300">
+                  <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-amber-300">
                     {orderNo}
                   </span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-black uppercase text-white tracking-tight flex items-center gap-2">
-                  <FileCheck size={20} className="text-amber-500" />
+                <h3 className="text-lg sm:text-xl font-black uppercase text-slate-950 dark:text-white tracking-tight flex items-center gap-2">
+                  <FileCheck size={20} className="text-amber-600 dark:text-amber-500" />
                   PAPARAN DOKUMEN TAWARAN PEMBEKAL
                 </h3>
               </div>
@@ -630,7 +631,7 @@ export default function DirectAwardEvaluationView({
               <button
                 type="button"
                 onClick={() => setViewerOpen(false)}
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all cursor-pointer"
+                className="p-2 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white transition-all cursor-pointer"
               >
                 <X size={18} />
               </button>

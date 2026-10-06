@@ -484,15 +484,13 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
                       collapsed={collapsed} 
                       onClick={() => navigateTo('/tt-laporan')}
                     />
+                  </div>
 
-                    {/* BUKU VOT & PERUNTUKAN */}
-                    <SidebarItem 
-                      icon={Coins} 
-                      label="BUKU VOT & PERUNTUKAN" 
-                      active={currentPath === '/kod-peruntukan'} 
-                      collapsed={collapsed} 
-                      onClick={() => navigateTo('/kod-peruntukan')} 
-                    />
+                  {/* KAWALAN OPERASI */}
+                  <div className="space-y-0.5 pt-2">
+                    {!collapsed && (
+                      <div className="text-xs text-slate-700 dark:text-slate-300 font-black uppercase tracking-wider mb-1.5 px-2.5">Kawalan Operasi</div>
+                    )}
 
                     {/* DATA PEMBEKAL */}
                     <SidebarItem 
@@ -503,12 +501,22 @@ export default function Sidebar({ isOpen, onClose, collapsed: propCollapsed, set
                       onClick={() => navigateTo('/pelawaan-sebutharga', 'pembekal')} 
                     />
 
+                    {/* PANDUAN TAWARAN TERUS */}
                     <SidebarItem 
                       icon={BookOpenCheck} 
-                      label="PANDUAN PEROLEHAN TAWARAN TERUS" 
+                      label="PANDUAN TAWARAN TERUS" 
                       active={currentPath === '/panduan-tawaran-terus'} 
                       collapsed={collapsed} 
                       onClick={() => navigateTo('/panduan-tawaran-terus')} 
+                    />
+
+                    {/* BUKU VOT & PERUNTUKAN */}
+                    <SidebarItem 
+                      icon={Coins} 
+                      label="BUKU VOT & PERUNTUKAN" 
+                      active={currentPath === '/kod-peruntukan'} 
+                      collapsed={collapsed} 
+                      onClick={() => navigateTo('/kod-peruntukan')} 
                     />
                   </div>
                 </>

@@ -148,9 +148,9 @@ export default function DirectAwardDashboard() {
     }
 
     const amt = parseFloat(newAmount) || 0;
-    const maxLimit = newCategory === 'KERJA' ? 100000 : 50000;
+    const maxLimit = 50000;
     if (amt > maxLimit) {
-      toast.error(`Had ambang tawaran terus untuk ${newCategory} ialah maksimum RM ${maxLimit.toLocaleString()}. Sila gunakan kaedah Sebutharga.`);
+      toast.error(`Had ambang tawaran terus ialah maksimum RM 50,000. Sila gunakan kaedah Sebutharga.`);
       return;
     }
 
@@ -161,7 +161,7 @@ export default function DirectAwardDashboard() {
         title: newTitle,
         category: newCategory,
         supplierName: newSupplier || 'Pembekal Berdaftar RISDA',
-        supplierCode: newSupplierCode || (newCategory === 'KERJA' ? 'CIDB G2' : 'MOF'),
+        supplierCode: newSupplierCode || (newCategory === 'KERJA' ? 'CIDB G1' : 'MOF'),
         allocationCode: newBudgetVote,
         estimatedAmount: amt,
         perihalPerolehan: newJustification || 'Permohonan tawaran terus rasmi',
@@ -220,7 +220,7 @@ export default function DirectAwardDashboard() {
               className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider rounded-2xl shadow-[0_10px_25px_rgba(245,158,11,0.25)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
               <Plus size={18} className="stroke-[3]" />
-              <span>📝 + PERMOHONAN BAHARU</span>
+              <span>PERMOHONAN BAHARU</span>
             </button>
           </div>
         </div>
@@ -231,13 +231,8 @@ export default function DirectAwardDashboard() {
         {/* Kategori 1: Bekalan */}
         <div className="bg-risda-card border border-risda-border hover:border-blue-500/50 rounded-2xl p-5 shadow-sm transition-all flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 dark:text-blue-400 flex items-center justify-center">
-                <Package size={20} />
-              </div>
-              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-blue-100 text-blue-900 border border-blue-300 dark:bg-blue-950/70 dark:text-blue-200 dark:border-blue-700 shadow-xs">
-                MOF KOD BIDANG
-              </span>
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 dark:text-blue-400 flex items-center justify-center">
+              <Package size={20} />
             </div>
 
             <div className="text-xs text-slate-700 dark:text-slate-300 font-black uppercase tracking-wider mt-4">
@@ -262,13 +257,8 @@ export default function DirectAwardDashboard() {
         {/* Kategori 2: Perkhidmatan */}
         <div className="bg-risda-card border border-risda-border hover:border-emerald-500/50 rounded-2xl p-5 shadow-sm transition-all flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 flex items-center justify-center">
-                <Briefcase size={20} />
-              </div>
-              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700 shadow-xs">
-                BUKAN PERUNDING
-              </span>
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 flex items-center justify-center">
+              <Briefcase size={20} />
             </div>
 
             <div className="text-xs text-slate-700 dark:text-slate-300 font-black uppercase tracking-wider mt-4">
@@ -293,13 +283,8 @@ export default function DirectAwardDashboard() {
         {/* Kategori 3: Kerja */}
         <div className="bg-risda-card border border-risda-border hover:border-amber-500/50 rounded-2xl p-5 shadow-sm transition-all flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 flex items-center justify-center">
-                <Hammer size={20} />
-              </div>
-              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-700 shadow-xs">
-                CIDB G2 / REQUISITION
-              </span>
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 flex items-center justify-center">
+              <Hammer size={20} />
             </div>
 
             <div className="text-xs text-slate-700 dark:text-slate-300 font-black uppercase tracking-wider mt-4">
@@ -316,7 +301,7 @@ export default function DirectAwardDashboard() {
               {kerjaAwards.length} Permohonan Tawaran
             </span>
             <span className="text-amber-700 dark:text-amber-400 font-black">
-              Had: RM 100,000 (G1)
+              Had: RM 50,000 (G1)
             </span>
           </div>
         </div>
@@ -644,7 +629,7 @@ export default function DirectAwardDashboard() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-200 leading-relaxed font-semibold">
-                      Sistem mengesahkan tiada unsur pecah kecil perolehan, had perolehan tidak melebihi siling rasmi (RM {selectedAward.category === 'KERJA' ? '100,000' : '50,000'}), dan kod bidang pembekal sah aktif.
+                      Sistem mengesahkan tiada unsur pecah kecil perolehan, had perolehan tidak melebihi siling rasmi (RM 50,000), dan kod bidang pembekal sah aktif.
                     </p>
                   </div>
                 </div>

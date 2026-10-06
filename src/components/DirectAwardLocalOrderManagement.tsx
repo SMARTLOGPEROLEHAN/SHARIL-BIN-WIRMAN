@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   FileCheck, 
   Plus, 
@@ -319,24 +319,35 @@ export default function DirectAwardLocalOrderManagement({
     }));
   };
 
-  // Quick Selection Handler: load from Permohonan
+  // Quick Selection Handler: load all details from Permohonan automatically
   const handleSelectPermohonan = (permId: string) => {
     setSelectedPermohonanId(permId);
-    if (!permId) return;
+    if (!permId) {
+      setFormData(prev => ({
+        ...prev,
+        referenceOrderNo: '',
+        title: '',
+        supplierName: '',
+        supplierCode: '',
+        amount: 0,
+        items: [{ id: 'item-1', description: '', quantity: 1, unit: 'Unit', unitPrice: 0, totalPrice: 0 }]
+      }));
+      return;
+    }
 
     const perm = records.find(r => r.id === permId || r.orderNo === permId);
     if (!perm) return;
 
     // Generate random 10-digit PO if none exists
-    const generatedPo = perm.poNo || `264507${Math.floor(1000 + Math.random() * 9000)}`;
+    const generatedPo = perm.poNo || formData.poNo || `264507${Math.floor(1000 + Math.random() * 9000)}`;
 
     const permItems: LocalOrderItem[] = (perm.items && perm.items.length > 0)
       ? perm.items.map((it: any, idx: number) => ({
           id: `item-${idx + 1}`,
-          description: it.name || it.description || perm.title,
-          quantity: it.qty || it.quantity || 1,
+          description: it.item || it.name || it.description || perm.title,
+          quantity: Number(it.qty || it.quantity) || 1,
           unit: it.unit || 'Unit',
-          unitPrice: Number(it.unitPrice) || (Number(perm.estimatedAmount) / (it.qty || 1)),
+          unitPrice: Number(it.price || it.unitPrice) || (Number(perm.estimatedAmount) / (Number(it.qty || it.quantity) || 1)),
           totalPrice: Number(it.total) || (Number(perm.estimatedAmount))
         }))
       : [
@@ -350,37 +361,45 @@ export default function DirectAwardLocalOrderManagement({
           }
         ];
 
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       referenceOrderNo: perm.orderNo,
       poNo: generatedPo,
       title: perm.title,
-      category: perm.category || 'BEKALAN',
-      supplierName: perm.supplierName || 'ABC ENTERPRISE',
+      category: (perm.category as any) || 'BEKALAN',
+      supplierName: perm.supplierName || 'Pembekal Berdaftar RISDA',
       supplierCode: perm.supplierCode || (perm.category === 'KERJA' ? 'CIDB G1' : 'MOF 010101'),
       supplierAddress: perm.supplierAddress || 'No. 28, Kawasan Perindustrian Beaufort, 89808 Beaufort, Sabah',
       supplierPhone: perm.supplierPhone || '087-211456 / 019-8233441',
-      supplierEmail: perm.supplierEmail || 'abcenterprise@gmail.com',
+      supplierEmail: perm.supplierEmail || 'pembekal.risda@gmail.com',
       allocationCode: perm.allocationCode || 'B62-020101-1002',
       amount: Number(perm.estimatedAmount) || 0,
       requestDate: perm.requestDate || new Date().toISOString().split('T')[0],
       unitOffice: perm.unitOffice || `Pejabat RISDA Daerah ${district || 'Beaufort'}`,
       perihalPerolehan: perm.perihalPerolehan || perm.title,
       items: permItems,
-      disediakanNama: user?.name || 'Ahmad Faizal bin Sulaiman',
-      disediakanJawatan: 'Penolong Pegawai Ehwal Ekonomi',
-      disediakanTarikh: new Date().toISOString().split('T')[0],
-      disemakNama: 'Siti Rohani binti Mat Said',
-      disemakJawatan: 'Pegawai Penyemak Perolehan',
-      disemakTarikh: new Date().toISOString().split('T')[0],
-      diluluskanNama: 'Hj. Ismail bin Baharom',
-      diluluskanJawatan: 'Pegawai Daerah RISDA (Ketua PTJ)',
-      diluluskanTarikh: new Date().toISOString().split('T')[0]
-    });
+      disediakanNama: user?.name || prev.disediakanNama || 'Ahmad Faizal bin Sulaiman',
+      disediakanJawatan: prev.disediakanJawatan || 'Penolong Pegawai Ehwal Ekonomi',
+      disediakanTarikh: prev.disediakanTarikh || new Date().toISOString().split('T')[0],
+      disemakNama: prev.disemakNama || 'Siti Rohani binti Mat Said',
+      disemakJawatan: prev.disemakJawatan || 'Pegawai Penyemak Perolehan',
+      disemakTarikh: prev.disemakTarikh || new Date().toISOString().split('T')[0],
+      diluluskanNama: prev.diluluskanNama || 'Hj. Ismail bin Baharom',
+      diluluskanJawatan: prev.diluluskanJawatan || 'Pegawai Daerah RISDA (Ketua PTJ)',
+      diluluskanTarikh: prev.diluluskanTarikh || new Date().toISOString().split('T')[0]
+    }));
 
-    toast.success(`Data permohonan ${perm.orderNo} berjaya dimuatkan ke dalam Pesanan Tempatan!`, {
-      icon: '🎯'
+    toast.success(`Data permohonan ${perm.orderNo} berjaya dimuatkan secara automatik!`, {
+      icon: '⚡'
     });
   };
+
+  // Auto-populate when modal opens if nothing has been selected yet
+  useEffect(() => {
+    if (showGenerateModal && availablePermohonan.length > 0 && !formData.referenceOrderNo) {
+      handleSelectPermohonan(availablePermohonan[0].id);
+    }
+  }, [showGenerateModal, availablePermohonan, formData.referenceOrderNo]);
 
   // Add Item to Form
   const handleAddItem = () => {
@@ -779,7 +798,7 @@ export default function DirectAwardLocalOrderManagement({
               }}
               className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer inline-flex items-center gap-2"
             >
-              <Plus size={15} /> + JANA PESANAN TEMPATAN (LO)
+              <Plus size={15} /> JANA PESANAN TEMPATAN (LO)
             </button>
           </div>
         ) : (
@@ -1004,9 +1023,6 @@ export default function DirectAwardLocalOrderManagement({
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-200 dark:border-white/10 pb-4">
               <div>
-                <span className="text-[11px] font-black uppercase text-amber-500 tracking-wider flex items-center gap-1.5">
-                  <FileCheck size={15} /> 1PP PK 2 • PESANAN KERAJAAN
-                </span>
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
                   Borang Jana Pesanan Tempatan (LO)
                 </h2>
@@ -1023,48 +1039,47 @@ export default function DirectAwardLocalOrderManagement({
               </button>
             </div>
 
-            {/* QUICK SELECTION: RUJUK MELALUI PERMOHONAN YANG DIBUAT (KEY USER REQUIREMENT) */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-2 border-amber-500/40 space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                  <Sparkles size={16} className="text-amber-500 animate-pulse" />
-                  <span>Pilihan Pantas: Muat Data Daripada Permohonan Tawaran Terus Yang Dibuat</span>
-                </div>
-                <span className="text-[11px] text-slate-500 font-semibold">
-                  *Pilih permohonan untuk mengisi tajuk, pembekal &amp; nilai secara automatik
-                </span>
-              </div>
-
-              <select
-                value={selectedPermohonanId}
-                onChange={(e) => handleSelectPermohonan(e.target.value)}
-                className="w-full px-4 py-3 bg-white dark:bg-slate-800 border-2 border-amber-500/60 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm font-bold focus:outline-none focus:border-amber-500 cursor-pointer shadow-sm"
-              >
-                <option value="">-- Sila Pilih Permohonan Tawaran Terus Yang Telah Dibuat --</option>
-                {availablePermohonan.map(perm => (
-                  <option key={perm.id} value={perm.id}>
-                    {perm.orderNo} • {perm.title} [Pembekal: {perm.supplierName || 'Belum Dipilih'}] [RM {Number(perm.estimatedAmount).toLocaleString('ms-MY')}]
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* FORM */}
             <form onSubmit={handleSaveLO} className="space-y-6">
               {/* SECTION 1: HEADER & PO INFO */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-white/5">
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-500 mb-1">
-                    No. Permohonan Rujukan
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.referenceOrderNo}
-                    onChange={(e) => setFormData({ ...formData, referenceOrderNo: e.target.value })}
-                    placeholder="TP-2026-00125"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:border-amber-500"
-                    required
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-black uppercase text-slate-500">
+                      No. Permohonan Rujukan
+                    </label>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-black flex items-center gap-1">
+                      <Sparkles size={11} className="text-amber-500" /> Auto-Isi
+                    </span>
+                  </div>
+                  {availablePermohonan.length > 0 ? (
+                    <select
+                      value={availablePermohonan.find(p => p.orderNo === formData.referenceOrderNo || p.id === selectedPermohonanId)?.id || selectedPermohonanId || ''}
+                      onChange={(e) => {
+                        handleSelectPermohonan(e.target.value);
+                      }}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border-2 border-amber-500/50 dark:border-amber-500/40 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:border-amber-500 cursor-pointer shadow-xs"
+                    >
+                      <option value="">-- Pilih Permohonan (Auto-Isi) --</option>
+                      {availablePermohonan.map(perm => (
+                        <option key={perm.id} value={perm.id}>
+                          {perm.orderNo} • {perm.title} [RM {Number(perm.estimatedAmount).toLocaleString('ms-MY')}]
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={formData.referenceOrderNo}
+                      onChange={(e) => setFormData({ ...formData, referenceOrderNo: e.target.value })}
+                      placeholder="TP-2026-00125"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:border-amber-500"
+                      required
+                    />
+                  )}
+                  <p className="text-[10px] text-slate-500 font-medium mt-1">
+                    Setiap maklumat akan terisi secara automatik mengikut permohonan yang dipilih.
+                  </p>
                 </div>
 
                 <div>
@@ -1125,7 +1140,7 @@ export default function DirectAwardLocalOrderManagement({
                   >
                     <option value="BEKALAN">BEKALAN (≤RM50,000)</option>
                     <option value="PERKHIDMATAN">PERKHIDMATAN (≤RM50,000)</option>
-                    <option value="KERJA">KERJA (≤RM100,000)</option>
+                    <option value="KERJA">KERJA (≤RM50,000)</option>
                   </select>
                 </div>
 
@@ -1186,7 +1201,7 @@ export default function DirectAwardLocalOrderManagement({
                     onClick={handleAddItem}
                     className="px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase rounded-lg transition-all cursor-pointer flex items-center gap-1"
                   >
-                    <Plus size={13} /> + Tambah Item
+                    <Plus size={13} /> Tambah Item
                   </button>
                 </div>
 

@@ -124,7 +124,7 @@ export default function DirectAwardGuide() {
             </div>
             <div className="pt-2 border-t border-risda-border/60 space-y-1">
               <div className="text-xs text-slate-800 dark:text-slate-200 uppercase font-black">Had Ambang Rasmi:</div>
-              <div className="text-xl font-black text-amber-700 dark:text-amber-400">Sehingga RM 100,000</div>
+              <div className="text-xl font-black text-amber-700 dark:text-amber-400">Sehingga RM 50,000</div>
               <div className="text-xs text-slate-600 dark:text-slate-400 font-bold">kontraktor Gred G1</div>
             </div>
           </div>

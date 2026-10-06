@@ -35,7 +35,7 @@ export const WORKFLOW_STAGES: WorkflowStageInfo[] = [
     name: '1. PERMOHONAN',
     shortName: 'PERMOHONAN',
     icon: FileText,
-    description: 'Pendaftaran & Draf Permohonan Tawaran Terus (≤RM50k bekalan/perkhidmatan, ≤RM100k kerja)',
+    description: 'Pendaftaran & Draf Permohonan Tawaran Terus (≤RM50k bekalan/perkhidmatan/kerja G1)',
     ruleRef: '1PP PK 2'
   },
   {

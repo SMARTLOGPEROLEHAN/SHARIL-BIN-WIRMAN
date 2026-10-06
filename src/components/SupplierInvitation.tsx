@@ -2056,8 +2056,15 @@ Pejabat RISDA Daerah Beaufort, Sabah.
           </p>
         </div>
 
-        {/* Action Buttons to Switch Tabs (Hanya untuk Modul Sebutharga) */}
-        {!isTawaranTerus && (
+        {/* Kanan Header: Butang Tab untuk Sebutharga, atau Lencana Bilangan Pembekal Sah untuk Tawaran Terus */}
+        {isTawaranTerus ? (
+          <div className="flex items-center gap-2.5 px-4 py-2.5 sm:px-5 sm:py-3 bg-emerald-50 dark:bg-emerald-950/80 border-2 border-emerald-500/50 dark:border-emerald-500/60 rounded-2xl shadow-sm shrink-0 z-10 transition-all">
+            <ShieldCheck size={20} className="text-emerald-700 dark:text-emerald-400 stroke-[2.5]" />
+            <span className="font-black text-emerald-950 dark:text-emerald-200 text-xs sm:text-sm uppercase tracking-wider">
+              PEMBEKAL SAH ({directorySuppliers.length})
+            </span>
+          </div>
+        ) : (
           <div className="supplier-tab-group flex items-center gap-2 shrink-0 z-10 bg-black/40 border border-white/10 p-1.5 rounded-2xl">
             <button 
               onClick={() => setActiveTab('list')}
@@ -3094,22 +3101,23 @@ Pejabat RISDA Daerah Beaufort, Sabah.
       {/* VIEW 3: SUPPLIER DIRECTORY */}
       {(isTawaranTerus || activeTab === 'directory') && (
         <div className="space-y-4">
-          <div className="bg-risda-card p-6 rounded-[35px] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h2 className="text-lg font-black text-white uppercase tracking-wider">
-                {isTawaranTerus ? 'SENARAI PEMBEKAL SAH' : 'DATA PEMBEKAL'}
-              </h2>
-              <p className="text-xs text-risda-muted font-bold">
-                {isTawaranTerus 
-                  ? 'Pangkalan data pembekal rasmi bagi perolehan tawaran terus RISDA.'
-                  : 'Pangkalan data pembekal rasmi RISDA dengan kelayakan lesen CIDB (G1/G2) atau MOF.'}
-              </p>
+          {/* Kotak sub-header hanya dipaparkan untuk Sebutharga kerana Tawaran Terus sudah mempunyai kotak data & senarai di atas */}
+          {!isTawaranTerus && (
+            <div className="bg-risda-card p-6 rounded-[35px] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-black text-white uppercase tracking-wider">
+                  DATA PEMBEKAL
+                </h2>
+                <p className="text-xs text-risda-muted font-bold">
+                  Pangkalan data pembekal rasmi RISDA dengan kelayakan lesen CIDB (G1/G2) atau MOF.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400 text-xs font-black uppercase tracking-wider shadow-sm">
+                <ShieldCheck size={16} className="text-emerald-400" />
+                <span>Pembekal Sah ({directorySuppliers.length})</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400 text-xs font-black uppercase tracking-wider shadow-sm">
-              <ShieldCheck size={16} className="text-emerald-400" />
-              <span>Pembekal Sah ({directorySuppliers.length})</span>
-            </div>
-          </div>
+          )}
 
           {/* Search bar for Directory */}
           <div className="bg-risda-card p-4 rounded-3xl border border-white/5 flex flex-col md:flex-row gap-3 items-center">

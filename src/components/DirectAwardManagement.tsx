@@ -397,9 +397,9 @@ export default function DirectAwardManagement({ activeSection = 'permohonan', in
     }
 
     const amt = parseFloat(formAmount) || 0;
-    const maxThreshold = formCategory === 'KERJA' ? 100000 : 50000;
+    const maxThreshold = 50000;
     if (amt > maxThreshold) {
-      toast.error(`Had siling Tawaran Terus untuk ${formCategory} ialah RM ${maxThreshold.toLocaleString()}. Nilai melebihi had perlu melalui kaedah Sebutharga!`);
+      toast.error(`Had siling Tawaran Terus ialah RM 50,000. Nilai melebihi had perlu melalui kaedah Sebutharga!`);
       return;
     }
 
@@ -787,7 +787,7 @@ export default function DirectAwardManagement({ activeSection = 'permohonan', in
                 className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-amber-500/25 hover:scale-105 active:scale-95 transition-all cursor-pointer"
               >
                 <Plus size={16} className="stroke-[3]" />
-                <span>📝 + PERMOHONAN BAHARU</span>
+                <span>PERMOHONAN BAHARU</span>
               </button>
             )}
 
@@ -806,7 +806,7 @@ export default function DirectAwardManagement({ activeSection = 'permohonan', in
                 className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-amber-500/25 hover:scale-105 active:scale-95 transition-all cursor-pointer"
               >
                 <Megaphone size={16} className="stroke-[2.5]" />
-                <span>+ PELAWA PEMBEKAL</span>
+                <span>PELAWA PEMBEKAL</span>
               </button>
             )}
 
@@ -817,7 +817,7 @@ export default function DirectAwardManagement({ activeSection = 'permohonan', in
                 className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-amber-500/25 hover:scale-105 active:scale-95 transition-all cursor-pointer"
               >
                 <Plus size={16} className="stroke-[3]" />
-                <span>+ JANA PESANAN TEMPATAN (LO)</span>
+                <span>JANA PESANAN TEMPATAN (LO)</span>
               </button>
             )}
 
@@ -1066,7 +1066,7 @@ export default function DirectAwardManagement({ activeSection = 'permohonan', in
                             className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5 hover:scale-102"
                           >
                             <Plus size={14} className="stroke-[3]" />
-                            <span>+ Permohonan Baharu</span>
+                            <span>Permohonan Baharu</span>
                           </button>
                         )}
                       </div>
@@ -1196,7 +1196,7 @@ export default function DirectAwardManagement({ activeSection = 'permohonan', in
                               title="Pelawa 3 Pembekal"
                             >
                               <Megaphone size={12} className="stroke-[2.5]" />
-                              <span>+ PELAWA PEMBEKAL</span>
+                              <span>PELAWA PEMBEKAL</span>
                             </button>
                           )}
 
@@ -1350,7 +1350,7 @@ export default function DirectAwardManagement({ activeSection = 'permohonan', in
                   }}
                   className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-102 active:scale-98"
                 >
-                  <Megaphone size={14} className="stroke-[2.5]" /> + PELAWA PEMBEKAL
+                  <Megaphone size={14} className="stroke-[2.5]" /> PELAWA PEMBEKAL
                 </button>
               )}
 

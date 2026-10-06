@@ -442,7 +442,7 @@ export default function DirectAwardBudgetBook() {
               className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
             >
               <Plus size={15} className="stroke-[3]" />
-              <span>+ Vot Baharu</span>
+              <span>Vot Baharu</span>
             </button>
           )}
         </div>
